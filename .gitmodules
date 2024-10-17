@@ -1,0 +1,6 @@
+[submodule "RHI"]
+	path = RHI
+	url = https://github.com/tanner00/RHI.git
+[submodule "Luft"]
+	path = Luft
+	url = https://github.com/tanner00/Luft
