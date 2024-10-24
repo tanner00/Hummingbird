@@ -1,3 +1,5 @@
+#include "DrawText.hpp"
+
 #include "RHI/GpuDevice.hpp"
 
 #include "Luft/Platform.hpp"
@@ -37,11 +39,13 @@ void Start()
 	Platform::Window* window = Platform::MakeWindow("Hummingbird", 1920, 1080);
 
 	GpuDevice device(window);
-	const GraphicsContext graphics = device.CreateGraphicsContext();
+	GraphicsContext graphics = device.CreateGraphicsContext();
 
 	TextureHandle swapChainTextures[FramesInFlight];
 	TextureHandle depthTexture;
 	CreateWindowTextures(device, swapChainTextures, depthTexture, window->DrawWidth, window->DrawHeight);
+
+	DrawText::Get().Init(&device);
 
 	Platform::ShowWindow(window);
 	Platform::InstallResizeHandler(ResizeHandler);
@@ -54,7 +58,6 @@ void Start()
 		{
 			break;
 		}
-
 		if (window->DrawWidth == 0 || window->DrawHeight == 0)
 		{
 			continue;
@@ -91,11 +94,14 @@ void Start()
 			frameTexture
 		);
 
-		static constexpr Float4 clearColor = { 0.13f, 0.30f, 0.85f, 1.0f };
-		graphics.ClearRenderTarget(frameTexture, clearColor);
+		graphics.ClearRenderTarget(frameTexture, { 0.0f, 0.0f, 0.0f, 1.0f });
 		graphics.ClearDepthStencil(depthTexture);
 
 		graphics.SetRenderTarget(frameTexture, depthTexture);
+
+		DrawText::Get().Draw("Hello, world!"_view, Float2 { 50.0f, 400.0f }, Float3 { 0.0f, 1.0f, 0.0f }, 256.0f);
+
+		DrawText::Get().Submit(graphics, frameTexture.GetWidth(), frameTexture.GetHeight());
 
 		graphics.TextureBarrier
 		(
@@ -110,6 +116,8 @@ void Start()
 		device.Submit(graphics);
 		device.Present();
 	}
+
+	DrawText::Get().Shutdown();
 
 	for (TextureHandle& texture : swapChainTextures)
 	{
