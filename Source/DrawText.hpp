@@ -1,0 +1,83 @@
+#pragma once
+
+#include "Luft/Math.hpp"
+#include "Luft/NoCopy.hpp"
+
+#include "RHI/Common.hpp"
+
+struct Glyph
+{
+	Float2 AtlasPosition;
+	Float2 AtlasSize;
+	Float2 PlanePosition;
+	Float2 PlaneSize;
+	float Advance;
+};
+
+namespace Hlsl
+{
+
+struct PerFrame
+{
+	Matrix ViewProjection;
+	Float2 UnitRange;
+
+	PAD(184);
+};
+
+struct Character
+{
+	Float4 Color;
+
+	Float2 ScreenPosition;
+
+	Float2 AtlasPosition;
+	Float2 AtlasSize;
+
+	Float2 PlanePosition;
+	Float2 PlaneSize;
+
+	float Scale;
+};
+
+}
+
+class DrawText : public NoCopy
+{
+public:
+	DrawText();
+
+	void Init(GpuDevice* device);
+	void Shutdown();
+
+	static DrawText& Get()
+	{
+		static DrawText instance;
+		return instance;
+	}
+
+	void Draw(StringView text, Float2 position, Float3 rgb, float scale);
+	void Draw(StringView text, Float2 position, Float4 rgba, float scale);
+
+	void Submit(GraphicsContext& graphics, uint32 width, uint32 height);
+
+private:
+	HashTable<uint8, Glyph> Glyphs;
+
+	usize CharacterIndex;
+
+	float Ascender;
+
+	Hlsl::PerFrame PerFrameData;
+	Array<Hlsl::Character> CharacterData;
+
+	GraphicsPipelineHandle Pipeline;
+
+	TextureHandle FontTexture;
+	SamplerHandle Sampler;
+
+	BufferHandle CharacterBuffer;
+	BufferHandle PerFrameBuffer;
+
+	GpuDevice* Device;
+};
