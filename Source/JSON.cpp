@@ -1,5 +1,7 @@
 ﻿#include "JSON.hpp"
 
+#include "Luft/Math.hpp"
+
 static JsonArray ParseJsonArray(StringView buffer, usize* index);
 static JsonObject ParseJsonObject(StringView buffer, usize* index);
 
@@ -259,7 +261,7 @@ static int64 ParseInt64(StringView buffer, usize* index)
 	return isNegative ? -value : value;
 }
 
-static double ParseDouble(StringView buffer, usize* index)
+static double ParseDoubleNoExponent(StringView buffer, usize* index)
 {
 	CHECK(index);
 	const bool isNegative = PeekCharacter(buffer, *index) == u8'-';
@@ -354,7 +356,17 @@ static String ParseString(StringView buffer, usize* index)
 
 static double ParseJsonNumber(StringView buffer, usize* index)
 {
-	return ParseDouble(buffer, index);
+	const double mantissa = ParseDoubleNoExponent(buffer, index);
+	int64 exponent = 0;
+	if (PeekCharacter(buffer, *index) == u8'e')
+	{
+		Advance(index, 1);
+		exponent = ParseInt64(buffer, index);
+	}
+
+	const double power = static_cast<double>(Power10(Absolute(exponent)));
+	const double multiplier = (exponent >= 0) ? power : (1.0 / power);
+	return mantissa * multiplier;
 }
 
 static JsonValue ParseJsonValue(StringView buffer, usize* index)
