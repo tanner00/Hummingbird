@@ -172,14 +172,14 @@ JsonValue& JsonValue::operator=(JsonValue&& move)
 	return *this;
 }
 
-static bool IsDigit(uint8 c)
+static bool IsDigit(uchar c)
 {
-	return c >= u8'0' && c <= u8'9';
+	return c >= '0' && c <= '9';
 }
 
-static bool IsSpace(uint8 c)
+static bool IsSpace(uchar c)
 {
-	return c == u8' ' || c == u8'\n' || c == u8'\r' || c == u8'\t';
+	return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }
 
 static void Advance(usize* index, usize count)
@@ -190,7 +190,7 @@ static void Advance(usize* index, usize count)
 
 static bool IsInRange(StringView buffer, usize index, usize count = 0)
 {
-	return index + count < buffer.Length;
+	return index + count < buffer.GetLength();
 }
 
 static void SkipWhitespace(StringView buffer, usize* index)
@@ -202,13 +202,13 @@ static void SkipWhitespace(StringView buffer, usize* index)
 	}
 }
 
-static uint8 PeekCharacter(StringView buffer, usize index)
+static uchar PeekCharacter(StringView buffer, usize index)
 {
 	VERIFY(IsInRange(buffer, index), "Failed to read character!");
 	return buffer[index];
 }
 
-static void ExpectCharacter(StringView buffer, usize* index, uint8 c)
+static void ExpectCharacter(StringView buffer, usize* index, uchar c)
 {
 	CHECK(index);
 	VERIFY(IsInRange(buffer, *index) && buffer[*index] == c, "Failed to parse expected character!");
@@ -217,7 +217,7 @@ static void ExpectCharacter(StringView buffer, usize* index, uint8 c)
 
 static void ExpectString(StringView buffer, usize* index, StringView expect)
 {
-	for (usize i = 0; i < expect.Length; ++i)
+	for (usize i = 0; i < expect.GetLength(); ++i)
 	{
 		ExpectCharacter(buffer, index, expect[i]);
 	}
@@ -239,7 +239,7 @@ static uint64 ParseUint64(StringView buffer, usize* index)
 	for (usize i = 0; i < offset; ++i)
 	{
 		factor /= 10;
-		result += factor * (PeekCharacter(buffer, *index + i) - u8'0');
+		result += factor * (PeekCharacter(buffer, *index + i) - '0');
 	}
 
 	*index += offset;
@@ -249,8 +249,8 @@ static uint64 ParseUint64(StringView buffer, usize* index)
 static int64 ParseInt64(StringView buffer, usize* index)
 {
 	CHECK(index);
-	const bool isNegative = PeekCharacter(buffer, *index) == u8'-';
-	const bool isSign = isNegative || PeekCharacter(buffer, *index) == u8'+';
+	const bool isNegative = PeekCharacter(buffer, *index) == '-';
+	const bool isSign = isNegative || PeekCharacter(buffer, *index) == '+';
 	VERIFY(IsDigit(buffer[*index]) || isSign, "Expected to read a number and failed!");
 
 	if (isSign)
@@ -264,12 +264,12 @@ static int64 ParseInt64(StringView buffer, usize* index)
 static double ParseDoubleNoExponent(StringView buffer, usize* index)
 {
 	CHECK(index);
-	const bool isNegative = PeekCharacter(buffer, *index) == u8'-';
+	const bool isNegative = PeekCharacter(buffer, *index) == '-';
 	const int64 whole = ParseInt64(buffer, index);
 
 	uint64 fractional = 0;
 	uint64 divisor = 1;
-	if (PeekCharacter(buffer, *index) == u8'.')
+	if (PeekCharacter(buffer, *index) == '.')
 	{
 		Advance(index, 1);
 
@@ -293,7 +293,7 @@ static double ParseDoubleNoExponent(StringView buffer, usize* index)
 
 static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
 {
-	const auto parseAnyOf = [](StringView buffer, usize* index, String* result, const uint8* any, usize anyLength)
+	const auto parseAnyOf = [](StringView buffer, usize* index, String* result, const uchar* any, usize anyLength)
 	{
 		CHECK(index);
 		for (usize i = 0; i < anyLength; ++i)
@@ -308,16 +308,16 @@ static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
 		return false;
 	};
 
-	static constexpr uint8 acceptableEscape[] = u8"\"\\/bfnrtu";
-	static constexpr uint8 acceptableHex[] = u8"0123456789abcdefABCDEF";
+	static constexpr uchar acceptableEscape[] = "\"\\/bfnrtu";
+	static constexpr uchar acceptableHex[] = "0123456789abcdefABCDEF";
 
-	ExpectCharacter(buffer, index, u8'\\');
-	result->Append(u8'\\');
+	ExpectCharacter(buffer, index, '\\');
+	result->Append('\\');
 
 	const bool matchedEscape = parseAnyOf(buffer, index, result, acceptableEscape, ARRAY_COUNT(acceptableEscape));
 	VERIFY(matchedEscape, "Failed to parse escape sequence!");
 
-	if (PeekCharacter(buffer, *index - 1) == u8'u')
+	if (PeekCharacter(buffer, *index - 1) == 'u')
 	{
 		static constexpr usize codepointLength = 4;
 		for (usize i = 0; i < codepointLength; ++i)
@@ -335,11 +335,11 @@ static String ParseString(StringView buffer, usize* index)
 
 	String result(16);
 
-	ExpectCharacter(buffer, index, u8'"');
-	while (PeekCharacter(buffer, *index) != u8'"')
+	ExpectCharacter(buffer, index, '"');
+	while (PeekCharacter(buffer, *index) != '"')
 	{
-		const uint8 c = buffer[*index];
-		if (c == u8'\\')
+		const uchar c = buffer[*index];
+		if (c == '\\')
 		{
 			ParseEscapeSequence(buffer, index, &result);
 		}
@@ -349,7 +349,7 @@ static String ParseString(StringView buffer, usize* index)
 			Advance(index, 1);
 		}
 	}
-	ExpectCharacter(buffer, index, u8'"');
+	ExpectCharacter(buffer, index, '"');
 
 	return result;
 }
@@ -358,7 +358,7 @@ static double ParseJsonNumber(StringView buffer, usize* index)
 {
 	const double mantissa = ParseDoubleNoExponent(buffer, index);
 	int64 exponent = 0;
-	if (PeekCharacter(buffer, *index) == u8'e')
+	if (PeekCharacter(buffer, *index) == 'e')
 	{
 		Advance(index, 1);
 		exponent = ParseInt64(buffer, index);
@@ -377,38 +377,38 @@ static JsonValue ParseJsonValue(StringView buffer, usize* index)
 
 	JsonValue value = {};
 
-	const uint8 leading = PeekCharacter(buffer, *index);
-	if (leading == u8'"')
+	const uchar leading = PeekCharacter(buffer, *index);
+	if (leading == '"')
 	{
 		value = JsonValue { ParseString(buffer, index) };
 	}
-	else if (IsDigit(leading) || leading == u8'-' || leading == u8'+')
+	else if (IsDigit(leading) || leading == '-' || leading == '+')
 	{
 		value = JsonValue { ParseJsonNumber(buffer, index) };
 	}
-	else if (leading == u8'{')
+	else if (leading == '{')
 	{
 		JsonObject* object = JsonAllocator->Create<JsonObject>(ParseJsonObject(buffer, index));
 
 		value = JsonValue { object };
 	}
-	else if (leading == u8'[')
+	else if (leading == '[')
 	{
 		value = JsonValue { ParseJsonArray(buffer, index) };
 	}
-	else if (leading == u8't')
+	else if (leading == 't')
 	{
 		ExpectString(buffer, index, "true"_view);
 
 		value = JsonValue { true };
 	}
-	else if (leading == u8'f')
+	else if (leading == 'f')
 	{
 		ExpectString(buffer, index, "false"_view);
 
 		value = JsonValue { false };
 	}
-	else if (leading == u8'n')
+	else if (leading == 'n')
 	{
 		ExpectString(buffer, index, "null"_view);
 
@@ -427,27 +427,27 @@ static JsonArray ParseJsonArray(StringView buffer, usize* index)
 {
 	CHECK(index);
 
-	ExpectCharacter(buffer, index, u8'[');
+	ExpectCharacter(buffer, index, '[');
 	SkipWhitespace(buffer, index);
 
-	if (PeekCharacter(buffer, *index) == u8']')
+	if (PeekCharacter(buffer, *index) == ']')
 	{
 		Advance(index, 1);
-		return JsonArray {};
+		return JsonArray { JsonAllocator };
 	}
 
-	JsonArray array;
+	JsonArray array { JsonAllocator };
 	while (IsInRange(buffer, *index))
 	{
 		array.Add(ParseJsonValue(buffer, index));
 
-		if (PeekCharacter(buffer, *index) != u8',')
+		if (PeekCharacter(buffer, *index) != ',')
 		{
 			break;
 		}
-		ExpectCharacter(buffer, index, u8',');
+		ExpectCharacter(buffer, index, ',');
 	}
-	ExpectCharacter(buffer, index, u8']');
+	ExpectCharacter(buffer, index, ']');
 
 	return array;
 }
@@ -457,35 +457,35 @@ static JsonObject ParseJsonObject(StringView buffer, usize* index)
 	CHECK(index);
 
 	SkipWhitespace(buffer, index);
-	ExpectCharacter(buffer, index, u8'{');
+	ExpectCharacter(buffer, index, '{');
 	SkipWhitespace(buffer, index);
 
-	if (PeekCharacter(buffer, *index) == u8'}')
+	if (PeekCharacter(buffer, *index) == '}')
 	{
 		Advance(index, 1);
 		return JsonObject {};
 	}
 
 	static constexpr usize jsonObjectBucketCount = 8;
-	HashTable<String, JsonValue> object(jsonObjectBucketCount);
+	HashTable<String, JsonValue> object(jsonObjectBucketCount, JsonAllocator);
 
 	while (IsInRange(buffer, *index))
 	{
 		String key = ParseString(buffer, index);
 		SkipWhitespace(buffer, index);
-		ExpectCharacter(buffer, index, u8':');
+		ExpectCharacter(buffer, index, ':');
 		JsonValue value = ParseJsonValue(buffer, index);
 
 		object.Add(Move(key), Move(value));
 
-		if (PeekCharacter(buffer, *index) != u8',')
+		if (PeekCharacter(buffer, *index) != ',')
 		{
 			break;
 		}
-		ExpectCharacter(buffer, index, u8',');
+		ExpectCharacter(buffer, index, ',');
 		SkipWhitespace(buffer, index);
 	}
-	ExpectCharacter(buffer, index, u8'}');
+	ExpectCharacter(buffer, index, '}');
 
 	return JsonObject { Move(object) };
 }
@@ -493,7 +493,7 @@ static JsonObject ParseJsonObject(StringView buffer, usize* index)
 JsonObject LoadJson(StringView filePath)
 {
 	usize jsonFileSize;
-	uint8* jsonFileData = Platform::ReadEntireFile(reinterpret_cast<const char*>(filePath.Buffer), filePath.Length, &jsonFileSize, *JsonAllocator);
+	uchar* jsonFileData = Platform::ReadEntireFile(reinterpret_cast<const char*>(filePath.GetData()), filePath.GetLength(), &jsonFileSize, *JsonAllocator);
 	const StringView jsonFileView = { jsonFileData, jsonFileSize };
 
 	usize index = 0;
