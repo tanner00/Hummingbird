@@ -3,7 +3,7 @@
 #include "Luft/Math.hpp"
 #include "Luft/NoCopy.hpp"
 
-#include "RHI/Common.hpp"
+#include "RHI/RHI.hpp"
 
 struct Glyph
 {
@@ -17,12 +17,16 @@ struct Glyph
 namespace Hlsl
 {
 
-struct PerFrame
+struct TextPerDraw
 {
 	Matrix ViewProjection;
 	Float2 UnitRange;
 
-	PAD(184);
+	uint32 CharacterBuffer;
+	uint32 Texture;
+	uint32 Sampler;
+
+	PAD(172);
 };
 
 struct Character
@@ -64,20 +68,20 @@ public:
 private:
 	HashTable<uint8, Glyph> Glyphs;
 
-	usize CharacterIndex;
-
 	float Ascender;
 
-	Hlsl::PerFrame PerFrameData;
+	Hlsl::TextPerDraw TextPerDrawData;
+
+	usize CharacterIndex;
 	Array<Hlsl::Character> CharacterData;
 
-	GraphicsPipelineHandle Pipeline;
+	GraphicsPipeline Pipeline;
 
-	TextureHandle FontTexture;
-	SamplerHandle Sampler;
+	Texture FontTexture;
+	Sampler Sampler;
 
-	BufferHandle CharacterBuffer;
-	BufferHandle PerFrameBuffer;
+	Buffer TextPerDrawBuffer;
+	Buffer CharacterBuffer;
 
 	GpuDevice* Device;
 };

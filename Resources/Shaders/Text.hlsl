@@ -5,12 +5,6 @@ struct PixelInput
 	float4 Color : COLOR0;
 };
 
-cbuffer PerFrameBuffer : register(b0)
-{
-	matrix ViewProjection;
-	float2 UnitRange;
-};
-
 struct Character
 {
 	float4 Color;
@@ -26,10 +20,21 @@ struct Character
 	float Scale;
 };
 
-StructuredBuffer<Character> CharacterBuffer : register(t0);
+struct PerDraw
+{
+	matrix ViewProjection;
+	float2 UnitRange;
+
+	uint CharacterBuffer;
+	uint Texture;
+	uint Sampler;
+};
+ConstantBuffer<PerDraw> Draw : register(b0);
 
 PixelInput VertexMain(uint vertexID : SV_VertexID)
 {
+	const StructuredBuffer<Character> characterBuffer = ResourceDescriptorHeap[Draw.CharacterBuffer];
+
 	static const float2 vertices[] =
 	{
 		{ 0.0f, 1.0f },
@@ -45,19 +50,16 @@ PixelInput VertexMain(uint vertexID : SV_VertexID)
 	const uint characterIndex = vertexID / verticesPerQuad;
 	const uint vertexIndex = vertexID % verticesPerQuad;
 
-	const Character c = CharacterBuffer[characterIndex];
+	const Character c = characterBuffer[characterIndex];
 
 	const float2 position = c.ScreenPosition + c.Scale * (c.PlanePosition + c.PlaneSize * vertices[vertexIndex]);
 
 	PixelInput result;
-	result.Position = mul(ViewProjection, float4(position, 0.0f, 1.0f));
+	result.Position = mul(Draw.ViewProjection, float4(position, 0.0f, 1.0f));
 	result.Uv = c.AtlasPosition + c.AtlasSize * vertices[vertexIndex];
 	result.Color = c.Color;
 	return result;
 }
-
-Texture2D<float3> Texture : register(t1);
-SamplerState Sampler : register(s0);
 
 float Median(float3 v)
 {
@@ -67,12 +69,15 @@ float Median(float3 v)
 float DistanceFieldRangeInScreenPixels(float2 uv)
 {
 	const float2 textureScreenSize = 1.0f / fwidth(uv);
-	return max(0.5f * dot(UnitRange, textureScreenSize), 1.0f);
+	return max(0.5f * dot(Draw.UnitRange, textureScreenSize), 1.0f);
 }
 
 float4 PixelMain(PixelInput input) : SV_TARGET
 {
-	const float3 multiChannelSignedDistance = Texture.Sample(Sampler, input.Uv).rgb;
+	const Texture2D<float3> texture = ResourceDescriptorHeap[Draw.Texture];
+	const SamplerState sampler = SamplerDescriptorHeap[Draw.Sampler];
+
+	const float3 multiChannelSignedDistance = texture.Sample(sampler, input.Uv).rgb;
 	const float signedDistance = Median(multiChannelSignedDistance);
 	const float screenPixelDistance = DistanceFieldRangeInScreenPixels(input.Uv) * (signedDistance - 0.5f);
 

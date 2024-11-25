@@ -1,9 +1,9 @@
 ﻿#pragma once
 
+#include "RHI/Texture.hpp"
+
 #include "Luft/Base.hpp"
 #include "Luft/String.hpp"
-
-#include "RHI/Common.hpp"
 
 struct DdsImage
 {
@@ -17,4 +17,4 @@ struct DdsImage
 };
 
 DdsImage LoadDdsImage(StringView filePath);
-void DestroyDdsImage(DdsImage* image);
+void UnloadDdsImage(DdsImage* image);
