@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RHI/Common.hpp"
+
 #include "Luft/Array.hpp"
 #include "Luft/Math.hpp"
 
