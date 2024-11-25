@@ -2,15 +2,13 @@
 #include "DDS.hpp"
 #include "JSON.hpp"
 
-#include "RHI/GpuDevice.hpp"
-
 static constexpr usize MaxCharactersPerFrame = 2048;
 
 DrawText::DrawText()
 	: Glyphs(64)
+	, Ascender(0.0f)
 	, CharacterIndex(0)
-	, Ascender()
-	, PerFrameData()
+	, TextPerDrawData()
 	, Device(nullptr)
 {
 }
@@ -32,8 +30,8 @@ void DrawText::Init(GpuDevice* device)
 	const JsonObject& fontMetrics = fontDescription["metrics"_view].GetObject();
 	Ascender = static_cast<float>(fontMetrics["ascender"_view].GetDecimal());
 
-	PerFrameData.UnitRange.X = static_cast<float>(distanceRange / width);
-	PerFrameData.UnitRange.Y = static_cast<float>(distanceRange / height);
+	TextPerDrawData.UnitRange.X = static_cast<float>(distanceRange / width);
+	TextPerDrawData.UnitRange.Y = static_cast<float>(distanceRange / height);
 
 	const JsonArray& fontGlyphs = fontDescription["glyphs"_view].GetArray();
 
@@ -99,14 +97,14 @@ void DrawText::Init(GpuDevice* device)
 	});
 	Device->Write(FontTexture, fontImage.Data);
 
-	DestroyDdsImage(&fontImage);
+	UnloadDdsImage(&fontImage);
 
-	ShaderHandle vertex = Device->CreateShader(
+	Shader vertex = Device->CreateShader(
 	{
 		.Stage = ShaderStage::Vertex,
 		.FilePath = "Resources/Shaders/Text.hlsl"_view,
 	});
-	ShaderHandle pixel = Device->CreateShader(
+	Shader pixel = Device->CreateShader(
 	{
 		.Stage = ShaderStage::Pixel,
 		.FilePath = "Resources/Shaders/Text.hlsl"_view,
@@ -122,13 +120,15 @@ void DrawText::Init(GpuDevice* device)
 		.DepthFormat = TextureFormat::None,
 		.AlphaBlend = true,
 	});
-	Device->DestroyShader(vertex);
-	Device->DestroyShader(pixel);
+	Device->DestroyShader(&vertex);
+	Device->DestroyShader(&pixel);
 
 	Sampler = Device->CreateSampler(
 	{
-		.Address = SamplerAddress::Wrap,
-		.Filter = SamplerFilter::Anisotropic,
+		.MinificationFilter = SamplerFilter::Linear,
+		.MagnificationFilter = SamplerFilter::Linear,
+		.HorizontalAddress = SamplerAddress::Wrap,
+		.VerticalAddress = SamplerAddress::Wrap,
 	});
 
 	CharacterData.AddUninitialized(MaxCharactersPerFrame);
@@ -140,21 +140,21 @@ void DrawText::Init(GpuDevice* device)
 		.Stride = sizeof(Hlsl::Character),
 	});
 
-	PerFrameBuffer = Device->CreateBuffer("DrawText Per Frame Buffer"_view,
+	TextPerDrawBuffer = Device->CreateBuffer("Text PerDraw Buffer"_view,
 	{
 		.Type = BufferType::ConstantBuffer,
 		.Usage = BufferUsage::Stream,
-		.Size = sizeof(Hlsl::PerFrame),
+		.Size = sizeof(Hlsl::TextPerDraw),
 	});
 }
 
 void DrawText::Shutdown()
 {
-	Device->DestroySampler(Sampler);
-	Device->DestroyGraphicsPipeline(Pipeline);
-	Device->DestroyTexture(FontTexture);
-	Device->DestroyBuffer(CharacterBuffer);
-	Device->DestroyBuffer(PerFrameBuffer);
+	Device->DestroySampler(&Sampler);
+	Device->DestroyGraphicsPipeline(&Pipeline);
+	Device->DestroyTexture(&FontTexture);
+	Device->DestroyBuffer(&CharacterBuffer);
+	Device->DestroyBuffer(&TextPerDrawBuffer);
 
 	this->~DrawText();
 }
@@ -166,13 +166,13 @@ void DrawText::Draw(StringView text, Float2 position, Float3 rgb, float scale)
 
 void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 {
-	if (CharacterIndex + text.Length > MaxCharactersPerFrame)
+	if (CharacterIndex + text.GetLength() > MaxCharactersPerFrame)
 	{
 		CharacterIndex = 0;
 	}
 
 	Float2 currentPosition = { position.X, position.Y - scale * Ascender };
-	for (usize i = 0; i < text.Length; ++i)
+	for (usize i = 0; i < text.GetLength(); ++i)
 	{
 		const Glyph& glyph = Glyphs[text[i]];
 
@@ -194,18 +194,19 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 
 void DrawText::Submit(GraphicsContext& graphics, uint32 width, uint32 height)
 {
-	PerFrameData.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
-	Device->Write(PerFrameBuffer, &PerFrameData);
+	TextPerDrawData.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
+
+	TextPerDrawData.CharacterBuffer = Device->Get(CharacterBuffer);
+	TextPerDrawData.Texture = Device->Get(FontTexture);
+	TextPerDrawData.Sampler = Device->Get(Sampler);
+
+	Device->Write(TextPerDrawBuffer, &TextPerDrawData);
 
 	Device->Write(CharacterBuffer, CharacterData.GetData());
 
-	graphics.SetGraphicsPipeline(Pipeline);
+	graphics.SetGraphicsPipeline(&Pipeline);
 
-	graphics.SetTexture("Texture"_view, FontTexture);
-	graphics.SetSampler("Sampler"_view, Sampler);
-
-	graphics.SetConstantBuffer("PerFrameBuffer"_view, PerFrameBuffer);
-	graphics.SetBuffer("CharacterBuffer"_view, CharacterBuffer);
+	graphics.SetConstantBuffer("Draw"_view, TextPerDrawBuffer);
 
 	static constexpr usize verticesPerQuad = 6;
 	graphics.Draw(CharacterIndex * verticesPerQuad);

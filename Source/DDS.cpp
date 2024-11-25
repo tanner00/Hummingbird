@@ -1,5 +1,9 @@
 ﻿#include "DDS.hpp"
 
+#include <dxgiformat.h>
+
+static Allocator* DdsAllocator = &GlobalAllocator::Get();
+
 struct PixelFormat
 {
 	uint32 Size;
@@ -36,6 +40,29 @@ struct DdsExtendedHeader
 	uint32 MiscFlags2;
 };
 
+static TextureFormat FromD3D12(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_UNKNOWN:
+		return TextureFormat::None;
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+		return TextureFormat::Rgba8;
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		return TextureFormat::Rgba8Srgb;
+	case DXGI_FORMAT_BC7_UNORM:
+		return TextureFormat::Bc7;
+	case DXGI_FORMAT_BC7_UNORM_SRGB:
+		return TextureFormat::Bc7Srgb;
+	case DXGI_FORMAT_D24_UNORM_S8_UINT:
+		return TextureFormat::Depth24Stencil8;
+	case DXGI_FORMAT_D32_FLOAT:
+		return TextureFormat::Depth32;
+	}
+	CHECK(false);
+	return TextureFormat::None;
+}
+
 static uint32 Advance(usize* offset, usize count)
 {
 	CHECK(offset);
@@ -47,7 +74,7 @@ static uint32 ParseUint32(StringView view, usize* offset)
 {
 	CHECK(offset);
 	const usize currentOffset = *offset;
-	VERIFY(currentOffset + sizeof(uint32) <= view.Length, "Failed to parse integer!");
+	VERIFY(currentOffset + sizeof(uint32) <= view.GetLength(), "Failed to parse integer!");
 
 	const uint32 value = (view[currentOffset + 0] << 0)  |
 						 (view[currentOffset + 1] << 8)  |
@@ -61,14 +88,14 @@ static uint32 ParseUint32(StringView view, usize* offset)
 DdsImage LoadDdsImage(StringView filePath)
 {
 	usize ddsFileSize;
-	uint8* ddsFileData = Platform::ReadEntireFile(reinterpret_cast<const char*>(filePath.Buffer), filePath.Length, &ddsFileSize, GlobalAllocator::Get());
+	uint8* ddsFileData = Platform::ReadEntireFile(reinterpret_cast<const char*>(filePath.GetData()), filePath.GetLength(), &ddsFileSize, *DdsAllocator);
 	const StringView ddsFileView = { ddsFileData, ddsFileSize };
 
 	VERIFY(ddsFileSize >= 4, "Invalid DDS file!");
-	VERIFY(ddsFileView[0] == u8'D', "Unexpected image file format!");
-	VERIFY(ddsFileView[1] == u8'D', "Unexpected image file format!");
-	VERIFY(ddsFileView[2] == u8'S', "Unexpected image file format!");
-	VERIFY(ddsFileView[3] == u8' ', "Unexpected image file format!");
+	VERIFY(ddsFileView[0] == 'D', "Unexpected image file format!");
+	VERIFY(ddsFileView[1] == 'D', "Unexpected image file format!");
+	VERIFY(ddsFileView[2] == 'S', "Unexpected image file format!");
+	VERIFY(ddsFileView[3] == ' ', "Unexpected image file format!");
 	usize offset = 4;
 
 	const DdsHeader header =
@@ -154,7 +181,7 @@ DdsImage LoadDdsImage(StringView filePath)
 	};
 }
 
-void DestroyDdsImage(DdsImage* image)
+void UnloadDdsImage(DdsImage* image)
 {
 	GlobalAllocator::Get().Deallocate(image->Data, image->DataSize);
 	image->Data = nullptr;
