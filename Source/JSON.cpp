@@ -358,7 +358,7 @@ static double ParseJsonNumber(StringView buffer, usize* index)
 {
 	const double mantissa = ParseDoubleNoExponent(buffer, index);
 	int64 exponent = 0;
-	if (PeekCharacter(buffer, *index) == 'e')
+	if (PeekCharacter(buffer, *index) == 'e' || PeekCharacter(buffer, *index) == 'E')
 	{
 		Advance(index, 1);
 		exponent = ParseInt64(buffer, index);
