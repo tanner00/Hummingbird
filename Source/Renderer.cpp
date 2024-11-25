@@ -63,6 +63,8 @@ void Renderer::Resize(uint32 width, uint32 height)
 
 	Device.ResizeSwapChain(width, height);
 	CreateScreenTextures(width, height);
+
+	Device.WaitForIdle();
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
