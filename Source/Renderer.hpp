@@ -1,8 +1,11 @@
 #pragma once
 
-#include "Luft/NoCopy.hpp"
+#include "GLTF.hpp"
+#include "RenderTypes.hpp"
 
-#include "RHI/GpuDevice.hpp"
+#include "RHI/RHI.hpp"
+
+#include "Luft/NoCopy.hpp"
 
 class Renderer : public NoCopy
 {
@@ -15,12 +18,25 @@ public:
 	void Resize(uint32 width, uint32 height);
 
 private:
+	void LoadScene(usize sceneIndex);
+
 	void CreateScreenTextures(uint32 width, uint32 height);
 	void DestroyScreenTextures();
 
 	GpuDevice Device;
 	GraphicsContext Graphics;
 
-	TextureHandle SwapChainTextures[FramesInFlight];
-	TextureHandle DepthTexture;
+	Texture SwapChainTextures[FramesInFlight];
+	Texture DepthTexture;
+
+	Buffer SceneVertexBuffer;
+	Buffer InstanceSceneBuffer;
+	Buffer InstanceNodeBuffer;
+
+	Array<Mesh> SceneMeshes;
+	Array<Node> SceneNodes;
+
+	GltfCamera SceneCamera;
+
+	GraphicsPipeline ScenePipeline;
 };
