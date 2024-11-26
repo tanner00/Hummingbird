@@ -5,7 +5,7 @@ static Allocator* GltfAllocator = &GlobalAllocator::Get();
 
 static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 {
-	static constexpr uchar pathSeparator = '/';
+	static constexpr char pathSeparator = '/';
 
 	const usize directoryLength = sceneFilePath.ReverseFind(pathSeparator);
 	VERIFY(directoryLength != INDEX_NONE, "Invalid GLTF file path!");
@@ -206,7 +206,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		const usize bufferSize = static_cast<usize>(bufferObject["byteLength"_view].GetDecimal());
 
 		usize fileSize;
-		uint8* bufferData = Platform::ReadEntireFile(reinterpret_cast<const char*>(fullPath.GetData()), fullPath.GetLength(), &fileSize, *GltfAllocator);
+		uint8* bufferData = Platform::ReadEntireFile(fullPath.GetData(), fullPath.GetLength(), &fileSize, *GltfAllocator);
 		VERIFY(bufferSize == fileSize, "Failed to read GLTF buffer!");
 
 		buffers.Emplace(bufferData, bufferSize);
