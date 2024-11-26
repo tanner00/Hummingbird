@@ -88,7 +88,7 @@ static uint32 ParseUint32(StringView view, usize* offset)
 DdsImage LoadDdsImage(StringView filePath)
 {
 	usize ddsFileSize;
-	uint8* ddsFileData = Platform::ReadEntireFile(reinterpret_cast<const char*>(filePath.GetData()), filePath.GetLength(), &ddsFileSize, *DdsAllocator);
+	char* ddsFileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &ddsFileSize, *DdsAllocator));
 	const StringView ddsFileView = { ddsFileData, ddsFileSize };
 
 	VERIFY(ddsFileSize >= 4, "Invalid DDS file!");

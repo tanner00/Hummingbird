@@ -172,12 +172,12 @@ JsonValue& JsonValue::operator=(JsonValue&& move)
 	return *this;
 }
 
-static bool IsDigit(uchar c)
+static bool IsDigit(char c)
 {
 	return c >= '0' && c <= '9';
 }
 
-static bool IsSpace(uchar c)
+static bool IsSpace(char c)
 {
 	return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }
@@ -202,13 +202,13 @@ static void SkipWhitespace(StringView buffer, usize* index)
 	}
 }
 
-static uchar PeekCharacter(StringView buffer, usize index)
+static char PeekCharacter(StringView buffer, usize index)
 {
 	VERIFY(IsInRange(buffer, index), "Failed to read character!");
 	return buffer[index];
 }
 
-static void ExpectCharacter(StringView buffer, usize* index, uchar c)
+static void ExpectCharacter(StringView buffer, usize* index, char c)
 {
 	CHECK(index);
 	VERIFY(IsInRange(buffer, *index) && buffer[*index] == c, "Failed to parse expected character!");
@@ -293,7 +293,7 @@ static double ParseDoubleNoExponent(StringView buffer, usize* index)
 
 static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
 {
-	const auto parseAnyOf = [](StringView buffer, usize* index, String* result, const uchar* any, usize anyLength)
+	const auto parseAnyOf = [](StringView buffer, usize* index, String* result, const char* any, usize anyLength)
 	{
 		CHECK(index);
 		for (usize i = 0; i < anyLength; ++i)
@@ -308,8 +308,8 @@ static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
 		return false;
 	};
 
-	static constexpr uchar acceptableEscape[] = "\"\\/bfnrtu";
-	static constexpr uchar acceptableHex[] = "0123456789abcdefABCDEF";
+	static constexpr char acceptableEscape[] = "\"\\/bfnrtu";
+	static constexpr char acceptableHex[] = "0123456789abcdefABCDEF";
 
 	ExpectCharacter(buffer, index, '\\');
 	result->Append('\\');
@@ -338,7 +338,7 @@ static String ParseString(StringView buffer, usize* index)
 	ExpectCharacter(buffer, index, '"');
 	while (PeekCharacter(buffer, *index) != '"')
 	{
-		const uchar c = buffer[*index];
+		const char c = buffer[*index];
 		if (c == '\\')
 		{
 			ParseEscapeSequence(buffer, index, &result);
@@ -377,7 +377,7 @@ static JsonValue ParseJsonValue(StringView buffer, usize* index)
 
 	JsonValue value = {};
 
-	const uchar leading = PeekCharacter(buffer, *index);
+	const char leading = PeekCharacter(buffer, *index);
 	if (leading == '"')
 	{
 		value = JsonValue { ParseString(buffer, index) };
@@ -493,7 +493,7 @@ static JsonObject ParseJsonObject(StringView buffer, usize* index)
 JsonObject LoadJson(StringView filePath)
 {
 	usize jsonFileSize;
-	uchar* jsonFileData = Platform::ReadEntireFile(reinterpret_cast<const char*>(filePath.GetData()), filePath.GetLength(), &jsonFileSize, *JsonAllocator);
+	char* jsonFileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &jsonFileSize, *JsonAllocator));
 	const StringView jsonFileView = { jsonFileData, jsonFileSize };
 
 	usize index = 0;

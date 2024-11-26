@@ -66,7 +66,7 @@ public:
 	void Submit(GraphicsContext& graphics, uint32 width, uint32 height);
 
 private:
-	HashTable<uint8, Glyph> Glyphs;
+	HashTable<char, Glyph> Glyphs;
 
 	float Ascender;
 
