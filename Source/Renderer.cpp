@@ -4,6 +4,10 @@
 Renderer::Renderer(const Platform::Window* window)
 	: Device(window)
 	, Graphics(Device.CreateGraphicsContext())
+#if !RELEASE
+	, AverageCpuTime(0.0)
+	, AverageGpuTime(0.0)
+#endif
 {
 	CreateScreenTextures(window->DrawWidth, window->DrawHeight);
 
@@ -53,6 +57,10 @@ Renderer::~Renderer()
 
 void Renderer::Update()
 {
+#if !RELEASE
+	const double startCpuTime = Platform::GetTime();
+#endif
+
 	if (IsKeyPressedOnce(Key::One))
 	{
 		LoadScene(0);
@@ -114,6 +122,10 @@ void Renderer::Update()
 		}
 	}
 
+#if !RELEASE
+	UpdateFrameTimes(startCpuTime);
+#endif
+
 	DrawText::Get().Submit(Graphics, frameTexture.GetWidth(), frameTexture.GetHeight());
 
 	Graphics.TextureBarrier
@@ -129,6 +141,25 @@ void Renderer::Update()
 	Device.Submit(Graphics);
 	Device.Present();
 }
+
+#if !RELEASE
+void Renderer::UpdateFrameTimes(double startCpuTime)
+{
+	const double cpuTime = Platform::GetTime() - startCpuTime;
+	const double gpuTime = Graphics.GetMostRecentGpuTime();
+
+	AverageCpuTime = AverageCpuTime * 0.95 + cpuTime * 0.05;
+	AverageGpuTime = AverageGpuTime * 0.95 + gpuTime * 0.05;
+
+	char cpuTimeText[16] = {};
+	Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), AverageCpuTime * 1000.0);
+	DrawText::Get().Draw(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) }, { 0.0f, 0.0f }, Float3 { 1.0f, 1.0f, 1.0f }, 32.0f);
+
+	char gpuTimeText[16] = {};
+	Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), AverageGpuTime * 1000.0);
+	DrawText::Get().Draw(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, { 0.0f, 24.0f }, Float3 { 1.0f, 1.0f, 1.0f }, 32.0f);
+}
+#endif
 
 void Renderer::Resize(uint32 width, uint32 height)
 {
