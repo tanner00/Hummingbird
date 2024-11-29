@@ -18,6 +18,10 @@ public:
 	void Resize(uint32 width, uint32 height);
 
 private:
+#if !RELEASE
+	void UpdateFrameTimes(double startCpuTime);
+#endif
+
 	void LoadScene(usize sceneIndex);
 
 	void CreateScreenTextures(uint32 width, uint32 height);
@@ -39,4 +43,9 @@ private:
 	GltfCamera SceneCamera;
 
 	GraphicsPipeline ScenePipeline;
+
+#if !RELEASE
+	double AverageCpuTime;
+	double AverageGpuTime;
+#endif
 };
