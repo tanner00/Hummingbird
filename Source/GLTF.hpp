@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DDS.hpp"
+
 #include "Luft/Array.hpp"
 #include "Luft/HashTable.hpp"
 #include "Luft/Math.hpp"
@@ -112,6 +114,31 @@ struct GltfAccessor
 	GltfAccessorType AccessorType;
 };
 
+struct GltfImage
+{
+	DdsImage Image;
+};
+
+struct GltfTexture
+{
+	usize Image;
+	usize Sampler;
+};
+
+struct GltfMaterial
+{
+	usize BaseColorTexture;
+	Float4 BaseColorFactor;
+};
+
+struct GltfSampler
+{
+	GltfFilter MinificationFilter;
+	GltfFilter MagnificationFilter;
+	GltfAddress HorizontalAddress;
+	GltfAddress VerticalAddress;
+};
+
 struct GltfCamera
 {
 	Matrix Transform;
@@ -131,6 +158,11 @@ struct GltfScene
 	Array<GltfBuffer> Buffers;
 	Array<GltfBufferView> BufferViews;
 	Array<GltfMesh> Meshes;
+
+	Array<GltfImage> Images;
+	Array<GltfTexture> Textures;
+	Array<GltfSampler> Samplers;
+	Array<GltfMaterial> Materials;
 
 	Array<GltfAccessor> Accessors;
 

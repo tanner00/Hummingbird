@@ -1,9 +1,17 @@
 #pragma once
 
-#include "RHI/Common.hpp"
+#include "RHI/RHI.hpp"
 
 #include "Luft/Array.hpp"
 #include "Luft/Math.hpp"
+
+struct Material
+{
+	Texture BaseColorTexture;
+	Float4 BaseColorFactor;
+
+	Sampler Sampler;
+};
 
 struct Primitive
 {
@@ -11,9 +19,15 @@ struct Primitive
 	usize PositionSize;
 	usize PositionStride;
 
+	usize TextureCoordinateOffset;
+	usize TextureCoordinateSize;
+	usize TextureCoordinateStride;
+
 	usize IndexOffset;
 	usize IndexSize;
 	usize IndexStride;
+
+	usize MaterialIndex;
 };
 
 struct Mesh
@@ -24,7 +38,7 @@ struct Mesh
 struct Node
 {
 	Matrix Transform;
-	usize Mesh;
+	usize MeshIndex;
 };
 
 namespace Hlsl
@@ -34,7 +48,7 @@ struct Scene
 {
 	Matrix ViewProjection;
 
-	uint32 NodeBuffer;
+	uint32 NodeBufferIndex;
 
 	PAD(188);
 };
@@ -42,6 +56,13 @@ struct Scene
 struct SceneRootConstants
 {
 	uint32 NodeIndex;
+
+	uint32 SamplerIndex;
+
+	uint32 GeometryView;
+
+	uint32 BaseColorTextureIndex;
+	Float4 BaseColorFactor;
 };
 
 struct Node

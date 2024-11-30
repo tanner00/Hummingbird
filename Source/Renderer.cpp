@@ -13,6 +13,24 @@ Renderer::Renderer(const Platform::Window* window)
 
 	DrawText::Get().Init(&Device);
 
+	DefaultTexture = Device.CreateTexture("Default Texture"_view, BarrierLayout::GraphicsQueueCommon,
+	{
+		.Width = 1,
+		.Height = 1,
+		.Type = TextureType::Rectangle,
+		.Format = TextureFormat::Rgba8Srgb,
+	});
+	constexpr usize white = 0xFFFFFFFF;
+	Device.Write(DefaultTexture, &white);
+
+	DefaultSampler = Device.CreateSampler(
+	{
+		.MinificationFilter = SamplerFilter::Linear,
+		.MagnificationFilter = SamplerFilter::Linear,
+		.HorizontalAddress = SamplerAddress::Wrap,
+		.VerticalAddress = SamplerAddress::Wrap,
+	});
+
 	LoadScene(0);
 
 	Shader vertex = Device.CreateShader(
@@ -43,12 +61,11 @@ Renderer::Renderer(const Platform::Window* window)
 
 Renderer::~Renderer()
 {
+	UnloadScene();
 	Device.DestroyGraphicsPipeline(&ScenePipeline);
 
-	Device.DestroyBuffer(&InstanceSceneBuffer);
-	Device.DestroyBuffer(&InstanceNodeBuffer);
-
-	Device.DestroyBuffer(&SceneVertexBuffer);
+	Device.DestroySampler(&DefaultSampler);
+	Device.DestroyTexture(&DefaultTexture);
 
 	DrawText::Get().Shutdown();
 
@@ -70,12 +87,18 @@ void Renderer::Update()
 		LoadScene(1);
 	}
 
+	static uint32 geometryView = 0;
+	if (IsKeyPressedOnce(Key::G))
+	{
+		geometryView = !geometryView;
+	}
+
 	const Matrix view = SceneCamera.Transform.GetInverse();
 	const Matrix projection = Matrix::Perspective(SceneCamera.FieldOfViewYDegrees, SceneCamera.AspectRatio, SceneCamera.NearZ, SceneCamera.FarZ);
 	const Hlsl::Scene instanceSceneData =
 	{
 		.ViewProjection = projection * view,
-		.NodeBuffer = Device.Get(InstanceNodeBuffer),
+		.NodeBufferIndex = Device.Get(InstanceNodeBuffer),
 	};
 	Device.Write(InstanceSceneBuffer, &instanceSceneData);
 
@@ -102,20 +125,45 @@ void Renderer::Update()
 
 	Graphics.SetConstantBuffer("Scene"_view, InstanceSceneBuffer);
 
+	const uint32 defaultTextureIndex = Device.Get(DefaultTexture);
+	const uint32 defaultSamplerIndex = Device.Get(DefaultSampler);
+
 	for (usize i = 0; i < SceneNodes.GetLength(); ++i)
 	{
-		const Hlsl::SceneRootConstants rootConstants =
-		{
-			.NodeIndex = static_cast<uint32>(i),
-		};
-		Graphics.SetRootConstants("RootConstants"_view, &rootConstants);
-
 		const Node& node = SceneNodes[i];
-		const Mesh& mesh = SceneMeshes[node.Mesh];
+		const Mesh& mesh = SceneMeshes[node.MeshIndex];
 
 		for (const Primitive& primitive : mesh.Primitives)
 		{
+			Hlsl::SceneRootConstants rootConstants =
+			{
+				.NodeIndex = static_cast<uint32>(i),
+				.SamplerIndex = defaultSamplerIndex,
+				.GeometryView = geometryView,
+				.BaseColorTextureIndex = defaultTextureIndex,
+				.BaseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f },
+			};
+
+			if (primitive.MaterialIndex != INDEX_NONE)
+			{
+				const Material& material = SceneMaterials[primitive.MaterialIndex];
+
+				if (material.BaseColorTexture.IsValid())
+				{
+					rootConstants.BaseColorTextureIndex = Device.Get(material.BaseColorTexture);
+				}
+				rootConstants.BaseColorFactor = material.BaseColorFactor;
+
+				if (material.Sampler.IsValid())
+				{
+					rootConstants.SamplerIndex = Device.Get(material.Sampler);
+				}
+			}
+
+			Graphics.SetRootConstants("RootConstants"_view, &rootConstants);
+
 			Graphics.SetVertexBuffer(SceneVertexBuffer, 0, primitive.PositionOffset, primitive.PositionSize, primitive.PositionStride);
+			Graphics.SetVertexBuffer(SceneVertexBuffer, 1, primitive.TextureCoordinateOffset, primitive.TextureCoordinateSize, primitive.TextureCoordinateStride);
 			Graphics.SetIndexBuffer(SceneVertexBuffer, primitive.IndexOffset, primitive.IndexSize, primitive.IndexStride);
 
 			Graphics.DrawIndexed(primitive.IndexSize / primitive.IndexStride);
@@ -176,6 +224,41 @@ void Renderer::Resize(uint32 width, uint32 height)
 
 void Renderer::LoadScene(usize sceneIndex)
 {
+	const auto convertSamplerFilter = [](const GltfFilter& filter)
+	{
+		switch (filter)
+		{
+		case GltfFilter::Nearest:
+			return SamplerFilter::Point;
+		case GltfFilter::Linear:
+			return SamplerFilter::Linear;
+		case GltfFilter::NearestMipMapNearest:
+		case GltfFilter::NearestMipMapLinear:
+			Platform::Log("LoadScene: Using fallback filter!\n");
+			return SamplerFilter::Point;
+		case GltfFilter::LinearMipMapNearest:
+		case GltfFilter::LinearMipMapLinear:
+			Platform::Log("LoadScene: Using fallback filter!\n");
+			return SamplerFilter::Linear;
+		}
+		CHECK(false);
+		return SamplerFilter::Linear;
+	};
+	const auto convertSamplerAddress = [](const GltfAddress& address)
+	{
+		switch (address)
+		{
+		case GltfAddress::Repeat:
+			return SamplerAddress::Wrap;
+		case GltfAddress::ClampToEdge:
+			return SamplerAddress::Clamp;
+		case GltfAddress::MirroredRepeat:
+			return SamplerAddress::Mirror;
+		}
+		CHECK(false);
+		return SamplerAddress::Wrap;
+	};
+
 	static const StringView scenes[] =
 	{
 		"Resources/GLTF/Sponza/Sponza.gltf"_view,
@@ -183,13 +266,9 @@ void Renderer::LoadScene(usize sceneIndex)
 	};
 	CHECK(sceneIndex < ARRAY_COUNT(scenes));
 
-	Device.DestroyBuffer(&InstanceSceneBuffer);
-	Device.DestroyBuffer(&InstanceNodeBuffer);
+	const double start = Platform::GetTime();
 
-	Device.DestroyBuffer(&SceneVertexBuffer);
-
-	SceneMeshes.Clear();
-	SceneNodes.Clear();
+	UnloadScene();
 
 	GltfScene scene = LoadGltfScene(scenes[sceneIndex]);
 
@@ -219,6 +298,18 @@ void Renderer::LoadScene(usize sceneIndex)
 			const usize positionSize = positionAccessor.Count * positionStride;
 			CHECK(positionOffset + positionSize <= positionBuffer.Size);
 
+			const GltfAccessor textureCoordinateAccessor = scene.Accessors[primitive.Attributes[GltfAttributeType::Texcoord0]];
+			CHECK(textureCoordinateAccessor.ComponentType == GltfComponentType::Float32 &&
+				  textureCoordinateAccessor.AccessorType == GltfAccessorType::Vector2);
+			const GltfBufferView& textureCoordinateBufferView = scene.BufferViews[textureCoordinateAccessor.BufferView];
+			CHECK(textureCoordinateBufferView.Target == GltfTargetType::ArrayBuffer);
+
+			const GltfBuffer& textureCoordinateBuffer = scene.Buffers[textureCoordinateBufferView.Buffer];
+			const usize textureCoordinateOffset = textureCoordinateAccessor.Offset + textureCoordinateBufferView.Offset;
+			const usize textureCoordinateStride = GetGltfElementSize(textureCoordinateAccessor.AccessorType, textureCoordinateAccessor.ComponentType);
+			const usize textureCoordinateSize = textureCoordinateAccessor.Count * textureCoordinateStride;
+			CHECK(textureCoordinateOffset + textureCoordinateSize <= textureCoordinateBuffer.Size);
+
 			const GltfAccessor indexAccessor = scene.Accessors[primitive.Indices];
 			CHECK((indexAccessor.ComponentType == GltfComponentType::Uint16 || indexAccessor.ComponentType == GltfComponentType::Int16 ||
 				   indexAccessor.ComponentType == GltfComponentType::Uint32) &&
@@ -237,15 +328,63 @@ void Renderer::LoadScene(usize sceneIndex)
 				.PositionOffset = positionOffset,
 				.PositionSize = positionSize,
 				.PositionStride = positionStride,
+				.TextureCoordinateOffset = textureCoordinateOffset,
+				.TextureCoordinateSize = textureCoordinateSize,
+				.TextureCoordinateStride = textureCoordinateStride,
 				.IndexOffset = indexOffset,
 				.IndexSize = indexSize,
 				.IndexStride = indexStride,
+				.MaterialIndex = primitive.Material,
 			});
 		}
 
 		SceneMeshes.Add(Mesh
 		{
 			.Primitives = Move(primitives),
+		});
+	}
+
+	for (const GltfMaterial& material : scene.Materials)
+	{
+		usize samplerIndex = INDEX_NONE;
+
+		Texture primitiveBaseColorTexture;
+		if (material.BaseColorTexture != INDEX_NONE)
+		{
+			const GltfTexture& baseColorTexture = scene.Textures[material.BaseColorTexture];
+			const GltfImage& image = scene.Images[baseColorTexture.Image];
+
+			primitiveBaseColorTexture = Device.CreateTexture("Scene Base Color Texture"_view, BarrierLayout::GraphicsQueueCommon,
+			{
+				.Width = image.Image.Width,
+				.Height = image.Image.Height,
+				.Type = TextureType::Rectangle,
+				.Format = image.Image.Format,
+			});
+			Device.Write(primitiveBaseColorTexture, image.Image.Data);
+
+			samplerIndex = baseColorTexture.Sampler;
+		}
+
+		Sampler primitiveSampler;
+		if (samplerIndex != INDEX_NONE)
+		{
+			const GltfSampler& sampler = scene.Samplers[samplerIndex];
+
+			primitiveSampler = Device.CreateSampler(
+			{
+				.MinificationFilter = convertSamplerFilter(sampler.MinificationFilter),
+				.MagnificationFilter = convertSamplerFilter(sampler.MagnificationFilter),
+				.HorizontalAddress = convertSamplerAddress(sampler.HorizontalAddress),
+				.VerticalAddress = convertSamplerAddress(sampler.VerticalAddress),
+			});
+		}
+
+		SceneMaterials.Add(Material
+		{
+			.BaseColorTexture = primitiveBaseColorTexture,
+			.BaseColorFactor = material.BaseColorFactor,
+			.Sampler = primitiveSampler,
 		});
 	}
 
@@ -260,7 +399,7 @@ void Renderer::LoadScene(usize sceneIndex)
 		SceneNodes.Add(Node
 		{
 			.Transform = CalculateGltfGlobalTransform(scene, i),
-			.Mesh = node.Mesh,
+			.MeshIndex = node.Mesh,
 		});
 	}
 
@@ -291,6 +430,28 @@ void Renderer::LoadScene(usize sceneIndex)
 		.Size = SceneNodes.GetLength() * sizeof(Hlsl::Node),
 		.Stride = sizeof(Hlsl::Node),
 	});
+
+	const double end = Platform::GetTime();
+
+	Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
+}
+
+void Renderer::UnloadScene()
+{
+	Device.DestroyBuffer(&InstanceSceneBuffer);
+	Device.DestroyBuffer(&InstanceNodeBuffer);
+
+	for (Material& material : SceneMaterials)
+	{
+		Device.DestroyTexture(&material.BaseColorTexture);
+		Device.DestroySampler(&material.Sampler);
+	}
+
+	Device.DestroyBuffer(&SceneVertexBuffer);
+
+	SceneMeshes.Clear();
+	SceneMaterials.Clear();
+	SceneNodes.Clear();
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
