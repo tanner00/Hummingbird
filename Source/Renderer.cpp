@@ -1,6 +1,8 @@
 #include "Renderer.hpp"
 #include "DrawText.hpp"
 
+static Allocator* RendererAllocator = &GlobalAllocator::Get();
+
 Renderer::Renderer(const Platform::Window* window)
 	: Device(window)
 	, Graphics(Device.CreateGraphicsContext())
@@ -283,7 +285,7 @@ void Renderer::LoadScene(usize sceneIndex)
 
 	for (const GltfMesh& mesh : scene.Meshes)
 	{
-		Array<Primitive> primitives { mesh.Primitives.GetLength(), &GlobalAllocator::Get() };
+		Array<Primitive> primitives(mesh.Primitives.GetLength(), RendererAllocator);
 
 		for (const GltfPrimitive& primitive : mesh.Primitives)
 		{
@@ -415,7 +417,7 @@ void Renderer::LoadScene(usize sceneIndex)
 		.Size = sizeof(Hlsl::Scene),
 	});
 
-	Array<Hlsl::Node> nodeData(SceneNodes.GetLength(), &GlobalAllocator::Get());
+	Array<Hlsl::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
 	for (Node& node : SceneNodes)
 	{
 		nodeData.Add(Hlsl::Node
