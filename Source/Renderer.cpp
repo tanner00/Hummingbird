@@ -35,36 +35,43 @@ Renderer::Renderer(const Platform::Window* window)
 
 	LoadScene(0);
 
-	Shader vertex = Device.CreateShader(
+	const auto createPipeline = [this](bool alphaBlend)
 	{
-		.Stage = ShaderStage::Vertex,
-		.FilePath = "Resources/Shaders/Scene.hlsl"_view,
-	});
-	Shader pixel = Device.CreateShader(
-	{
-		.Stage = ShaderStage::Pixel,
-		.FilePath = "Resources/Shaders/Scene.hlsl"_view,
-	});
-	ShaderStages stages;
-	stages.AddStage(vertex);
-	stages.AddStage(pixel);
+		Shader vertex = Device.CreateShader(
+		{
+			.Stage = ShaderStage::Vertex,
+			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
+		});
+		Shader pixel = Device.CreateShader(
+		{
+			.Stage = ShaderStage::Pixel,
+			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
+		});
+		ShaderStages stages;
+		stages.AddStage(vertex);
+		stages.AddStage(pixel);
 
-	ScenePipeline = Device.CreateGraphicsPipeline("Scene Pipeline"_view,
-	{
-		.Stages = Move(stages),
-		.RenderTargetFormat = TextureFormat::Rgba8Srgb,
-		.DepthFormat = TextureFormat::Depth32,
-		.AlphaBlend = false,
-	});
+		const GraphicsPipeline pipeline = Device.CreateGraphicsPipeline("Scene Pipeline"_view,
+		{
+			.Stages = Move(stages),
+			.RenderTargetFormat = TextureFormat::Rgba8Srgb,
+			.DepthFormat = TextureFormat::Depth32,
+			.AlphaBlend = alphaBlend,
+		});
+		Device.DestroyShader(&vertex);
+		Device.DestroyShader(&pixel);
 
-	Device.DestroyShader(&vertex);
-	Device.DestroyShader(&pixel);
+		return pipeline;
+	};
+	SceneOpaquePipeline = createPipeline(false);
+	SceneBlendPipeline = createPipeline(true);
 }
 
 Renderer::~Renderer()
 {
 	UnloadScene();
-	Device.DestroyGraphicsPipeline(&ScenePipeline);
+	Device.DestroyGraphicsPipeline(&SceneOpaquePipeline);
+	Device.DestroyGraphicsPipeline(&SceneBlendPipeline);
 
 	Device.DestroySampler(&DefaultSampler);
 	Device.DestroyTexture(&DefaultTexture);
@@ -118,14 +125,12 @@ void Renderer::Update()
 		frameTexture
 	);
 
+	Graphics.SetGraphicsPipeline(&SceneOpaquePipeline);
+
 	Graphics.ClearRenderTarget(frameTexture, { 0.0f, 0.0f, 0.0f, 1.0f });
 	Graphics.ClearDepthStencil(DepthTexture);
 
 	Graphics.SetRenderTarget(frameTexture, DepthTexture);
-
-	Graphics.SetGraphicsPipeline(&ScenePipeline);
-
-	Graphics.SetConstantBuffer("Scene"_view, InstanceSceneBuffer);
 
 	const uint32 defaultTextureIndex = Device.Get(DefaultTexture);
 	const uint32 defaultSamplerIndex = Device.Get(DefaultSampler);
@@ -141,11 +146,13 @@ void Renderer::Update()
 			{
 				.NodeIndex = static_cast<uint32>(i),
 				.SamplerIndex = defaultSamplerIndex,
-				.GeometryView = geometryView,
+				.AlphaCutoff = 0.0f,
 				.BaseColorTextureIndex = defaultTextureIndex,
 				.BaseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f },
+				.GeometryView = geometryView,
 			};
 
+			bool requiresBlend = false;
 			if (primitive.MaterialIndex != INDEX_NONE)
 			{
 				const Material& material = SceneMaterials[primitive.MaterialIndex];
@@ -160,7 +167,21 @@ void Renderer::Update()
 				{
 					rootConstants.SamplerIndex = Device.Get(material.Sampler);
 				}
+
+				requiresBlend = material.RequiresBlend;
+				rootConstants.AlphaCutoff = material.AlphaCutoff;
 			}
+
+			if (requiresBlend)
+			{
+				Graphics.SetGraphicsPipeline(&SceneBlendPipeline);
+			}
+			else
+			{
+				Graphics.SetGraphicsPipeline(&SceneOpaquePipeline);
+			}
+
+			Graphics.SetConstantBuffer("Scene"_view, InstanceSceneBuffer);
 
 			Graphics.SetRootConstants("RootConstants"_view, &rootConstants);
 
@@ -387,6 +408,8 @@ void Renderer::LoadScene(usize sceneIndex)
 			.BaseColorTexture = primitiveBaseColorTexture,
 			.BaseColorFactor = material.BaseColorFactor,
 			.Sampler = primitiveSampler,
+			.RequiresBlend = material.AlphaMode == GltfAlphaMode::Blend,
+			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
 

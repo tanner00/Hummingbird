@@ -371,7 +371,35 @@ GltfScene LoadGltfScene(StringView filePath)
 			}
 		}
 
-		materials.Emplace(baseColorTexture, baseColorFactor);
+		GltfAlphaMode alphaMode = GltfAlphaMode::Opaque;
+		float alphaCutoff = 0.5f;
+
+		if (materialObject.HasKey("alphaMode"_view))
+		{
+			const String& alphaModeString = materialObject["alphaMode"_view].GetString();
+
+			if (alphaModeString == "OPAQUE"_view)
+			{
+				alphaMode = GltfAlphaMode::Opaque;
+			} else if (alphaModeString == "MASK"_view)
+			{
+				alphaMode = GltfAlphaMode::Mask;
+			} else if (alphaModeString == "BLEND"_view)
+			{
+				alphaMode = GltfAlphaMode::Blend;
+			}
+			else
+			{
+				VERIFY(false, "Unexpected GLTF alpha mode!");
+			}
+		}
+
+		if (materialObject.HasKey("alphaCutoff"_view))
+		{
+			alphaCutoff = static_cast<float>(materialObject["alphaCutoff"_view].GetDecimal());
+		}
+
+		materials.Emplace(baseColorTexture, baseColorFactor, alphaMode, alphaCutoff);
 	}
 
 	const auto toFilter = [](usize filter, bool magnification)
