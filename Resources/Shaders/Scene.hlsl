@@ -1,16 +1,25 @@
 struct VertexInput
 {
 	float3 Position : POSITION0;
+	float2 TextureCoordinate : TEXCOORD0;
 };
 
 struct PixelInput
 {
 	float4 Position : SV_POSITION;
+	float2 TextureCoordinate : TEXCOORD0;
 };
 
 struct RootConstants
 {
 	uint NodeIndex;
+
+	uint SamplerIndex;
+
+	bool GeometryView;
+
+	uint BaseColorTextureIndex;
+	float4 BaseColorFactor;
 };
 ConstantBuffer<RootConstants> RootConstants : register(b0);
 
@@ -18,7 +27,7 @@ struct Scene
 {
 	matrix ViewProjection;
 
-	uint NodeBuffer;
+	uint NodeBufferIndex;
 };
 ConstantBuffer<Scene> Scene : register(b1);
 
@@ -29,11 +38,12 @@ struct Node
 
 PixelInput VertexMain(VertexInput input)
 {
-	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBuffer];
+	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
 	const Node node = nodeBuffer[RootConstants.NodeIndex];
 
 	PixelInput result;
 	result.Position = mul(Scene.ViewProjection, mul(node.Transform, float4(input.Position, 1.0f)));
+	result.TextureCoordinate = input.TextureCoordinate;
 	return result;
 }
 
@@ -61,5 +71,13 @@ float4 ToColor(uint v)
 
 float4 PixelMain(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
 {
-	return ToColor(Hash(primitiveID));
+	const Texture2D<float3> baseColorTexture = ResourceDescriptorHeap[RootConstants.BaseColorTextureIndex];
+	const SamplerState sampler = ResourceDescriptorHeap[RootConstants.SamplerIndex];
+
+	if (RootConstants.GeometryView)
+	{
+		return ToColor(Hash(primitiveID));
+	}
+	const float4 finalColor = RootConstants.BaseColorFactor * float4(baseColorTexture.Sample(sampler, input.TextureCoordinate), 1.0f);
+	return finalColor;
 }

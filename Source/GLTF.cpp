@@ -278,6 +278,170 @@ GltfScene LoadGltfScene(StringView filePath)
 		meshes.Emplace(Move(primitives));
 	}
 
+	Array<GltfImage> images(GltfAllocator);
+	if (rootObject.HasKey("images"_view))
+	{
+		const JsonArray& imageArray = rootObject["images"_view].GetArray();
+		images.Reserve(imageArray.GetLength());
+		for (const JsonValue& imageValue : imageArray)
+		{
+			const JsonObject& imageObject = imageValue.GetObject();
+
+			const String& imagePath = imageObject["uri"_view].GetString();
+			const String fullPath = ResolveFilePath(filePath, imagePath);
+
+			images.Emplace(LoadDdsImage(fullPath));
+		}
+	}
+
+	Array<GltfTexture> textures(GltfAllocator);
+	if (rootObject.HasKey("textures"_view))
+	{
+		const JsonArray& textureArray = rootObject["textures"_view].GetArray();
+		textures.Reserve(textureArray.GetLength());
+		for (const JsonValue& textureValue : textureArray)
+		{
+			const JsonObject& textureObject = textureValue.GetObject();
+
+			const usize image = static_cast<usize>(textureObject["source"_view].GetDecimal());
+
+			const usize sampler = textureObject.HasKey("sampler"_view) ? static_cast<usize>(textureObject["sampler"_view].GetDecimal()) : INDEX_NONE;
+
+			textures.Emplace(image, sampler);
+		}
+	}
+
+	const auto toColor = [](const JsonArray& colorArray)
+	{
+		VERIFY(colorArray.GetLength() == 4, "Expected GLTF color array to have 4 components!");
+		return Float4
+		{
+			static_cast<float>(colorArray[0].GetDecimal()),
+			static_cast<float>(colorArray[1].GetDecimal()),
+			static_cast<float>(colorArray[2].GetDecimal()),
+			static_cast<float>(colorArray[3].GetDecimal()),
+		};
+	};
+
+	const JsonArray& materialArray = rootObject["materials"_view].GetArray();
+	Array<GltfMaterial> materials(materialArray.GetLength(), GltfAllocator);
+	for (const JsonValue& materialValue : materialArray)
+	{
+		const JsonObject& materialObject = materialValue.GetObject();
+
+		usize baseColorTexture = INDEX_NONE;
+		Float4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+		if (materialObject.HasKey("pbrMetallicRoughness"_view))
+		{
+			const JsonObject& pbrMetallicRoughnessObject = materialObject["pbrMetallicRoughness"_view].GetObject();
+
+			if (pbrMetallicRoughnessObject.HasKey("baseColorTexture"_view))
+			{
+				const JsonObject& baseColorTextureObject = pbrMetallicRoughnessObject["baseColorTexture"_view].GetObject();
+				baseColorTexture = static_cast<usize>(baseColorTextureObject["index"_view].GetDecimal());
+			}
+
+			if (materialObject.HasKey("baseColorFactor"_view))
+			{
+				const JsonArray& baseColorFactorArray = materialObject["baseColorFactor"_view].GetArray();
+				baseColorFactor = toColor(baseColorFactorArray);
+			}
+		}
+
+		if (materialObject.HasKey("extensions"_view))
+		{
+			const JsonObject& extensionsObject = materialObject["extensions"_view].GetObject();
+
+			if (extensionsObject.HasKey("KHR_materials_pbrSpecularGlossiness"_view))
+			{
+				const JsonObject& pbrSpecularGlossinessObject = extensionsObject["KHR_materials_pbrSpecularGlossiness"_view].GetObject();
+
+				if (pbrSpecularGlossinessObject.HasKey("diffuseTexture"_view))
+				{
+					const JsonObject& diffuseTextureObject = pbrSpecularGlossinessObject["diffuseTexture"_view].GetObject();
+					baseColorTexture = static_cast<usize>(diffuseTextureObject["index"_view].GetDecimal());
+				}
+
+				if (pbrSpecularGlossinessObject.HasKey("diffuseFactor"_view))
+				{
+					const JsonArray& diffuseFactorArray = pbrSpecularGlossinessObject["diffuseFactor"_view].GetArray();
+					baseColorFactor = toColor(diffuseFactorArray);
+				}
+			}
+		}
+
+		materials.Emplace(baseColorTexture, baseColorFactor);
+	}
+
+	const auto toFilter = [](usize filter, bool magnification)
+	{
+		if (magnification)
+			CHECK(filter == 9728 || filter == 9729);
+
+		switch (filter)
+		{
+		case 9728:
+			return GltfFilter::Nearest;
+		case 9729:
+			return GltfFilter::Linear;
+		case 9984:
+			return GltfFilter::NearestMipMapNearest;
+		case 9985:
+			return GltfFilter::LinearMipMapNearest;
+		case 9986:
+			return GltfFilter::NearestMipMapLinear;
+		case 9987:
+			return GltfFilter::LinearMipMapLinear;
+		default:
+			CHECK(false);
+		}
+		return GltfFilter::Nearest;
+	};
+
+	const auto toAddress = [](usize address)
+	{
+		switch (address)
+		{
+		case 10497:
+			return GltfAddress::Repeat;
+		case 33071:
+			return GltfAddress::ClampToEdge;
+		case 33648:
+			return GltfAddress::MirroredRepeat;
+		default:
+			CHECK(false);
+		}
+		return GltfAddress::Repeat;
+	};
+
+	Array<GltfSampler> samplers(GltfAllocator);
+	if (rootObject.HasKey("samplers"_view))
+	{
+		const JsonArray& samplerArray = rootObject["samplers"_view].GetArray();
+		samplers.Reserve(samplerArray.GetLength());
+		for (const JsonValue& samplerValue : samplerArray)
+		{
+			const JsonObject& samplerObject = samplerValue.GetObject();
+
+			const GltfFilter minification = samplerObject.HasKey("minFilter"_view) ?
+												toFilter(static_cast<usize>(samplerObject["minFilter"_view].GetDecimal()), false) :
+												GltfFilter::Linear;
+			const GltfFilter magnification = samplerObject.HasKey("magFilter"_view) ?
+												toFilter(static_cast<usize>(samplerObject["magFilter"_view].GetDecimal()), true) :
+												GltfFilter::Linear;
+
+			const GltfAddress horizontal = samplerObject.HasKey("wrapS"_view) ?
+												toAddress(static_cast<usize>(samplerObject["wrapS"_view].GetDecimal())) :
+												GltfAddress::Repeat;
+			const GltfAddress vertical = samplerObject.HasKey("wrapT"_view) ?
+												toAddress(static_cast<usize>(samplerObject["wrapT"_view].GetDecimal())) :
+												GltfAddress::Repeat;
+
+			samplers.Emplace(minification, magnification, horizontal, vertical);
+		}
+	}
+
 	const JsonArray& accessorArray = rootObject["accessors"_view].GetArray();
 	Array<GltfAccessor> accessors(accessorArray.GetLength(), GltfAllocator);
 	for (const JsonValue& accessorValue : accessorArray)
@@ -337,6 +501,10 @@ GltfScene LoadGltfScene(StringView filePath)
 		.Buffers = Move(buffers),
 		.BufferViews = Move(bufferViews),
 		.Meshes = Move(meshes),
+		.Images = Move(images),
+		.Textures = Move(textures),
+		.Samplers = Move(samplers),
+		.Materials = Move(materials),
 		.Accessors = Move(accessors),
 		.Camera = camera,
 		.DefaultCamera = cameraIndex == INDEX_NONE,
@@ -345,6 +513,10 @@ GltfScene LoadGltfScene(StringView filePath)
 
 void UnloadGltfScene(GltfScene* scene)
 {
+	for (GltfImage& image : scene->Images)
+	{
+		UnloadDdsImage(&image.Image);
+	}
 	for (GltfBuffer& buffer : scene->Buffers)
 	{
 		GltfAllocator->Deallocate(buffer.Data, buffer.Size);
