@@ -47,7 +47,8 @@ private:
 
 	GltfCamera SceneCamera;
 
-	GraphicsPipeline ScenePipeline;
+	GraphicsPipeline SceneOpaquePipeline;
+	GraphicsPipeline SceneBlendPipeline;
 
 #if !RELEASE
 	double AverageCpuTime;

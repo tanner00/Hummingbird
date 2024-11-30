@@ -11,6 +11,9 @@ struct Material
 	Float4 BaseColorFactor;
 
 	Sampler Sampler;
+
+	bool RequiresBlend;
+	float AlphaCutoff;
 };
 
 struct Primitive
@@ -59,10 +62,12 @@ struct SceneRootConstants
 
 	uint32 SamplerIndex;
 
-	uint32 GeometryView;
+	float AlphaCutoff;
 
 	uint32 BaseColorTextureIndex;
 	Float4 BaseColorFactor;
+
+	uint32 GeometryView;
 };
 
 struct Node

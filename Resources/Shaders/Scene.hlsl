@@ -16,10 +16,12 @@ struct RootConstants
 
 	uint SamplerIndex;
 
-	bool GeometryView;
+	float AlphaCutoff;
 
 	uint BaseColorTextureIndex;
 	float4 BaseColorFactor;
+
+	bool GeometryView;
 };
 ConstantBuffer<RootConstants> RootConstants : register(b0);
 
@@ -71,13 +73,18 @@ float4 ToColor(uint v)
 
 float4 PixelMain(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
 {
-	const Texture2D<float3> baseColorTexture = ResourceDescriptorHeap[RootConstants.BaseColorTextureIndex];
+	const Texture2D<float4> baseColorTexture = ResourceDescriptorHeap[RootConstants.BaseColorTextureIndex];
 	const SamplerState sampler = ResourceDescriptorHeap[RootConstants.SamplerIndex];
 
 	if (RootConstants.GeometryView)
 	{
 		return ToColor(Hash(primitiveID));
 	}
-	const float4 finalColor = RootConstants.BaseColorFactor * float4(baseColorTexture.Sample(sampler, input.TextureCoordinate), 1.0f);
+
+	const float4 finalColor = RootConstants.BaseColorFactor * baseColorTexture.Sample(sampler, input.TextureCoordinate);
+	if (finalColor.a < RootConstants.AlphaCutoff)
+	{
+		discard;
+	}
 	return finalColor;
 }

@@ -70,6 +70,13 @@ enum class GltfAddress
 	MirroredRepeat,
 };
 
+enum class GltfAlphaMode
+{
+	Opaque,
+	Mask,
+	Blend,
+};
+
 struct GltfNode
 {
 	usize Mesh;
@@ -129,6 +136,9 @@ struct GltfMaterial
 {
 	usize BaseColorTexture;
 	Float4 BaseColorFactor;
+
+	GltfAlphaMode AlphaMode;
+	float AlphaCutoff;
 };
 
 struct GltfSampler
