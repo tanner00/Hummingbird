@@ -40,6 +40,9 @@ struct DdsExtendedHeader
 	uint32 MiscFlags2;
 };
 
+static constexpr char FormatSignature[] = "DDS ";
+static usize HeadersSize = sizeof(DdsHeader) + sizeof(DdsExtendedHeader) + (sizeof(FormatSignature) - 1);
+
 static TextureFormat FromD3D12(DXGI_FORMAT format)
 {
 	switch (format)
@@ -106,11 +109,11 @@ DdsImage LoadDdsImage(StringView filePath)
 	char* ddsFileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &ddsFileSize, *DdsAllocator));
 	const StringView ddsFileView = { ddsFileData, ddsFileSize };
 
-	VERIFY(ddsFileSize >= 4, "Invalid DDS file!");
-	VERIFY(ddsFileView[0] == 'D', "Unexpected image file format!");
-	VERIFY(ddsFileView[1] == 'D', "Unexpected image file format!");
-	VERIFY(ddsFileView[2] == 'S', "Unexpected image file format!");
-	VERIFY(ddsFileView[3] == ' ', "Unexpected image file format!");
+	VERIFY(ddsFileSize >= sizeof(FormatSignature) - 1, "Invalid DDS file!");
+	for (usize i = 0; i < sizeof(FormatSignature) - 1; ++i)
+	{
+		VERIFY(ddsFileView[i] == FormatSignature[i], "Unexpected image file format!");
+	}
 	usize offset = 4;
 
 	DdsHeader header =
@@ -186,24 +189,22 @@ DdsImage LoadDdsImage(StringView filePath)
 	VERIFY(extendedHeader.ResourceDimension == extendedHeaderRectangleTexture, "Unexpected DDS file type!");
 	VERIFY(extendedHeader.ArraySize == 1, "Unexpected DDS file type!");
 
-	const usize imageDataSize = ddsFileSize - offset;
-	uint8* imageData = static_cast<uint8*>(GlobalAllocator::Get().Allocate(imageDataSize));
-	Platform::MemoryCopy(imageData, ddsFileData + offset, imageDataSize);
+	uint8* imageData = reinterpret_cast<uint8*>(ddsFileData + HeadersSize);
+	const usize imageDataSize = ddsFileSize - HeadersSize;
 
-	GlobalAllocator::Get().Deallocate(ddsFileData, ddsFileSize);
 	return DdsImage
 	{
 		.Data = imageData,
 		.DataSize = imageDataSize,
 		.Format = FromD3D12(extendedHeader.DxgiFormat),
-		.Width = header.Width,
-		.Height = header.Height,
+		.Width = static_cast<uint32>(header.Width),
+		.Height = static_cast<uint32>(header.Height),
 	};
 }
 
 void UnloadDdsImage(DdsImage* image)
 {
-	GlobalAllocator::Get().Deallocate(image->Data, image->DataSize);
+	DdsAllocator->Deallocate(image->Data - HeadersSize, image->DataSize + HeadersSize);
 	image->Data = nullptr;
 	image->DataSize = 0;
 	image->Width = 0;
