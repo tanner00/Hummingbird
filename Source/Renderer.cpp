@@ -33,45 +33,14 @@ Renderer::Renderer(const Platform::Window* window)
 		.VerticalAddress = SamplerAddress::Wrap,
 	});
 
+	CreatePipelines();
 	LoadScene(0);
-
-	const auto createPipeline = [this](bool alphaBlend)
-	{
-		Shader vertex = Device.CreateShader(
-		{
-			.Stage = ShaderStage::Vertex,
-			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
-		});
-		Shader pixel = Device.CreateShader(
-		{
-			.Stage = ShaderStage::Pixel,
-			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
-		});
-		ShaderStages stages;
-		stages.AddStage(vertex);
-		stages.AddStage(pixel);
-
-		const GraphicsPipeline pipeline = Device.CreateGraphicsPipeline("Scene Pipeline"_view,
-		{
-			.Stages = Move(stages),
-			.RenderTargetFormat = TextureFormat::Rgba8Srgb,
-			.DepthFormat = TextureFormat::Depth32,
-			.AlphaBlend = alphaBlend,
-		});
-		Device.DestroyShader(&vertex);
-		Device.DestroyShader(&pixel);
-
-		return pipeline;
-	};
-	SceneOpaquePipeline = createPipeline(false);
-	SceneBlendPipeline = createPipeline(true);
 }
 
 Renderer::~Renderer()
 {
 	UnloadScene();
-	Device.DestroyGraphicsPipeline(&SceneOpaquePipeline);
-	Device.DestroyGraphicsPipeline(&SceneBlendPipeline);
+	DestroyPipelines();
 
 	Device.DestroySampler(&DefaultSampler);
 	Device.DestroyTexture(&DefaultTexture);
@@ -97,10 +66,18 @@ void Renderer::Update()
 	}
 
 	static uint32 geometryView = 0;
+#if !RELEASE
 	if (IsKeyPressedOnce(Key::G))
 	{
 		geometryView = !geometryView;
 	}
+
+	if (IsKeyPressedOnce(Key::R))
+	{
+		DestroyPipelines();
+		CreatePipelines();
+	}
+#endif
 
 	const Matrix view = SceneCamera.Transform.GetInverse();
 	const Matrix projection = Matrix::Perspective(SceneCamera.FieldOfViewYRadians, SceneCamera.AspectRatio, SceneCamera.NearZ, SceneCamera.FarZ);
@@ -477,6 +454,47 @@ void Renderer::UnloadScene()
 	SceneMeshes.Clear();
 	SceneMaterials.Clear();
 	SceneNodes.Clear();
+}
+
+void Renderer::CreatePipelines()
+{
+	const auto createPipeline = [this](bool alphaBlend)
+	{
+		Shader vertex = Device.CreateShader(
+		{
+			.Stage = ShaderStage::Vertex,
+			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
+		});
+		Shader pixel = Device.CreateShader(
+		{
+			.Stage = ShaderStage::Pixel,
+			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
+		});
+		ShaderStages stages;
+		stages.AddStage(vertex);
+		stages.AddStage(pixel);
+
+		const GraphicsPipeline pipeline = Device.CreateGraphicsPipeline("Scene Pipeline"_view,
+		{
+			.Stages = Move(stages),
+			.RenderTargetFormat = TextureFormat::Rgba8Srgb,
+			.DepthFormat = TextureFormat::Depth32,
+			.AlphaBlend = alphaBlend,
+		});
+		Device.DestroyShader(&vertex);
+		Device.DestroyShader(&pixel);
+
+		return pipeline;
+	};
+
+	SceneOpaquePipeline = createPipeline(false);
+	SceneBlendPipeline = createPipeline(true);
+}
+
+void Renderer::DestroyPipelines()
+{
+	Device.DestroyGraphicsPipeline(&SceneOpaquePipeline);
+	Device.DestroyGraphicsPipeline(&SceneBlendPipeline);
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)

@@ -25,6 +25,9 @@ private:
 	void LoadScene(usize sceneIndex);
 	void UnloadScene();
 
+	void CreatePipelines();
+	void DestroyPipelines();
+
 	void CreateScreenTextures(uint32 width, uint32 height);
 	void DestroyScreenTextures();
 
