@@ -48,7 +48,7 @@ GltfScene LoadGltfScene(StringView filePath)
 	GltfCamera camera =
 	{
 		.Transform = Matrix::Identity,
-		.FieldOfViewYDegrees = 60.0f,
+		.FieldOfViewYRadians = Pi / 3.0f,
 		.AspectRatio = 16.0f / 9.0f,
 		.NearZ = 0.01f,
 		.FarZ = 1000.0f,
@@ -67,7 +67,7 @@ GltfScene LoadGltfScene(StringView filePath)
 
 			const JsonObject& perspectiveCameraObject = cameraObject["perspective"_view].GetObject();
 
-			camera.FieldOfViewYDegrees = static_cast<float>(perspectiveCameraObject["yfov"_view].GetDecimal()) * RadiansToDegrees;
+			camera.FieldOfViewYRadians = static_cast<float>(perspectiveCameraObject["yfov"_view].GetDecimal());
 
 			if (perspectiveCameraObject.HasKey("aspectRatio"_view))
 				camera.AspectRatio = static_cast<float>(perspectiveCameraObject["aspectRatio"_view].GetDecimal());

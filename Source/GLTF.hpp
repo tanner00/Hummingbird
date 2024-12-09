@@ -153,7 +153,7 @@ struct GltfCamera
 {
 	Matrix Transform;
 
-	float FieldOfViewYDegrees;
+	float FieldOfViewYRadians;
 	float AspectRatio;
 
 	float NearZ;

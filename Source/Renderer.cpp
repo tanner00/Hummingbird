@@ -103,7 +103,7 @@ void Renderer::Update()
 	}
 
 	const Matrix view = SceneCamera.Transform.GetInverse();
-	const Matrix projection = Matrix::Perspective(SceneCamera.FieldOfViewYDegrees, SceneCamera.AspectRatio, SceneCamera.NearZ, SceneCamera.FarZ);
+	const Matrix projection = Matrix::Perspective(SceneCamera.FieldOfViewYRadians, SceneCamera.AspectRatio, SceneCamera.NearZ, SceneCamera.FarZ);
 	const Hlsl::Scene instanceSceneData =
 	{
 		.ViewProjection = projection * view,
