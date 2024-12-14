@@ -50,7 +50,7 @@ Renderer::~Renderer()
 	DestroyScreenTextures();
 }
 
-void Renderer::Update(const CameraController& camera)
+void Renderer::Update(const CameraController& cameraController)
 {
 #if !RELEASE
 	const double startCpuTime = Platform::GetTime();
@@ -70,10 +70,16 @@ void Renderer::Update(const CameraController& camera)
 	}
 #endif
 
-	const Matrix projection = Matrix::Perspective(camera.GetFieldOfViewYRadians(), camera.GetAspectRatio(), camera.GetNearZ(), camera.GetFarZ());
+	const Matrix projection = Matrix::Perspective
+	(
+		cameraController.GetFieldOfViewYRadians(),
+		cameraController.GetAspectRatio(),
+		cameraController.GetNearZ(),
+		cameraController.GetFarZ()
+	);
 	const Hlsl::Scene instanceSceneData =
 	{
-		.ViewProjection = projection * camera.GetViewTransform(),
+		.ViewProjection = projection * cameraController.GetViewTransform(),
 		.NodeBufferIndex = Device.Get(InstanceNodeBuffer),
 	};
 	Device.Write(InstanceSceneBuffer, &instanceSceneData);

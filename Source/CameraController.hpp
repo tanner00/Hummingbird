@@ -2,16 +2,16 @@
 
 #include "Luft/Math.hpp"
 
-struct GltfScene;
+struct GltfCamera;
 
 class CameraController
 {
 public:
-	explicit CameraController();
+	CameraController();
 
 	void Update(float timeDelta);
 
-	void SetScene(const GltfScene& scene);
+	void SetCamera(const GltfCamera& camera);
 
 	Matrix GetViewTransform() const
 	{

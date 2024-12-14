@@ -79,11 +79,13 @@ enum class GltfAlphaMode
 
 struct GltfNode
 {
-	usize Mesh;
 	Matrix Transform;
 
 	usize Parent;
 	Array<usize> ChildNodes;
+
+	usize Mesh;
+	usize Camera;
 };
 
 struct GltfBuffer
@@ -183,8 +185,7 @@ struct GltfScene
 
 	Array<GltfAccessor> Accessors;
 
-	GltfCamera Camera;
-	bool DefaultCamera;
+	Array<GltfCamera> Cameras;
 };
 
 GltfScene LoadGltfScene(StringView filePath);

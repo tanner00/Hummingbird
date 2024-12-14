@@ -18,14 +18,23 @@ static void ResizeHandler(Platform::Window*)
 
 void Start()
 {
-	const auto setScene = [](usize sceneIndex, Renderer* renderer, CameraController* camera)
+	const auto setScene = [](usize sceneIndex, Renderer* renderer, CameraController* cameraController)
 	{
 		const double start = Platform::GetTime();
 
 		GltfScene scene = LoadGltfScene(scenes[sceneIndex]);
 
-		CHECK(!scene.DefaultCamera);
-		camera->SetScene(scene);
+		const GltfCamera defaultCamera =
+		{
+			.Transform = Matrix::Identity,
+			.FieldOfViewYRadians = Pi / 3.0f,
+			.AspectRatio = 16.0f / 9.0f,
+			.NearZ = 0.1f,
+			.FarZ = 1000.0f,
+		};
+		const GltfCamera camera = scene.Cameras.IsEmpty() ? defaultCamera : scene.Cameras[0];
+
+		cameraController->SetCamera(camera);
 		renderer->SetScene(scene);
 
 		UnloadGltfScene(&scene);
@@ -37,8 +46,8 @@ void Start()
 	Platform::Window* window = Platform::MakeWindow("Hummingbird", 1920, 1080);
 
 	Renderer renderer(window);
-	CameraController camera;
-	setScene(0, &renderer, &camera);
+	CameraController cameraController;
+	setScene(0, &renderer, &cameraController);
 
 	Platform::ShowWindow(window);
 	Platform::InstallResizeHandler(ResizeHandler);
@@ -82,7 +91,7 @@ void Start()
 		{
 			if (IsKeyPressedOnce(static_cast<Key>(i + static_cast<usize>(Key::One))))
 			{
-				setScene(i, &renderer, &camera);
+				setScene(i, &renderer, &cameraController);
 			}
 		}
 
@@ -90,8 +99,8 @@ void Start()
 		const float timeDelta = timeNow - timeLast;
 		timeLast = timeNow;
 
-		camera.Update(timeDelta);
-		renderer.Update(camera);
+		cameraController.Update(timeDelta);
+		renderer.Update(cameraController);
 	}
 
 	Platform::DestroyWindow(window);

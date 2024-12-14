@@ -15,7 +15,7 @@ public:
 	explicit Renderer(const Platform::Window* window);
 	~Renderer();
 
-	void Update(const CameraController& camera);
+	void Update(const CameraController& cameraController);
 
 	void Resize(uint32 width, uint32 height);
 
