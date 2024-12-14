@@ -153,7 +153,7 @@ GltfScene LoadGltfScene(StringView filePath)
 				};
 			}
 
-			transform = Matrix::Translation(translation.X, translation.Y, translation.Z) * rotation.GetMatrix() * Matrix::Scale(scale.X, scale.Y, scale.Z);
+			transform = Matrix::Translation(translation.X, translation.Y, translation.Z) * rotation.ToMatrix() * Matrix::Scale(scale.X, scale.Y, scale.Z);
 		}
 		if (nodeObject.HasKey("matrix"_view))
 		{
