@@ -29,6 +29,18 @@ static Matrix InternalCalculateGltfGlobalTransform(const Array<GltfNode>& nodes,
 	return InternalCalculateGltfGlobalTransform(nodes, node.Parent) * node.Transform;
 }
 
+static Float4 ToFloat4(const JsonArray& floatArray)
+{
+	VERIFY(floatArray.GetLength() == 3 || floatArray.GetLength() == 4, "Expected GLTF float array to have 3 or 4 components!");
+	return Float4
+	{
+		static_cast<float>(floatArray[0].GetDecimal()),
+		static_cast<float>(floatArray[1].GetDecimal()),
+		static_cast<float>(floatArray[2].GetDecimal()),
+		(floatArray.GetLength() == 4) ? static_cast<float>(floatArray[3].GetDecimal()) : 0.0f,
+	};
+}
+
 GltfScene LoadGltfScene(StringView filePath)
 {
 	const JsonObject rootObject = LoadJson(filePath);
@@ -311,18 +323,6 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
-	const auto toColor = [](const JsonArray& colorArray)
-	{
-		VERIFY(colorArray.GetLength() == 4, "Expected GLTF color array to have 4 components!");
-		return Float4
-		{
-			static_cast<float>(colorArray[0].GetDecimal()),
-			static_cast<float>(colorArray[1].GetDecimal()),
-			static_cast<float>(colorArray[2].GetDecimal()),
-			static_cast<float>(colorArray[3].GetDecimal()),
-		};
-	};
-
 	const JsonArray& materialArray = rootObject["materials"_view].GetArray();
 	Array<GltfMaterial> materials(materialArray.GetLength(), GltfAllocator);
 	for (const JsonValue& materialValue : materialArray)
@@ -345,7 +345,7 @@ GltfScene LoadGltfScene(StringView filePath)
 			if (materialObject.HasKey("baseColorFactor"_view))
 			{
 				const JsonArray& baseColorFactorArray = materialObject["baseColorFactor"_view].GetArray();
-				baseColorFactor = toColor(baseColorFactorArray);
+				baseColorFactor = ToFloat4(baseColorFactorArray);
 			}
 		}
 
@@ -366,7 +366,7 @@ GltfScene LoadGltfScene(StringView filePath)
 				if (pbrSpecularGlossinessObject.HasKey("diffuseFactor"_view))
 				{
 					const JsonArray& diffuseFactorArray = pbrSpecularGlossinessObject["diffuseFactor"_view].GetArray();
-					baseColorFactor = toColor(diffuseFactorArray);
+					baseColorFactor = ToFloat4(diffuseFactorArray);
 				}
 			}
 		}
