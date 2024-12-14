@@ -121,6 +121,13 @@ struct GltfAccessor
 	GltfAccessorType AccessorType;
 };
 
+struct GltfAccessorView
+{
+	usize Offset;
+	usize Stride;
+	usize Size;
+};
+
 struct GltfImage
 {
 	DdsImage Image;
@@ -220,4 +227,18 @@ inline usize GetGltfComponentSize(GltfComponentType componentType)
 inline usize GetGltfElementSize(GltfAccessorType accessorType, GltfComponentType componentType)
 {
 	return GetGltfAccessorSize(accessorType) * GetGltfComponentSize(componentType);
+}
+
+inline GltfAccessorView GetGltfAccessorView(const GltfScene& scene, usize accessorIndex)
+{
+	const GltfAccessor& accessor = scene.Accessors[accessorIndex];
+	const GltfBufferView& bufferView = scene.BufferViews[accessor.BufferView];
+
+	const GltfBuffer& buffer = scene.Buffers[bufferView.Buffer];
+	const usize offset = accessor.Offset + bufferView.Offset;
+	const usize stride = GetGltfElementSize(accessor.AccessorType, accessor.ComponentType);
+	const usize size = accessor.Count * stride;
+	CHECK(offset + size <= buffer.Size);
+
+	return GltfAccessorView { offset, stride, size };
 }

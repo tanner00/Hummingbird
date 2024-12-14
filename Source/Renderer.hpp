@@ -37,7 +37,7 @@ private:
 	Texture SwapChainTextures[FramesInFlight];
 	Texture DepthTexture;
 
-	Texture DefaultTexture;
+	Texture WhiteTexture;
 	Sampler DefaultSampler;
 
 	Buffer SceneVertexBuffer;
