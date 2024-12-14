@@ -7,22 +7,29 @@
 
 #include "Luft/NoCopy.hpp"
 
+class CameraController;
+
 class Renderer : public NoCopy
 {
 public:
 	explicit Renderer(const Platform::Window* window);
 	~Renderer();
 
-	void Update();
+	void Update(const CameraController& camera);
 
 	void Resize(uint32 width, uint32 height);
+
+	void SetScene(const GltfScene& scene)
+	{
+		LoadScene(scene);
+	}
 
 private:
 #if !RELEASE
 	void UpdateFrameTimes(double startCpuTime);
 #endif
 
-	void LoadScene(usize sceneIndex);
+	void LoadScene(const GltfScene& scene);
 	void UnloadScene();
 
 	void CreatePipelines();
@@ -47,8 +54,6 @@ private:
 	Array<Mesh> SceneMeshes;
 	Array<Material> SceneMaterials;
 	Array<Node> SceneNodes;
-
-	GltfCamera SceneCamera;
 
 	GraphicsPipeline SceneOpaquePipeline;
 	GraphicsPipeline SceneBlendPipeline;

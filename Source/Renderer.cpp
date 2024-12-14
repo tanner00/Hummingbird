@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "CameraController.hpp"
 #include "DrawText.hpp"
 
 static Allocator* RendererAllocator = &GlobalAllocator::Get();
@@ -34,7 +35,6 @@ Renderer::Renderer(const Platform::Window* window)
 	});
 
 	CreatePipelines();
-	LoadScene(0);
 }
 
 Renderer::~Renderer()
@@ -50,20 +50,11 @@ Renderer::~Renderer()
 	DestroyScreenTextures();
 }
 
-void Renderer::Update()
+void Renderer::Update(const CameraController& camera)
 {
 #if !RELEASE
 	const double startCpuTime = Platform::GetTime();
 #endif
-
-	if (IsKeyPressedOnce(Key::One))
-	{
-		LoadScene(0);
-	}
-	else if (IsKeyPressedOnce(Key::Two))
-	{
-		LoadScene(1);
-	}
 
 	static uint32 geometryView = 0;
 #if !RELEASE
@@ -79,11 +70,10 @@ void Renderer::Update()
 	}
 #endif
 
-	const Matrix view = SceneCamera.Transform.GetInverse();
-	const Matrix projection = Matrix::Perspective(SceneCamera.FieldOfViewYRadians, SceneCamera.AspectRatio, SceneCamera.NearZ, SceneCamera.FarZ);
+	const Matrix projection = Matrix::Perspective(camera.GetFieldOfViewYRadians(), camera.GetAspectRatio(), camera.GetNearZ(), camera.GetFarZ());
 	const Hlsl::Scene instanceSceneData =
 	{
-		.ViewProjection = projection * view,
+		.ViewProjection = projection * camera.GetViewTransform(),
 		.NodeBufferIndex = Device.Get(InstanceNodeBuffer),
 	};
 	Device.Write(InstanceSceneBuffer, &instanceSceneData);
@@ -222,7 +212,7 @@ void Renderer::Resize(uint32 width, uint32 height)
 	Device.WaitForIdle();
 }
 
-void Renderer::LoadScene(usize sceneIndex)
+void Renderer::LoadScene(const GltfScene& scene)
 {
 	const auto convertSamplerFilter = [](const GltfFilter& filter)
 	{
@@ -259,18 +249,7 @@ void Renderer::LoadScene(usize sceneIndex)
 		return SamplerAddress::Wrap;
 	};
 
-	static const StringView scenes[] =
-	{
-		"Resources/GLTF/Sponza/Sponza.gltf"_view,
-		"Resources/GLTF/Bistro/Bistro.gltf"_view,
-	};
-	CHECK(sceneIndex < ARRAY_COUNT(scenes));
-
-	const double start = Platform::GetTime();
-
 	UnloadScene();
-
-	GltfScene scene = LoadGltfScene(scenes[sceneIndex]);
 
 	CHECK(scene.Buffers.GetLength() == 1);
 	const GltfBuffer& sceneVertexBufferData = scene.Buffers[0];
@@ -373,11 +352,6 @@ void Renderer::LoadScene(usize sceneIndex)
 		});
 	}
 
-	CHECK(!scene.DefaultCamera);
-	SceneCamera = scene.Camera;
-
-	UnloadGltfScene(&scene);
-
 	InstanceSceneBuffer = Device.CreateBuffer("Instance Scene Buffer"_view,
 	{
 		.Type = BufferType::ConstantBuffer,
@@ -400,10 +374,6 @@ void Renderer::LoadScene(usize sceneIndex)
 		.Size = SceneNodes.GetLength() * sizeof(Hlsl::Node),
 		.Stride = sizeof(Hlsl::Node),
 	});
-
-	const double end = Platform::GetTime();
-
-	Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
 }
 
 void Renderer::UnloadScene()
