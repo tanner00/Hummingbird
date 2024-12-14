@@ -57,19 +57,12 @@ GltfScene LoadGltfScene(StringView filePath)
 		sceneNodes.Emplace(static_cast<usize>(nodeValue.GetDecimal()));
 	}
 
-	GltfCamera camera =
-	{
-		.Transform = Matrix::Identity,
-		.FieldOfViewYRadians = Pi / 3.0f,
-		.AspectRatio = 16.0f / 9.0f,
-		.NearZ = 0.01f,
-		.FarZ = 1000.0f,
-	};
+	Array<GltfCamera> cameraTemplates(GltfAllocator);
 
 	if (rootObject.HasKey("cameras"_view))
 	{
 		const JsonArray& cameraArray = rootObject["cameras"_view].GetArray();
-		VERIFY(cameraArray.GetLength() == 1, "Expected only one GLTF camera!");
+		cameraTemplates.Reserve(cameraArray.GetLength());
 		for (const JsonValue& cameraValue : cameraArray)
 		{
 			const JsonObject& cameraObject = cameraValue.GetObject();
@@ -79,19 +72,29 @@ GltfScene LoadGltfScene(StringView filePath)
 
 			const JsonObject& perspectiveCameraObject = cameraObject["perspective"_view].GetObject();
 
-			camera.FieldOfViewYRadians = static_cast<float>(perspectiveCameraObject["yfov"_view].GetDecimal());
+			const float fieldOfViewYRadians = static_cast<float>(perspectiveCameraObject["yfov"_view].GetDecimal());
 
-			if (perspectiveCameraObject.HasKey("aspectRatio"_view))
-				camera.AspectRatio = static_cast<float>(perspectiveCameraObject["aspectRatio"_view].GetDecimal());
+			const float aspectRatio = perspectiveCameraObject.HasKey("aspectRatio"_view) ?
+										static_cast<float>(perspectiveCameraObject["aspectRatio"_view].GetDecimal())
+										: (16.0f / 9.0f);
 
-			camera.NearZ = static_cast<float>(perspectiveCameraObject["znear"_view].GetDecimal());
+			const float nearZ = static_cast<float>(perspectiveCameraObject["znear"_view].GetDecimal());
 
-			if (perspectiveCameraObject.HasKey("zfar"_view))
-				camera.FarZ = static_cast<float>(perspectiveCameraObject["zfar"_view].GetDecimal());
+			const float farZ = perspectiveCameraObject.HasKey("zfar"_view) ?
+									static_cast<float>(perspectiveCameraObject["zfar"_view].GetDecimal()) :
+									1000.0f;
+
+			cameraTemplates.Add(GltfCamera
+			{
+				.FieldOfViewYRadians = fieldOfViewYRadians,
+				.AspectRatio = aspectRatio,
+				.NearZ = nearZ,
+				.FarZ = farZ,
+			});
 		}
 	}
 
-	usize cameraIndex = INDEX_NONE;
+	Array<usize> cameraIndices(GltfAllocator);
 
 	const JsonArray& nodeArray = rootObject["nodes"_view].GetArray();
 	Array<GltfNode> nodes(nodeArray.GetLength(), GltfAllocator);
@@ -99,9 +102,10 @@ GltfScene LoadGltfScene(StringView filePath)
 	{
 		const JsonObject& nodeObject = nodeArray[nodeIndex].GetObject();
 
-		usize mesh = INDEX_NONE;
 		Matrix transform = Matrix::Identity;
 		Array<usize> childNodes(GltfAllocator);
+		usize mesh = INDEX_NONE;
+		usize camera = INDEX_NONE;
 
 		const bool hasTranslation = nodeObject.HasKey("translation"_view);
 		const bool hasRotation = nodeObject.HasKey("rotation"_view);
@@ -186,11 +190,11 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 		if (nodeObject.HasKey("camera"_view))
 		{
-			VERIFY(cameraIndex == INDEX_NONE, "Expected only one camera per GLTF scene!");
-			cameraIndex = nodeIndex;
+			camera = static_cast<usize>(nodeObject["camera"_view].GetDecimal());
+			cameraIndices.Add(nodeIndex);
 		}
 
-		nodes.Emplace(mesh, transform, INDEX_NONE, Move(childNodes));
+		nodes.Emplace(transform, INDEX_NONE, Move(childNodes), mesh, camera);
 	}
 
 	for (usize i = 0; i < nodes.GetLength(); ++i)
@@ -203,8 +207,15 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
-	if (cameraIndex != INDEX_NONE)
-		camera.Transform = InternalCalculateGltfGlobalTransform(nodes, cameraIndex);
+	Array<GltfCamera> cameras(cameraIndices.GetLength(), GltfAllocator);
+	for (usize cameraIndex : cameraIndices)
+	{
+		const GltfNode& node = nodes[cameraIndex];
+
+		GltfCamera placedCamera = cameraTemplates[node.Camera];
+		placedCamera.Transform = InternalCalculateGltfGlobalTransform(nodes, cameraIndex);
+		cameras.Add(placedCamera);
+	}
 
 	const JsonArray& bufferArray = rootObject["buffers"_view].GetArray();
 	Array<GltfBuffer> buffers(bufferArray.GetLength(), GltfAllocator);
@@ -534,8 +545,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		.Samplers = Move(samplers),
 		.Materials = Move(materials),
 		.Accessors = Move(accessors),
-		.Camera = camera,
-		.DefaultCamera = cameraIndex == INDEX_NONE,
+		.Cameras = Move(cameras),
 	};
 }
 

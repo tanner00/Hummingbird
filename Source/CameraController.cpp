@@ -80,14 +80,14 @@ void CameraController::Update(float timeDelta)
 	}
 }
 
-void CameraController::SetScene(const GltfScene& scene)
+void CameraController::SetCamera(const GltfCamera& camera)
 {
-	DecomposeTransform(scene.Camera.Transform, &Position, &Orientation, nullptr);
+	DecomposeTransform(camera.Transform, &Position, &Orientation, nullptr);
 
 	PitchRadians = 0.0f;
 
-	FieldOfViewYRadians = scene.Camera.FieldOfViewYRadians;
-	AspectRatio = scene.Camera.AspectRatio;
-	NearZ = scene.Camera.NearZ;
-	FarZ = scene.Camera.FarZ;
+	FieldOfViewYRadians = camera.FieldOfViewYRadians;
+	AspectRatio = camera.AspectRatio;
+	NearZ = camera.NearZ;
+	FarZ = camera.FarZ;
 }
