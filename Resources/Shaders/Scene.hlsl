@@ -14,11 +14,10 @@ struct RootConstants
 {
 	uint NodeIndex;
 
-	uint SamplerIndex;
-
 	float AlphaCutoff;
 
 	uint BaseColorTextureIndex;
+	uint BaseColorSamplerIndex;
 	float4 BaseColorFactor;
 
 	bool GeometryView;
@@ -74,7 +73,7 @@ float4 ToColor(uint v)
 float4 PixelMain(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
 {
 	const Texture2D<float4> baseColorTexture = ResourceDescriptorHeap[RootConstants.BaseColorTextureIndex];
-	const SamplerState sampler = ResourceDescriptorHeap[RootConstants.SamplerIndex];
+	const SamplerState sampler = ResourceDescriptorHeap[RootConstants.BaseColorSamplerIndex];
 
 	if (RootConstants.GeometryView)
 	{

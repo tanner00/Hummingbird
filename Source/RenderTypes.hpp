@@ -8,9 +8,8 @@
 struct Material
 {
 	Texture BaseColorTexture;
+	Sampler BaseColorSampler;
 	Float4 BaseColorFactor;
-
-	Sampler Sampler;
 
 	bool RequiresBlend;
 	float AlphaCutoff;
@@ -19,16 +18,16 @@ struct Material
 struct Primitive
 {
 	usize PositionOffset;
-	usize PositionSize;
 	usize PositionStride;
+	usize PositionSize;
 
 	usize TextureCoordinateOffset;
-	usize TextureCoordinateSize;
 	usize TextureCoordinateStride;
+	usize TextureCoordinateSize;
 
 	usize IndexOffset;
-	usize IndexSize;
 	usize IndexStride;
+	usize IndexSize;
 
 	usize MaterialIndex;
 };
@@ -60,11 +59,10 @@ struct SceneRootConstants
 {
 	uint32 NodeIndex;
 
-	uint32 SamplerIndex;
-
 	float AlphaCutoff;
 
 	uint32 BaseColorTextureIndex;
+	uint32 BaseColorSamplerIndex;
 	Float4 BaseColorFactor;
 
 	uint32 GeometryView;
