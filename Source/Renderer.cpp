@@ -78,12 +78,13 @@ void Renderer::Update(const CameraController& cameraController)
 		cameraController.GetNearZ(),
 		cameraController.GetFarZ()
 	);
-	const Hlsl::Scene instanceSceneData =
+	const Hlsl::Scene sceneData =
 	{
 		.ViewProjection = projection * view,
-		.NodeBufferIndex = Device.Get(InstanceNodeBuffer),
+		.NodeBufferIndex = Device.Get(SceneNodeBuffer),
+		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer),
 	};
-	Device.Write(InstanceSceneBuffer, &instanceSceneData);
+	Device.Write(SceneBuffer, &sceneData);
 
 	Graphics.Begin();
 
@@ -106,9 +107,6 @@ void Renderer::Update(const CameraController& cameraController)
 
 	Graphics.SetRenderTarget(frameTexture, DepthTexture);
 
-	const uint32 whiteTextureIndex = Device.Get(WhiteTexture);
-	const uint32 defaultSamplerIndex = Device.Get(DefaultSampler);
-
 	for (usize i = 0; i < SceneNodes.GetLength(); ++i)
 	{
 		const Node& node = SceneNodes[i];
@@ -116,36 +114,14 @@ void Renderer::Update(const CameraController& cameraController)
 
 		for (const Primitive& primitive : mesh.Primitives)
 		{
-			Hlsl::SceneRootConstants rootConstants =
+			const Hlsl::SceneRootConstants rootConstants =
 			{
 				.NodeIndex = static_cast<uint32>(i),
-				.AlphaCutoff = 0.0f,
-				.BaseColorTextureIndex = whiteTextureIndex,
-				.BaseColorSamplerIndex = defaultSamplerIndex,
-				.BaseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f },
+				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
 				.GeometryView = geometryView,
 			};
 
-			bool requiresBlend = false;
-			if (primitive.MaterialIndex != INDEX_NONE)
-			{
-				const Material& material = SceneMaterials[primitive.MaterialIndex];
-
-				if (material.BaseColorTexture.IsValid())
-				{
-					rootConstants.BaseColorTextureIndex = Device.Get(material.BaseColorTexture);
-				}
-				rootConstants.BaseColorFactor = material.BaseColorFactor;
-
-				if (material.BaseColorSampler.IsValid())
-				{
-					rootConstants.BaseColorSamplerIndex = Device.Get(material.BaseColorSampler);
-				}
-
-				requiresBlend = material.RequiresBlend;
-				rootConstants.AlphaCutoff = material.AlphaCutoff;
-			}
-
+			const bool requiresBlend = (primitive.MaterialIndex != INDEX_NONE) ? SceneMaterials[primitive.MaterialIndex].RequiresBlend : false;
 			if (requiresBlend)
 			{
 				Graphics.SetGraphicsPipeline(&SceneBlendPipeline);
@@ -155,7 +131,7 @@ void Renderer::Update(const CameraController& cameraController)
 				Graphics.SetGraphicsPipeline(&SceneOpaquePipeline);
 			}
 
-			Graphics.SetConstantBuffer("Scene"_view, InstanceSceneBuffer);
+			Graphics.SetConstantBuffer("Scene"_view, SceneBuffer);
 
 			Graphics.SetRootConstants("RootConstants"_view, &rootConstants);
 
@@ -258,15 +234,6 @@ void Renderer::LoadScene(const GltfScene& scene)
 
 	UnloadScene();
 
-	CHECK(scene.Buffers.GetLength() == 1);
-	const GltfBuffer& sceneVertexBufferData = scene.Buffers[0];
-	SceneVertexBuffer = Device.CreateBuffer("Scene Vertex Buffer"_view, sceneVertexBufferData.Data,
-	{
-		.Type = BufferType::VertexBuffer,
-		.Usage = BufferUsage::Static,
-		.Size = sceneVertexBufferData.Size,
-	});
-
 	for (const GltfMesh& mesh : scene.Meshes)
 	{
 		Array<Primitive> primitives(mesh.Primitives.GetLength(), RendererAllocator);
@@ -298,11 +265,26 @@ void Renderer::LoadScene(const GltfScene& scene)
 		});
 	}
 
+	for (usize i = 0; i < scene.Nodes.GetLength(); ++i)
+	{
+		const GltfNode& node = scene.Nodes[i];
+		if (node.Mesh == INDEX_NONE)
+		{
+			continue;
+		}
+
+		SceneNodes.Add(Node
+		{
+			.Transform = CalculateGltfGlobalTransform(scene, i),
+			.MeshIndex = node.Mesh,
+		});
+	}
+
 	for (const GltfMaterial& material : scene.Materials)
 	{
 		usize baseColorSamplerIndex = INDEX_NONE;
 
-		Texture primitiveBaseColorTexture;
+		Texture primitiveBaseColorTexture = WhiteTexture;
 		if (material.BaseColorTexture != INDEX_NONE)
 		{
 			const GltfTexture& baseColorTexture = scene.Textures[material.BaseColorTexture];
@@ -320,7 +302,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 			baseColorSamplerIndex = baseColorTexture.Sampler;
 		}
 
-		Sampler primitiveBaseColorSampler;
+		Sampler primitiveBaseColorSampler = DefaultSampler;
 		if (baseColorSamplerIndex != INDEX_NONE)
 		{
 			const GltfSampler& sampler = scene.Samplers[baseColorSamplerIndex];
@@ -344,26 +326,20 @@ void Renderer::LoadScene(const GltfScene& scene)
 		});
 	}
 
-	for (usize i = 0; i < scene.Nodes.GetLength(); ++i)
-	{
-		const GltfNode& node = scene.Nodes[i];
-		if (node.Mesh == INDEX_NONE)
-		{
-			continue;
-		}
-
-		SceneNodes.Add(Node
-		{
-			.Transform = CalculateGltfGlobalTransform(scene, i),
-			.MeshIndex = node.Mesh,
-		});
-	}
-
-	InstanceSceneBuffer = Device.CreateBuffer("Instance Scene Buffer"_view,
+	SceneBuffer = Device.CreateBuffer("Scene Buffer"_view,
 	{
 		.Type = BufferType::ConstantBuffer,
 		.Usage = BufferUsage::Stream,
 		.Size = sizeof(Hlsl::Scene),
+	});
+
+	CHECK(scene.Buffers.GetLength() == 1);
+	const GltfBuffer& vertexBufferData = scene.Buffers[0];
+	SceneVertexBuffer = Device.CreateBuffer("Scene Vertex Buffer"_view, vertexBufferData.Data,
+	{
+		.Type = BufferType::VertexBuffer,
+		.Usage = BufferUsage::Static,
+		.Size = vertexBufferData.Size,
 	});
 
 	Array<Hlsl::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
@@ -374,27 +350,52 @@ void Renderer::LoadScene(const GltfScene& scene)
 			.Transform = node.Transform,
 		});
 	}
-	InstanceNodeBuffer = Device.CreateBuffer("Instance Node Buffer"_view, nodeData.GetData(),
+	SceneNodeBuffer = Device.CreateBuffer("Scene Node Buffer"_view, nodeData.GetData(),
 	{
 		.Type = BufferType::StructuredBuffer,
 		.Usage = BufferUsage::Static,
 		.Size = SceneNodes.GetLength() * sizeof(Hlsl::Node),
 		.Stride = sizeof(Hlsl::Node),
 	});
+
+	Array<Hlsl::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
+	for (Material& material : SceneMaterials)
+	{
+		materialData.Add(Hlsl::Material
+		{
+			.BaseColorTextureIndex = Device.Get(material.BaseColorTexture),
+			.BaseColorSamplerIndex = Device.Get(material.BaseColorSampler),
+			.BaseColorFactor = material.BaseColorFactor,
+			.AlphaCutoff = material.AlphaCutoff,
+		});
+	}
+	SceneMaterialBuffer = Device.CreateBuffer("Scene Material Buffer"_view, materialData.GetData(),
+	{
+		.Type = BufferType::StructuredBuffer,
+		.Usage = BufferUsage::Static,
+		.Size = SceneMaterials.GetLength() * sizeof(Hlsl::Material),
+		.Stride = sizeof(Hlsl::Material),
+	});
 }
 
 void Renderer::UnloadScene()
 {
-	Device.DestroyBuffer(&InstanceSceneBuffer);
-	Device.DestroyBuffer(&InstanceNodeBuffer);
+	Device.DestroyBuffer(&SceneBuffer);
+	Device.DestroyBuffer(&SceneVertexBuffer);
+	Device.DestroyBuffer(&SceneNodeBuffer);
+	Device.DestroyBuffer(&SceneMaterialBuffer);
 
 	for (Material& material : SceneMaterials)
 	{
-		Device.DestroyTexture(&material.BaseColorTexture);
-		Device.DestroySampler(&material.BaseColorSampler);
+		if (material.BaseColorTexture != WhiteTexture)
+		{
+			Device.DestroyTexture(&material.BaseColorTexture);
+		}
+		if (material.BaseColorSampler != DefaultSampler)
+		{
+			Device.DestroySampler(&material.BaseColorSampler);
+		}
 	}
-
-	Device.DestroyBuffer(&SceneVertexBuffer);
 
 	SceneMeshes.Clear();
 	SceneMaterials.Clear();
