@@ -7,8 +7,8 @@ static constexpr usize MaxCharactersPerFrame = 2048;
 DrawText::DrawText()
 	: Glyphs(64)
 	, Ascender(0.0f)
+	, RootConstants()
 	, CharacterIndex(0)
-	, TextPerDrawData()
 	, Device(nullptr)
 {
 }
@@ -30,8 +30,8 @@ void DrawText::Init(GpuDevice* device)
 	const JsonObject& fontMetrics = fontDescription["metrics"_view].GetObject();
 	Ascender = static_cast<float>(fontMetrics["ascender"_view].GetDecimal());
 
-	TextPerDrawData.UnitRange.X = static_cast<float>(distanceRange / width);
-	TextPerDrawData.UnitRange.Y = static_cast<float>(distanceRange / height);
+	RootConstants.UnitRange.X = static_cast<float>(distanceRange / width);
+	RootConstants.UnitRange.Y = static_cast<float>(distanceRange / height);
 
 	const JsonArray& fontGlyphs = fontDescription["glyphs"_view].GetArray();
 
@@ -77,7 +77,7 @@ void DrawText::Init(GpuDevice* device)
 			planeSize.Y = static_cast<float>(bottom - top);
 		}
 
-		const uint8 codepoint = static_cast<uint8>(glyphObject["unicode"_view].GetDecimal());
+		const char codepoint = static_cast<char>(glyphObject["unicode"_view].GetDecimal());
 		Glyphs.Add(codepoint, Glyph
 		{
 			.AtlasPosition = atlasPosition,
@@ -139,13 +139,6 @@ void DrawText::Init(GpuDevice* device)
 		.Size = MaxCharactersPerFrame * sizeof(Hlsl::Character),
 		.Stride = sizeof(Hlsl::Character),
 	});
-
-	TextPerDrawBuffer = Device->CreateBuffer("Text PerDraw Buffer"_view,
-	{
-		.Type = BufferType::ConstantBuffer,
-		.Usage = BufferUsage::Stream,
-		.Size = sizeof(Hlsl::TextPerDraw),
-	});
 }
 
 void DrawText::Shutdown()
@@ -154,7 +147,6 @@ void DrawText::Shutdown()
 	Device->DestroyGraphicsPipeline(&Pipeline);
 	Device->DestroyTexture(&FontTexture);
 	Device->DestroyBuffer(&CharacterBuffer);
-	Device->DestroyBuffer(&TextPerDrawBuffer);
 
 	this->~DrawText();
 }
@@ -194,19 +186,17 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 
 void DrawText::Submit(GraphicsContext& graphics, uint32 width, uint32 height)
 {
-	TextPerDrawData.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
+	RootConstants.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
-	TextPerDrawData.CharacterBuffer = Device->Get(CharacterBuffer);
-	TextPerDrawData.Texture = Device->Get(FontTexture);
-	TextPerDrawData.Sampler = Device->Get(Sampler);
-
-	Device->Write(TextPerDrawBuffer, &TextPerDrawData);
+	RootConstants.CharacterBuffer = Device->Get(CharacterBuffer);
+	RootConstants.Texture = Device->Get(FontTexture);
+	RootConstants.Sampler = Device->Get(Sampler);
 
 	Device->Write(CharacterBuffer, CharacterData.GetData());
 
 	graphics.SetGraphicsPipeline(&Pipeline);
 
-	graphics.SetConstantBuffer("Draw"_view, TextPerDrawBuffer);
+	graphics.SetRootConstants(&RootConstants);
 
 	static constexpr usize verticesPerQuad = 6;
 	graphics.Draw(CharacterIndex * verticesPerQuad);

@@ -20,7 +20,7 @@ struct Character
 	float Scale;
 };
 
-struct PerDraw
+struct RootConstants
 {
 	matrix ViewProjection;
 	float2 UnitRange;
@@ -29,11 +29,11 @@ struct PerDraw
 	uint Texture;
 	uint Sampler;
 };
-ConstantBuffer<PerDraw> Draw : register(b0);
+ConstantBuffer<RootConstants> RootConstants : register(b0);
 
 PixelInput VertexMain(uint vertexID : SV_VertexID)
 {
-	const StructuredBuffer<Character> characterBuffer = ResourceDescriptorHeap[Draw.CharacterBuffer];
+	const StructuredBuffer<Character> characterBuffer = ResourceDescriptorHeap[RootConstants.CharacterBuffer];
 
 	static const float2 vertices[] =
 	{
@@ -55,7 +55,7 @@ PixelInput VertexMain(uint vertexID : SV_VertexID)
 	const float2 position = c.ScreenPosition + c.Scale * (c.PlanePosition + c.PlaneSize * vertices[vertexIndex]);
 
 	PixelInput result;
-	result.Position = mul(Draw.ViewProjection, float4(position, 0.0f, 1.0f));
+	result.Position = mul(RootConstants.ViewProjection, float4(position, 0.0f, 1.0f));
 	result.Uv = c.AtlasPosition + c.AtlasSize * vertices[vertexIndex];
 	result.Color = c.Color;
 	return result;
@@ -69,13 +69,13 @@ float Median(float3 v)
 float DistanceFieldRangeInScreenPixels(float2 uv)
 {
 	const float2 textureScreenSize = 1.0f / fwidth(uv);
-	return max(0.5f * dot(Draw.UnitRange, textureScreenSize), 1.0f);
+	return max(0.5f * dot(RootConstants.UnitRange, textureScreenSize), 1.0f);
 }
 
 float4 PixelMain(PixelInput input) : SV_TARGET
 {
-	const Texture2D<float3> texture = ResourceDescriptorHeap[Draw.Texture];
-	const SamplerState sampler = SamplerDescriptorHeap[Draw.Sampler];
+	const Texture2D<float3> texture = ResourceDescriptorHeap[RootConstants.Texture];
+	const SamplerState sampler = SamplerDescriptorHeap[RootConstants.Sampler];
 
 	const float3 multiChannelSignedDistance = texture.Sample(sampler, input.Uv).rgb;
 	const float signedDistance = Median(multiChannelSignedDistance);
