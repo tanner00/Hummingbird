@@ -51,19 +51,15 @@ struct Scene
 	Matrix ViewProjection;
 
 	uint32 NodeBufferIndex;
+	uint32 MaterialBufferIndex;
 
-	PAD(188);
+	PAD(184);
 };
 
 struct SceneRootConstants
 {
 	uint32 NodeIndex;
-
-	float AlphaCutoff;
-
-	uint32 BaseColorTextureIndex;
-	uint32 BaseColorSamplerIndex;
-	Float4 BaseColorFactor;
+	uint32 MaterialIndex;
 
 	uint32 GeometryView;
 };
@@ -71,6 +67,15 @@ struct SceneRootConstants
 struct Node
 {
 	Matrix Transform;
+};
+
+struct Material
+{
+	uint32 BaseColorTextureIndex;
+	uint32 BaseColorSamplerIndex;
+	Float4 BaseColorFactor;
+
+	float AlphaCutoff;
 };
 
 }

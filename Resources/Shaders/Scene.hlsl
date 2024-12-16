@@ -13,12 +13,7 @@ struct PixelInput
 struct RootConstants
 {
 	uint NodeIndex;
-
-	float AlphaCutoff;
-
-	uint BaseColorTextureIndex;
-	uint BaseColorSamplerIndex;
-	float4 BaseColorFactor;
+	uint MaterialIndex;
 
 	bool GeometryView;
 };
@@ -29,12 +24,22 @@ struct Scene
 	matrix ViewProjection;
 
 	uint NodeBufferIndex;
+	uint MaterialBufferIndex;
 };
 ConstantBuffer<Scene> Scene : register(b1);
 
 struct Node
 {
 	matrix Transform;
+};
+
+struct Material
+{
+	uint BaseColorTextureIndex;
+	uint BaseColorSamplerIndex;
+	float4 BaseColorFactor;
+
+	float AlphaCutoff;
 };
 
 PixelInput VertexMain(VertexInput input)
@@ -72,16 +77,20 @@ float4 ToColor(uint v)
 
 float4 PixelMain(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
 {
-	const Texture2D<float4> baseColorTexture = ResourceDescriptorHeap[RootConstants.BaseColorTextureIndex];
-	const SamplerState sampler = ResourceDescriptorHeap[RootConstants.BaseColorSamplerIndex];
+	const StructuredBuffer<Material> materialBuffer = ResourceDescriptorHeap[Scene.MaterialBufferIndex];
+
+	const Material material = materialBuffer[RootConstants.MaterialIndex];
+
+	const Texture2D<float4> baseColorTexture = ResourceDescriptorHeap[material.BaseColorTextureIndex];
+	const SamplerState sampler = ResourceDescriptorHeap[material.BaseColorSamplerIndex];
 
 	if (RootConstants.GeometryView)
 	{
 		return ToColor(Hash(primitiveID));
 	}
 
-	const float4 finalColor = RootConstants.BaseColorFactor * baseColorTexture.Sample(sampler, input.TextureCoordinate);
-	if (finalColor.a < RootConstants.AlphaCutoff)
+	const float4 finalColor = material.BaseColorFactor * baseColorTexture.Sample(sampler, input.TextureCoordinate);
+	if (finalColor.a < material.AlphaCutoff)
 	{
 		discard;
 	}

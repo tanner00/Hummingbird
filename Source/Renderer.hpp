@@ -47,13 +47,14 @@ private:
 	Texture WhiteTexture;
 	Sampler DefaultSampler;
 
+	Buffer SceneBuffer;
 	Buffer SceneVertexBuffer;
-	Buffer InstanceSceneBuffer;
-	Buffer InstanceNodeBuffer;
+	Buffer SceneNodeBuffer;
+	Buffer SceneMaterialBuffer;
 
 	Array<Mesh> SceneMeshes;
-	Array<Material> SceneMaterials;
 	Array<Node> SceneNodes;
+	Array<Material> SceneMaterials;
 
 	GraphicsPipeline SceneOpaquePipeline;
 	GraphicsPipeline SceneBlendPipeline;
