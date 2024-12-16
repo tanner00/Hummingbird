@@ -23,7 +23,7 @@ Renderer::Renderer(const Platform::Window* window)
 		.Type = TextureType::Rectangle,
 		.Format = TextureFormat::Rgba8Srgb,
 	});
-	constexpr usize white = 0xFFFFFFFF;
+	static constexpr usize white = 0xFFFFFFFF;
 	Device.Write(WhiteTexture, &white);
 
 	DefaultSampler = Device.CreateSampler(
@@ -70,6 +70,7 @@ void Renderer::Update(const CameraController& cameraController)
 	}
 #endif
 
+	const Matrix view = cameraController.GetTransform().GetInverse();
 	const Matrix projection = Matrix::Perspective
 	(
 		cameraController.GetFieldOfViewYRadians(),
@@ -79,7 +80,7 @@ void Renderer::Update(const CameraController& cameraController)
 	);
 	const Hlsl::Scene instanceSceneData =
 	{
-		.ViewProjection = projection * cameraController.GetViewTransform(),
+		.ViewProjection = projection * view,
 		.NodeBufferIndex = Device.Get(InstanceNodeBuffer),
 	};
 	Device.Write(InstanceSceneBuffer, &instanceSceneData);
