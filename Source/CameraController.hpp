@@ -13,10 +13,9 @@ public:
 
 	void SetCamera(const GltfCamera& camera);
 
-	Matrix GetViewTransform() const
+	Matrix GetTransform() const
 	{
-		const Matrix cameraTransform = Matrix::Translation(Position) * Orientation.ToMatrix();
-		return cameraTransform.GetInverse();
+		return Matrix::Translation(Position) * Orientation.ToMatrix();
 	}
 
 	float GetFieldOfViewYRadians() const { return FieldOfViewYRadians; }
