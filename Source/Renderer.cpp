@@ -133,7 +133,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 			Graphics.SetConstantBuffer("Scene"_view, SceneBuffer);
 
-			Graphics.SetRootConstants("RootConstants"_view, &rootConstants);
+			Graphics.SetRootConstants(&rootConstants);
 
 			Graphics.SetVertexBuffer(SceneVertexBuffer, 0, primitive.PositionOffset, primitive.PositionSize, primitive.PositionStride);
 			Graphics.SetVertexBuffer(SceneVertexBuffer, 1, primitive.TextureCoordinateOffset, primitive.TextureCoordinateSize, primitive.TextureCoordinateStride);

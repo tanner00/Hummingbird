@@ -17,7 +17,7 @@ struct Glyph
 namespace Hlsl
 {
 
-struct TextPerDraw
+struct TextRootConstants
 {
 	Matrix ViewProjection;
 	Float2 UnitRange;
@@ -25,8 +25,6 @@ struct TextPerDraw
 	uint32 CharacterBuffer;
 	uint32 Texture;
 	uint32 Sampler;
-
-	PAD(172);
 };
 
 struct Character
@@ -70,7 +68,7 @@ private:
 
 	float Ascender;
 
-	Hlsl::TextPerDraw TextPerDrawData;
+	Hlsl::TextRootConstants RootConstants;
 
 	usize CharacterIndex;
 	Array<Hlsl::Character> CharacterData;
@@ -80,7 +78,6 @@ private:
 	Texture FontTexture;
 	Sampler Sampler;
 
-	Buffer TextPerDrawBuffer;
 	Buffer CharacterBuffer;
 
 	GpuDevice* Device;
