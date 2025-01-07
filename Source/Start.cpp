@@ -52,7 +52,7 @@ void Start()
 	Platform::ShowWindow(window);
 	Platform::InstallResizeHandler(ResizeHandler);
 
-	float timeLast = 0.0f;
+	double timeLast = 0.0;
 
 	while (!Platform::IsQuitRequested())
 	{
@@ -95,11 +95,11 @@ void Start()
 			}
 		}
 
-		const float timeNow = static_cast<float>(Platform::GetTime());
-		const float timeDelta = timeNow - timeLast;
+		const double timeNow = Platform::GetTime();
+		const double timeDelta = timeNow - timeLast;
 		timeLast = timeNow;
 
-		cameraController.Update(timeDelta);
+		cameraController.Update(static_cast<float>(timeDelta));
 		renderer.Update(cameraController);
 	}
 
