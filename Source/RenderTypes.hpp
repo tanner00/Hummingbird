@@ -5,14 +5,11 @@
 #include "Luft/Array.hpp"
 #include "Luft/Math.hpp"
 
-struct Material
+enum class ViewMode : uint32
 {
-	Texture BaseColorTexture;
-	Sampler BaseColorSampler;
-	Float4 BaseColorFactor;
-
-	bool RequiresBlend;
-	float AlphaCutoff;
+	Unlit,
+	Geometry,
+	Normal,
 };
 
 struct Primitive
@@ -24,6 +21,14 @@ struct Primitive
 	usize TextureCoordinateOffset;
 	usize TextureCoordinateStride;
 	usize TextureCoordinateSize;
+
+	usize NormalOffset;
+	usize NormalStride;
+	usize NormalSize;
+
+	usize TangentOffset;
+	usize TangentStride;
+	usize TangentSize;
 
 	usize IndexOffset;
 	usize IndexStride;
@@ -41,6 +46,23 @@ struct Node
 {
 	Matrix Transform;
 	usize MeshIndex;
+};
+
+struct MaterialTexture
+{
+	Texture Texture;
+	Sampler Sampler;
+};
+
+struct Material
+{
+	MaterialTexture BaseColorTexture;
+	Float4 BaseColorFactor;
+
+	MaterialTexture NormalMapTexture;
+
+	bool RequiresBlend;
+	float AlphaCutoff;
 };
 
 namespace Hlsl
@@ -61,7 +83,11 @@ struct SceneRootConstants
 	uint32 NodeIndex;
 	uint32 MaterialIndex;
 
-	uint32 GeometryView;
+	ViewMode ViewMode;
+
+	PAD(4);
+
+	Matrix NormalTransform;
 };
 
 struct Node
@@ -74,6 +100,9 @@ struct Material
 	uint32 BaseColorTextureIndex;
 	uint32 BaseColorSamplerIndex;
 	Float4 BaseColorFactor;
+
+	uint32 NormalMapTextureIndex;
+	uint32 NormalMapSamplerIndex;
 
 	float AlphaCutoff;
 };

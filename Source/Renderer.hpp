@@ -1,11 +1,12 @@
 #pragma once
 
-#include "GLTF.hpp"
 #include "RenderTypes.hpp"
 
 #include "RHI/RHI.hpp"
 
 #include "Luft/NoCopy.hpp"
+
+struct GltfScene;
 
 class CameraController;
 
@@ -45,6 +46,7 @@ private:
 	Texture DepthTexture;
 
 	Texture WhiteTexture;
+	Texture DefaultNormalMapTexture;
 	Sampler DefaultSampler;
 
 	Buffer SceneBuffer;

@@ -343,6 +343,8 @@ GltfScene LoadGltfScene(StringView filePath)
 		usize baseColorTexture = INDEX_NONE;
 		Float4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
+		usize normalMapTexture = INDEX_NONE;
+
 		if (materialObject.HasKey("pbrMetallicRoughness"_view))
 		{
 			const JsonObject& pbrMetallicRoughnessObject = materialObject["pbrMetallicRoughness"_view].GetObject();
@@ -382,6 +384,12 @@ GltfScene LoadGltfScene(StringView filePath)
 			}
 		}
 
+		if (materialObject.HasKey("normalTexture"_view))
+		{
+			const JsonObject& normalTextureObject = materialObject["normalTexture"_view].GetObject();
+			normalMapTexture = static_cast<usize>(normalTextureObject["index"_view].GetDecimal());
+		}
+
 		GltfAlphaMode alphaMode = GltfAlphaMode::Opaque;
 		float alphaCutoff = 0.5f;
 
@@ -392,10 +400,12 @@ GltfScene LoadGltfScene(StringView filePath)
 			if (alphaModeString == "OPAQUE"_view)
 			{
 				alphaMode = GltfAlphaMode::Opaque;
-			} else if (alphaModeString == "MASK"_view)
+			}
+			else if (alphaModeString == "MASK"_view)
 			{
 				alphaMode = GltfAlphaMode::Mask;
-			} else if (alphaModeString == "BLEND"_view)
+			}
+			else if (alphaModeString == "BLEND"_view)
 			{
 				alphaMode = GltfAlphaMode::Blend;
 			}
@@ -410,10 +420,10 @@ GltfScene LoadGltfScene(StringView filePath)
 			alphaCutoff = static_cast<float>(materialObject["alphaCutoff"_view].GetDecimal());
 		}
 
-		materials.Emplace(baseColorTexture, baseColorFactor, alphaMode, alphaCutoff);
+		materials.Emplace(baseColorTexture, baseColorFactor, normalMapTexture, alphaMode, alphaCutoff);
 	}
 
-	const auto toFilter = [](usize filter, bool magnification)
+	const auto toFilter = [](usize filter, bool magnification) -> GltfFilter
 	{
 		if (magnification)
 			CHECK(filter == 9728 || filter == 9729);
@@ -438,7 +448,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		return GltfFilter::Nearest;
 	};
 
-	const auto toAddress = [](usize address)
+	const auto toAddress = [](usize address) -> GltfAddress
 	{
 		switch (address)
 		{
