@@ -146,6 +146,8 @@ struct GltfMaterial
 	usize BaseColorTexture;
 	Float4 BaseColorFactor;
 
+	usize NormalMapTexture;
+
 	GltfAlphaMode AlphaMode;
 	float AlphaCutoff;
 };

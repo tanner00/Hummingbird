@@ -293,7 +293,7 @@ static double ParseDoubleNoExponent(StringView buffer, usize* index)
 
 static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
 {
-	const auto parseAnyOf = [](StringView buffer, usize* index, String* result, const char* any, usize anyLength)
+	const auto parseAnyOf = [](StringView buffer, usize* index, String* result, const char* any, usize anyLength) -> bool
 	{
 		CHECK(index);
 		for (usize i = 0; i < anyLength; ++i)

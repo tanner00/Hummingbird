@@ -1,4 +1,5 @@
 #include "CameraController.hpp"
+#include "GLTF.hpp"
 #include "Renderer.hpp"
 
 #include "Luft/Platform.hpp"
@@ -18,7 +19,7 @@ static void ResizeHandler(Platform::Window*)
 
 void Start()
 {
-	const auto setScene = [](usize sceneIndex, Renderer* renderer, CameraController* cameraController)
+	const auto setScene = [](usize sceneIndex, Renderer* renderer, CameraController* cameraController) -> void
 	{
 		const double start = Platform::GetTime();
 
