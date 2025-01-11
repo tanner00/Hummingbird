@@ -68,8 +68,12 @@ void Renderer::Update(const CameraController& cameraController)
 	const double startCpuTime = Platform::GetTime();
 #endif
 
-	static ViewMode viewMode = ViewMode::Unlit;
+	static ViewMode viewMode = ViewMode::Lit;
 #if !RELEASE
+	if (IsKeyPressedOnce(Key::L))
+	{
+		viewMode = ViewMode::Lit;
+	}
 	if (IsKeyPressedOnce(Key::U))
 	{
 		viewMode = ViewMode::Unlit;
@@ -103,6 +107,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.ViewProjection = projection * view,
 		.NodeBufferIndex = Device.Get(SceneNodeBuffer),
 		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer),
+		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer),
 	};
 	Device.Write(SceneBuffer, &sceneData);
 
@@ -468,6 +473,36 @@ void Renderer::LoadScene(const GltfScene& scene)
 		.Size = SceneMaterials.GetLength() * sizeof(Hlsl::Material),
 		.Stride = sizeof(Hlsl::Material),
 	});
+
+	Hlsl::DirectionalLight directionalLight;
+	if (scene.DirectionalLights.IsEmpty())
+	{
+		directionalLight = Hlsl::DirectionalLight
+		{
+			.Direction = { +0.0f, -1.0f, +0.0f },
+		};
+	}
+	else
+	{
+		CHECK(scene.DirectionalLights.GetLength() == 1);
+
+		Quaternion lightOrientation;
+		DecomposeTransform(scene.DirectionalLights[0].Transform, nullptr, &lightOrientation, nullptr);
+
+		static const Vector defaultLightDirection = Vector { +0.0f, +0.0f, -1.0f };
+		const Vector lightDirection = lightOrientation.Rotate(defaultLightDirection);
+
+		directionalLight = Hlsl::DirectionalLight
+		{
+			.Direction = { lightDirection.X, lightDirection.Y, lightDirection.Z },
+		};
+	}
+	SceneDirectionalLightBuffer = Device.CreateBuffer("Scene Directional Light"_view, &directionalLight,
+	{
+		.Type = BufferType::ConstantBuffer,
+		.Usage = BufferUsage::Static,
+		.Size = sizeof(directionalLight),
+	});
 }
 
 void Renderer::UnloadScene()
@@ -476,6 +511,7 @@ void Renderer::UnloadScene()
 	Device.DestroyBuffer(&SceneVertexBuffer);
 	Device.DestroyBuffer(&SceneNodeBuffer);
 	Device.DestroyBuffer(&SceneMaterialBuffer);
+	Device.DestroyBuffer(&SceneDirectionalLightBuffer);
 
 	for (Material& material : SceneMaterials)
 	{
