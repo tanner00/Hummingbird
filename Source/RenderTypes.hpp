@@ -7,6 +7,7 @@
 
 enum class ViewMode : uint32
 {
+	Lit,
 	Unlit,
 	Geometry,
 	Normal,
@@ -74,8 +75,9 @@ struct Scene
 
 	uint32 NodeBufferIndex;
 	uint32 MaterialBufferIndex;
+	uint32 DirectionalLightBufferIndex;
 
-	PAD(184);
+	PAD(180);
 };
 
 struct SceneRootConstants
@@ -105,6 +107,13 @@ struct Material
 	uint32 NormalMapSamplerIndex;
 
 	float AlphaCutoff;
+};
+
+struct DirectionalLight
+{
+	Float3 Direction;
+
+	PAD(244);
 };
 
 }

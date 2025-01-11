@@ -58,7 +58,6 @@ GltfScene LoadGltfScene(StringView filePath)
 	}
 
 	Array<GltfCamera> cameraTemplates(GltfAllocator);
-
 	if (rootObject.HasKey("cameras"_view))
 	{
 		const JsonArray& cameraArray = rootObject["cameras"_view].GetArray();
@@ -94,7 +93,40 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
+	Array<GltfDirectionalLight> directionalLightTemplates;
+	if (rootObject.HasKey("extensions"_view))
+	{
+		const JsonObject& extensionsObject = rootObject["extensions"_view].GetObject();
+		if (extensionsObject.HasKey("KHR_lights_punctual"_view))
+		{
+			const JsonObject& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
+			const JsonArray& lightsArray = khrLightsPunctualObject["lights"_view].GetArray();
+
+			for (const JsonValue& light : lightsArray)
+			{
+				const JsonObject& lightObject = light.GetObject();
+
+				VERIFY(lightObject["type"_view].GetString() == "directional"_view, "Unexpected GLTF light type!");
+
+				const float intensityLux = lightObject.HasKey("intensity"_view) ?
+											static_cast<float>(lightObject["intensity"_view].GetDecimal()) :
+											1.0f;
+
+				const Float4 color = lightObject.HasKey("color"_view) ?
+										ToFloat4(lightObject["color"_view].GetArray()) :
+										Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
+
+				directionalLightTemplates.Add(GltfDirectionalLight
+				{
+					.IntensityLux = intensityLux,
+					.Color = Float3 { color.X, color.Y, color.Z },
+				});
+			}
+		}
+	}
+
 	Array<usize> cameraIndices(GltfAllocator);
+	Array<usize> lightIndices(GltfAllocator);
 
 	const JsonArray& nodeArray = rootObject["nodes"_view].GetArray();
 	Array<GltfNode> nodes(nodeArray.GetLength(), GltfAllocator);
@@ -106,6 +138,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		Array<usize> childNodes(GltfAllocator);
 		usize mesh = INDEX_NONE;
 		usize camera = INDEX_NONE;
+		usize light = INDEX_NONE;
 
 		const bool hasTranslation = nodeObject.HasKey("translation"_view);
 		const bool hasRotation = nodeObject.HasKey("rotation"_view);
@@ -193,8 +226,19 @@ GltfScene LoadGltfScene(StringView filePath)
 			camera = static_cast<usize>(nodeObject["camera"_view].GetDecimal());
 			cameraIndices.Add(nodeIndex);
 		}
+		if (nodeObject.HasKey("extensions"_view))
+		{
+			const JsonObject& extensionsObject = nodeObject["extensions"_view].GetObject();
+			if (extensionsObject.HasKey("KHR_lights_punctual"_view))
+			{
+				const JsonObject& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
 
-		nodes.Emplace(transform, INDEX_NONE, Move(childNodes), mesh, camera);
+				light = static_cast<usize>(khrLightsPunctualObject["light"_view].GetDecimal());
+				lightIndices.Add(nodeIndex);
+			}
+		}
+
+		nodes.Emplace(transform, INDEX_NONE, Move(childNodes), mesh, camera, light);
 	}
 
 	for (usize i = 0; i < nodes.GetLength(); ++i)
@@ -215,6 +259,16 @@ GltfScene LoadGltfScene(StringView filePath)
 		GltfCamera placedCamera = cameraTemplates[node.Camera];
 		placedCamera.Transform = InternalCalculateGltfGlobalTransform(nodes, cameraIndex);
 		cameras.Add(placedCamera);
+	}
+
+	Array<GltfDirectionalLight> directionalLights(GltfAllocator);
+	for (usize lightIndex : lightIndices)
+	{
+		const GltfNode& node = nodes[lightIndex];
+
+		GltfDirectionalLight placedDirectionalLight = directionalLightTemplates[node.Light];
+		placedDirectionalLight.Transform = InternalCalculateGltfGlobalTransform(nodes, lightIndex);
+		directionalLights.Add(placedDirectionalLight);
 	}
 
 	const JsonArray& bufferArray = rootObject["buffers"_view].GetArray();
@@ -556,6 +610,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		.Materials = Move(materials),
 		.Accessors = Move(accessors),
 		.Cameras = Move(cameras),
+		.DirectionalLights = Move(directionalLights),
 	};
 }
 

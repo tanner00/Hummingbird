@@ -86,6 +86,7 @@ struct GltfNode
 
 	usize Mesh;
 	usize Camera;
+	usize Light;
 };
 
 struct GltfBuffer
@@ -171,6 +172,14 @@ struct GltfCamera
 	float FarZ;
 };
 
+struct GltfDirectionalLight
+{
+	Matrix Transform;
+
+	float IntensityLux;
+	Float3 Color;
+};
+
 struct GltfScene
 {
 	Array<usize> TopLevelNodes;
@@ -188,6 +197,7 @@ struct GltfScene
 	Array<GltfAccessor> Accessors;
 
 	Array<GltfCamera> Cameras;
+	Array<GltfDirectionalLight> DirectionalLights;
 };
 
 GltfScene LoadGltfScene(StringView filePath);

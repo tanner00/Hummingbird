@@ -53,6 +53,7 @@ private:
 	Buffer SceneVertexBuffer;
 	Buffer SceneNodeBuffer;
 	Buffer SceneMaterialBuffer;
+	Buffer SceneDirectionalLightBuffer;
 
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;

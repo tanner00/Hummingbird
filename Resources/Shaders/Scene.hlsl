@@ -16,6 +16,7 @@ struct PixelInput
 
 enum class ViewMode : uint
 {
+	Lit,
 	Unlit,
 	Geometry,
 	Normal,
@@ -38,6 +39,7 @@ struct Scene
 
 	uint NodeBufferIndex;
 	uint MaterialBufferIndex;
+	uint DirectionalLightBufferIndex;
 };
 ConstantBuffer<Scene> Scene : register(b1);
 
@@ -56,6 +58,11 @@ struct Material
 	uint NormalMapSamplerIndex;
 
 	float AlphaCutoff;
+};
+
+struct DirectionalLight
+{
+	float3 Direction;
 };
 
 PixelInput VertexMain(VertexInput input)
@@ -136,6 +143,13 @@ float4 PixelMain(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGE
 		break;
 	}
 
-	const float4 finalColor = float4(baseColor.rgb, baseColor.a);
+	const ConstantBuffer<DirectionalLight> directionalLight = ResourceDescriptorHeap[Scene.DirectionalLightBufferIndex];
+
+	const float3 lightDirection = normalize(-directionalLight.Direction);
+
+	const float3 diffuseFactor = saturate(dot(shadeNormal, lightDirection));
+	const float3 ambientFactor = 0.1f;
+
+	const float4 finalColor = float4(baseColor.rgb * (diffuseFactor + ambientFactor), baseColor.a);
 	return finalColor;
 }
