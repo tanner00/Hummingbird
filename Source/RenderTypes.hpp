@@ -49,18 +49,12 @@ struct Node
 	usize MeshIndex;
 };
 
-struct MaterialTexture
-{
-	Texture Texture;
-	Sampler Sampler;
-};
-
 struct Material
 {
-	MaterialTexture BaseColorTexture;
+	Texture BaseColorTexture;
 	Float4 BaseColorFactor;
 
-	MaterialTexture NormalMapTexture;
+	Texture NormalMapTexture;
 
 	bool RequiresBlend;
 	float AlphaCutoff;

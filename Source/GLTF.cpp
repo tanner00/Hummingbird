@@ -278,7 +278,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		const JsonObject& bufferObject = bufferValue.GetObject();
 
 		const String& bufferPath = bufferObject["uri"_view].GetString();
-		const String fullPath = ResolveFilePath(filePath, bufferPath);
+		const String fullPath = ResolveFilePath(filePath, bufferPath.AsView());
 
 		const usize bufferSize = static_cast<usize>(bufferObject["byteLength"_view].GetDecimal());
 
@@ -365,9 +365,9 @@ GltfScene LoadGltfScene(StringView filePath)
 			const JsonObject& imageObject = imageValue.GetObject();
 
 			const String& imagePath = imageObject["uri"_view].GetString();
-			const String fullPath = ResolveFilePath(filePath, imagePath);
+			const String fullPath = ResolveFilePath(filePath, imagePath.AsView());
 
-			images.Emplace(LoadDdsImage(fullPath));
+			images.Emplace(fullPath);
 		}
 	}
 
@@ -616,10 +616,6 @@ GltfScene LoadGltfScene(StringView filePath)
 
 void UnloadGltfScene(GltfScene* scene)
 {
-	for (GltfImage& image : scene->Images)
-	{
-		UnloadDdsImage(&image.Image);
-	}
 	for (GltfBuffer& buffer : scene->Buffers)
 	{
 		GltfAllocator->Deallocate(buffer.Data, buffer.Size);
