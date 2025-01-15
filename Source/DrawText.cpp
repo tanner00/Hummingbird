@@ -116,7 +116,7 @@ void DrawText::Init(GpuDevice* device)
 	Pipeline = Device->CreateGraphicsPipeline("Text Pipeline"_view,
 	{
 		.Stages = Move(stages),
-		.RenderTargetFormat = TextureFormat::Rgba8Srgb,
+		.RenderTargetFormat = TextureFormat::Rgba8SrgbUnorm,
 		.DepthFormat = TextureFormat::None,
 		.AlphaBlend = true,
 	});
