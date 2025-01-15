@@ -8,8 +8,8 @@ static bool NeedsResize = false;
 
 static const StringView scenes[] =
 {
-	"Resources/GLTF/Sponza/Sponza.gltf"_view,
-	"Resources/GLTF/Bistro/Bistro.gltf"_view,
+	"Assets/Scenes/Sponza/Sponza.gltf"_view,
+	"Assets/Scenes/Bistro/Bistro.gltf"_view,
 };
 
 static void ResizeHandler(Platform::Window*)

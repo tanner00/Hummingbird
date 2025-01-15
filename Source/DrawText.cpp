@@ -17,9 +17,9 @@ void DrawText::Init(GpuDevice* device)
 {
 	Device = device;
 
-	DdsImage fontImage = LoadDdsImage("Resources/Fonts/ConsolasMSDF.dds"_view);
+	DdsImage fontImage = LoadDdsImage("Assets/Fonts/RobotoMSDF.dds"_view);
 
-	const JsonObject fontDescription = LoadJson("Resources/Fonts/ConsolasMSDF.json"_view);
+	const JsonObject fontDescription = LoadJson("Assets/Fonts/RobotoMSDF.json"_view);
 
 	const JsonObject& fontAtlasDescription = fontDescription["atlas"_view].GetObject();
 
@@ -102,12 +102,12 @@ void DrawText::Init(GpuDevice* device)
 	Shader vertex = Device->CreateShader(
 	{
 		.Stage = ShaderStage::Vertex,
-		.FilePath = "Resources/Shaders/Text.hlsl"_view,
+		.FilePath = "Shaders/Text.hlsl"_view,
 	});
 	Shader pixel = Device->CreateShader(
 	{
 		.Stage = ShaderStage::Pixel,
-		.FilePath = "Resources/Shaders/Text.hlsl"_view,
+		.FilePath = "Shaders/Text.hlsl"_view,
 	});
 
 	ShaderStages stages;
@@ -194,7 +194,7 @@ void DrawText::Submit(GraphicsContext& graphics, uint32 width, uint32 height)
 
 	Device->Write(CharacterBuffer, CharacterData.GetData());
 
-	graphics.SetGraphicsPipeline(&Pipeline);
+	graphics.SetPipeline(&Pipeline);
 
 	graphics.SetRootConstants(&RootConstants);
 
