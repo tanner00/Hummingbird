@@ -22,7 +22,7 @@ Renderer::Renderer(const Platform::Window* window)
 		.Width = 1,
 		.Height = 1,
 		.Type = TextureType::Rectangle,
-		.Format = TextureFormat::Rgba8Srgb,
+		.Format = TextureFormat::Rgba8SrgbUnorm,
 	});
 	static constexpr usize white = 0xFFFFFFFF;
 	Device.Write(WhiteTexture, &white);
@@ -32,7 +32,7 @@ Renderer::Renderer(const Platform::Window* window)
 		.Width = 1,
 		.Height = 1,
 		.Type = TextureType::Rectangle,
-		.Format = TextureFormat::Rgba8,
+		.Format = TextureFormat::Rgba8Unorm,
 	});
 	static constexpr usize defaultNormal = 0x7F7FFF;
 	Device.Write(DefaultNormalMapTexture, &defaultNormal);
@@ -548,7 +548,7 @@ void Renderer::CreatePipelines()
 		const GraphicsPipeline pipeline = Device.CreateGraphicsPipeline("Scene Pipeline"_view,
 		{
 			.Stages = Move(stages),
-			.RenderTargetFormat = TextureFormat::Rgba8Srgb,
+			.RenderTargetFormat = TextureFormat::Rgba8SrgbUnorm,
 			.DepthFormat = TextureFormat::Depth32,
 			.AlphaBlend = alphaBlend,
 		});
@@ -577,7 +577,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.Width = width,
 			.Height = height,
 			.Type = TextureType::Rectangle,
-			.Format = TextureFormat::Rgba8Srgb,
+			.Format = TextureFormat::Rgba8SrgbUnorm,
 			.RenderTarget = true,
 		},
 		Device.GetSwapChainResource(i));

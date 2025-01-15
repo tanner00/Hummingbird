@@ -50,13 +50,15 @@ static TextureFormat FromD3D12(DXGI_FORMAT format)
 	case DXGI_FORMAT_UNKNOWN:
 		return TextureFormat::None;
 	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return TextureFormat::Rgba8;
+		return TextureFormat::Rgba8Unorm;
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		return TextureFormat::Rgba8Srgb;
+		return TextureFormat::Rgba8SrgbUnorm;
+	case DXGI_FORMAT_R32G32B32A32_FLOAT:
+		return TextureFormat::Rgba32Float;
 	case DXGI_FORMAT_BC7_UNORM:
-		return TextureFormat::Bc7;
+		return TextureFormat::Bc7Unorm;
 	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return TextureFormat::Bc7Srgb;
+		return TextureFormat::Bc7SrgbUnorm;
 	case DXGI_FORMAT_D24_UNORM_S8_UINT:
 		return TextureFormat::Depth24Stencil8;
 	case DXGI_FORMAT_D32_FLOAT:
