@@ -94,6 +94,7 @@ void DrawText::Init(GpuDevice* device)
 		.Height = fontImage.Height,
 		.Type = TextureType::Rectangle,
 		.Format = fontImage.Format,
+		.MipMapCount = fontImage.MipMapCount,
 	});
 	Device->Write(FontTexture, fontImage.Data);
 
@@ -131,7 +132,7 @@ void DrawText::Init(GpuDevice* device)
 		.VerticalAddress = SamplerAddress::Wrap,
 	});
 
-	CharacterData.AddUninitialized(MaxCharactersPerFrame);
+	CharacterData.GrowToLengthUninitialized(MaxCharactersPerFrame);
 	CharacterBuffer = Device->CreateBuffer("Character Buffer"_view,
 	{
 		.Type = BufferType::StructuredBuffer,
