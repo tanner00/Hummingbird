@@ -25,7 +25,7 @@ project "Hummingbird"
 
 	files {
 		"Source/**.cpp", "Source/**.hpp",
-		"Resources/**.hlsl",
+		"Source/**.hlsl",
 	}
 
 	filter {}
