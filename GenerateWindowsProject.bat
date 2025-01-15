@@ -1,6 +1,7 @@
 @echo off
 premake5 vs2022 --fatal --file=Premake5.lua
-mklink /j Build\Resources Resources\
+mklink /j Build\Assets Assets\
+mklink /j Build\Shaders Source\Shaders
 mkdir Build\Debug
 mkdir Build\Profile
 mkdir Build\Release

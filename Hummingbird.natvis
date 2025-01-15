@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+<Type Name="JsonValue">
+	<DisplayString Condition="Tag == JsonTag::None">None</DisplayString>
+	<DisplayString Condition="Tag == JsonTag::Object">[Object] {ObjectValue}</DisplayString>
+	<DisplayString Condition="Tag == JsonTag::Array">[Array] {ArrayValue}</DisplayString>
+	<DisplayString Condition="Tag == JsonTag::String">[String] {StringValue}</DisplayString>
+	<DisplayString Condition="Tag == JsonTag::Decimal">[Decimal] {DecimalValue}</DisplayString>
+	<DisplayString Condition="Tag == JsonTag::Boolean">[Boolean] {BooleanValue}</DisplayString>
+	<DisplayString Condition="Tag == JsonTag::Null">Null</DisplayString>
+	<Expand>
+		<ExpandedItem Condition="Tag == JsonTag::None">None</ExpandedItem>
+		<ExpandedItem Condition="Tag == JsonTag::Object">ObjectValue</ExpandedItem>
+		<ExpandedItem Condition="Tag == JsonTag::Array">ArrayValue</ExpandedItem>
+		<ExpandedItem Condition="Tag == JsonTag::String">StringValue</ExpandedItem>
+		<ExpandedItem Condition="Tag == JsonTag::Decimal">DecimalValue</ExpandedItem>
+		<ExpandedItem Condition="Tag == JsonTag::Boolean">BooleanValue</ExpandedItem>
+		<ExpandedItem Condition="Tag == JsonTag::Null">Null</ExpandedItem>
+	</Expand>
+</Type>
+
+<Type Name="JsonObject">
+	<DisplayString>[Object] {ObjectValue}</DisplayString>
+	<Expand>
+		<ExpandedItem>Objects</ExpandedItem>
+	</Expand>
+</Type>
+
+</AutoVisualizer>

@@ -125,7 +125,7 @@ void Renderer::Update(const CameraController& cameraController)
 		frameTexture
 	);
 
-	Graphics.SetGraphicsPipeline(&SceneOpaquePipeline);
+	Graphics.SetPipeline(&SceneOpaquePipeline);
 
 	Graphics.ClearRenderTarget(frameTexture, { 0.0f, 0.0f, 0.0f, 1.0f });
 	Graphics.ClearDepthStencil(DepthTexture);
@@ -152,11 +152,11 @@ void Renderer::Update(const CameraController& cameraController)
 			const bool requiresBlend = (primitive.MaterialIndex != INDEX_NONE) ? SceneMaterials[primitive.MaterialIndex].RequiresBlend : false;
 			if (requiresBlend)
 			{
-				Graphics.SetGraphicsPipeline(&SceneBlendPipeline);
+				Graphics.SetPipeline(&SceneBlendPipeline);
 			}
 			else
 			{
-				Graphics.SetGraphicsPipeline(&SceneOpaquePipeline);
+				Graphics.SetPipeline(&SceneOpaquePipeline);
 			}
 
 			Graphics.SetConstantBuffer("Scene"_view, SceneBuffer);
@@ -208,7 +208,7 @@ void Renderer::UpdateFrameTimes(double startCpuTime)
 
 	char gpuTimeText[16] = {};
 	Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), AverageGpuTime * 1000.0);
-	DrawText::Get().Draw(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, { 0.0f, 24.0f }, Float3 { 1.0f, 1.0f, 1.0f }, 32.0f);
+	DrawText::Get().Draw(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, { 0.0f, 32.0f }, Float3 { 1.0f, 1.0f, 1.0f }, 32.0f);
 }
 #endif
 
@@ -529,17 +529,17 @@ void Renderer::UnloadScene()
 
 void Renderer::CreatePipelines()
 {
-	const auto createPipeline = [this](bool alphaBlend) -> GraphicsPipeline
+	const auto createPipeline = [this](StringView shaderPath, bool alphaBlend) -> GraphicsPipeline
 	{
 		Shader vertex = Device.CreateShader(
 		{
 			.Stage = ShaderStage::Vertex,
-			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
+			.FilePath = shaderPath,
 		});
 		Shader pixel = Device.CreateShader(
 		{
 			.Stage = ShaderStage::Pixel,
-			.FilePath = "Resources/Shaders/Scene.hlsl"_view,
+			.FilePath = shaderPath,
 		});
 		ShaderStages stages;
 		stages.AddStage(vertex);
@@ -558,8 +558,8 @@ void Renderer::CreatePipelines()
 		return pipeline;
 	};
 
-	SceneOpaquePipeline = createPipeline(false);
-	SceneBlendPipeline = createPipeline(true);
+	SceneOpaquePipeline = createPipeline("Shaders/Scene.hlsl"_view, false);
+	SceneBlendPipeline = createPipeline("Shaders/Scene.hlsl"_view, true);
 }
 
 void Renderer::DestroyPipelines()
