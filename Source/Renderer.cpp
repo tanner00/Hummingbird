@@ -24,6 +24,7 @@ Renderer::Renderer(const Platform::Window* window)
 		.Height = 1,
 		.Type = TextureType::Rectangle,
 		.Format = TextureFormat::Rgba8SrgbUnorm,
+		.MipMapCount = 1,
 	});
 	static constexpr usize white = 0xFFFFFFFF;
 	Device.Write(WhiteTexture, &white);
@@ -34,6 +35,7 @@ Renderer::Renderer(const Platform::Window* window)
 		.Height = 1,
 		.Type = TextureType::Rectangle,
 		.Format = TextureFormat::Rgba8Unorm,
+		.MipMapCount = 1,
 	});
 	static constexpr usize defaultNormal = 0x7F7FFF;
 	Device.Write(DefaultNormalMapTexture, &defaultNormal);
@@ -334,6 +336,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 				.Height = loadedImage.Height,
 				.Type = TextureType::Rectangle,
 				.Format = loadedImage.Format,
+				.MipMapCount = loadedImage.MipMapCount,
 			});
 			Device.Write(loadedTexture, loadedImage.Data);
 			UnloadDdsImage(&loadedImage);
@@ -524,6 +527,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.Height = height,
 			.Type = TextureType::Rectangle,
 			.Format = TextureFormat::Rgba8SrgbUnorm,
+			.MipMapCount = 1,
 			.RenderTarget = true,
 		},
 		Device.GetSwapChainResource(i));
@@ -534,6 +538,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.Height = height,
 		.Type = TextureType::Rectangle,
 		.Format = TextureFormat::Depth32,
+		.MipMapCount = 1,
 	});
 }
 

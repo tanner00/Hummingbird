@@ -14,6 +14,8 @@ struct DdsImage
 
 	uint32 Width;
 	uint32 Height;
+
+	uint32 MipMapCount;
 };
 
 DdsImage LoadDdsImage(StringView filePath);

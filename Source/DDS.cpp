@@ -201,6 +201,7 @@ DdsImage LoadDdsImage(StringView filePath)
 		.Format = FromD3D12(extendedHeader.DxgiFormat),
 		.Width = static_cast<uint32>(header.Width),
 		.Height = static_cast<uint32>(header.Height),
+		.MipMapCount = static_cast<uint32>(header.MipMapCount),
 	};
 }
 
