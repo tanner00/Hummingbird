@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DDS.hpp"
+#include "RHI/Common.hpp"
 
 #include "Luft/Array.hpp"
 #include "Luft/HashTable.hpp"
@@ -133,7 +133,7 @@ struct GltfAccessorView
 
 struct GltfImage
 {
-	DdsImage Image;
+	String Path;
 };
 
 struct GltfTexture
