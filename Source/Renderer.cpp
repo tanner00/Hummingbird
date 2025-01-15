@@ -1,5 +1,6 @@
 #include "Renderer.hpp"
 #include "CameraController.hpp"
+#include "DDS.hpp"
 #include "DrawText.hpp"
 #include "GLTF.hpp"
 
@@ -227,80 +228,6 @@ void Renderer::Resize(uint32 width, uint32 height)
 
 void Renderer::LoadScene(const GltfScene& scene)
 {
-	const auto convertTexture = [this](const GltfScene& scene, StringView textureName, const usize textureIndex) -> MaterialTexture
-	{
-		const auto convertFilter = [](const GltfFilter& filter) -> SamplerFilter
-		{
-			switch (filter)
-			{
-			case GltfFilter::Nearest:
-				return SamplerFilter::Point;
-			case GltfFilter::Linear:
-				return SamplerFilter::Linear;
-			case GltfFilter::NearestMipMapNearest:
-			case GltfFilter::NearestMipMapLinear:
-				Platform::Log("LoadScene: Using fallback filter!\n");
-				return SamplerFilter::Point;
-			case GltfFilter::LinearMipMapNearest:
-			case GltfFilter::LinearMipMapLinear:
-				Platform::Log("LoadScene: Using fallback filter!\n");
-				return SamplerFilter::Linear;
-			}
-			CHECK(false);
-			return SamplerFilter::Linear;
-		};
-		const auto convertAddress = [](const GltfAddress& address) -> SamplerAddress
-		{
-			switch (address)
-			{
-			case GltfAddress::Repeat:
-				return SamplerAddress::Wrap;
-			case GltfAddress::ClampToEdge:
-				return SamplerAddress::Clamp;
-			case GltfAddress::MirroredRepeat:
-				return SamplerAddress::Mirror;
-			}
-			CHECK(false);
-			return SamplerAddress::Wrap;
-		};
-
-		usize samplerIndex = INDEX_NONE;
-
-		Texture materialTexture;
-		if (textureIndex != INDEX_NONE)
-		{
-			const GltfTexture& texture = scene.Textures[textureIndex];
-			const GltfImage& image = scene.Images[texture.Image];
-
-			materialTexture = Device.CreateTexture(textureName, BarrierLayout::GraphicsQueueCommon,
-			{
-				.Width = image.Image.Width,
-				.Height = image.Image.Height,
-				.Type = TextureType::Rectangle,
-				.Format = image.Image.Format,
-			});
-			Device.Write(materialTexture, image.Image.Data);
-
-			samplerIndex = texture.Sampler;
-		}
-
-		Sampler materialSampler;
-		if (samplerIndex != INDEX_NONE)
-		{
-			const GltfSampler& sampler = scene.Samplers[samplerIndex];
-
-			materialSampler = Device.CreateSampler(
-			{
-				.MinificationFilter = convertFilter(sampler.MinificationFilter),
-				.MagnificationFilter = convertFilter(sampler.MagnificationFilter),
-				.HorizontalAddress = convertAddress(sampler.HorizontalAddress),
-				.VerticalAddress = convertAddress(sampler.VerticalAddress),
-			});
-		}
-
-		return MaterialTexture { materialTexture, materialSampler };
-	};
-
 	UnloadScene();
 
 	VERIFY(scene.Buffers.GetLength() == 1, "GLTF file contains multiple buffers!");
@@ -392,6 +319,28 @@ void Renderer::LoadScene(const GltfScene& scene)
 
 	for (const GltfMaterial& material : scene.Materials)
 	{
+		const auto convertTexture = [this](const GltfScene& scene, StringView textureName, usize textureIndex) -> Texture
+		{
+			if (textureIndex == INDEX_NONE)
+				return Texture::Invalid();
+
+			const GltfTexture& texture = scene.Textures[textureIndex];
+			const GltfImage& image = scene.Images[texture.Image];
+
+			DdsImage loadedImage = LoadDdsImage(image.Path.AsView());
+			const Texture loadedTexture = Device.CreateTexture(textureName, BarrierLayout::GraphicsQueueCommon,
+			{
+				.Width = loadedImage.Width,
+				.Height = loadedImage.Height,
+				.Type = TextureType::Rectangle,
+				.Format = loadedImage.Format,
+			});
+			Device.Write(loadedTexture, loadedImage.Data);
+			UnloadDdsImage(&loadedImage);
+
+			return loadedTexture;
+		};
+
 		SceneMaterials.Add(Material
 		{
 			.BaseColorTexture = convertTexture(scene, "Scene Base Color Texture"_view, material.BaseColorTexture),
@@ -453,16 +402,16 @@ void Renderer::LoadScene(const GltfScene& scene)
 	Array<Hlsl::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
 	for (const Material& material : SceneMaterials)
 	{
-		const auto& [baseColorTexture, baseColorSampler] = material.BaseColorTexture;
-		const auto& [normalMapTexture, normalMapSampler] = material.NormalMapTexture;
+		const Texture& baseColorTexture = material.BaseColorTexture;
+		const Texture& normalMapTexture = material.NormalMapTexture;
 
 		materialData.Add(Hlsl::Material
 		{
 			.BaseColorTextureIndex = Device.Get(baseColorTexture.IsValid() ? baseColorTexture : WhiteTexture),
-			.BaseColorSamplerIndex = Device.Get(baseColorSampler.IsValid() ? baseColorSampler : DefaultSampler),
+			.BaseColorSamplerIndex = Device.Get(DefaultSampler),
 			.BaseColorFactor = material.BaseColorFactor,
 			.NormalMapTextureIndex = Device.Get(normalMapTexture.IsValid() ? normalMapTexture : DefaultNormalMapTexture),
-			.NormalMapSamplerIndex = Device.Get(normalMapSampler.IsValid() ? normalMapSampler : DefaultSampler),
+			.NormalMapSamplerIndex = Device.Get(DefaultSampler),
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
@@ -515,11 +464,8 @@ void Renderer::UnloadScene()
 
 	for (Material& material : SceneMaterials)
 	{
-		Device.DestroyTexture(&material.BaseColorTexture.Texture);
-		Device.DestroySampler(&material.BaseColorTexture.Sampler);
-
-		Device.DestroyTexture(&material.NormalMapTexture.Texture);
-		Device.DestroySampler(&material.NormalMapTexture.Sampler);
+		Device.DestroyTexture(&material.BaseColorTexture);
+		Device.DestroyTexture(&material.NormalMapTexture);
 	}
 
 	SceneMeshes.Clear();
