@@ -40,8 +40,8 @@ Renderer::Renderer(const Platform::Window* window)
 
 	DefaultSampler = Device.CreateSampler(
 	{
-		.MinificationFilter = SamplerFilter::Linear,
-		.MagnificationFilter = SamplerFilter::Linear,
+		.MinificationFilter = SamplerFilter::Anisotropic,
+		.MagnificationFilter = SamplerFilter::Anisotropic,
 		.HorizontalAddress = SamplerAddress::Wrap,
 		.VerticalAddress = SamplerAddress::Wrap,
 	});
