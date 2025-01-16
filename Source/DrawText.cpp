@@ -185,8 +185,10 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 	}
 }
 
-void DrawText::Submit(GraphicsContext& graphics, uint32 width, uint32 height)
+void DrawText::Submit(GraphicsContext* graphics, uint32 width, uint32 height)
 {
+	CHECK(graphics);
+
 	RootConstants.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
 	RootConstants.CharacterBuffer = Device->Get(CharacterBuffer);
@@ -195,12 +197,12 @@ void DrawText::Submit(GraphicsContext& graphics, uint32 width, uint32 height)
 
 	Device->Write(CharacterBuffer, CharacterData.GetData());
 
-	graphics.SetPipeline(&Pipeline);
+	graphics->SetPipeline(&Pipeline);
 
-	graphics.SetRootConstants(&RootConstants);
+	graphics->SetRootConstants(&RootConstants);
 
 	static constexpr usize verticesPerQuad = 6;
-	graphics.Draw(CharacterIndex * verticesPerQuad);
+	graphics->Draw(CharacterIndex * verticesPerQuad);
 
 	CharacterIndex = 0;
 }
