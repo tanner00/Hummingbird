@@ -180,7 +180,7 @@ void Renderer::Update(const CameraController& cameraController)
 	UpdateFrameTimes(startCpuTime);
 #endif
 
-	DrawText::Get().Submit(Graphics, frameTexture.GetWidth(), frameTexture.GetHeight());
+	DrawText::Get().Submit(&Graphics, frameTexture.GetWidth(), frameTexture.GetHeight());
 
 	Graphics.TextureBarrier
 	(
