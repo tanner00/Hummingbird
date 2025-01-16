@@ -4,3 +4,6 @@
 [submodule "Luft"]
 	path = Luft
 	url = https://github.com/tanner00/Luft
+[submodule "Assets"]
+	path = Assets
+	url = https://github.com/tanner00/Assets
