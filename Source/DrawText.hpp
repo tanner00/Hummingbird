@@ -61,7 +61,7 @@ public:
 	void Draw(StringView text, Float2 position, Float3 rgb, float scale);
 	void Draw(StringView text, Float2 position, Float4 rgba, float scale);
 
-	void Submit(GraphicsContext& graphics, uint32 width, uint32 height);
+	void Submit(GraphicsContext* graphics, uint32 width, uint32 height);
 
 private:
 	HashTable<char, Glyph> Glyphs;
