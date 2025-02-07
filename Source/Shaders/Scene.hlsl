@@ -65,7 +65,7 @@ struct DirectionalLight
 	float3 Direction;
 };
 
-PixelInput VertexMain(VertexInput input)
+PixelInput VertexStart(VertexInput input)
 {
 	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
 	const Node node = nodeBuffer[RootConstants.NodeIndex];
@@ -105,7 +105,7 @@ float3 SrgbToLinear(float3 x)
 	return select(x < 0.04045f, x / 12.92f, pow((x + 0.055f) / 1.055f, 2.4f));
 }
 
-float4 PixelMain(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
+float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
 {
 	const StructuredBuffer<Material> materialBuffer = ResourceDescriptorHeap[Scene.MaterialBufferIndex];
 
