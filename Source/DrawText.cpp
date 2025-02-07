@@ -88,7 +88,7 @@ void DrawText::Init(GpuDevice* device)
 		});
 	}
 
-	FontTexture = device->CreateTexture("Font"_view, BarrierLayout::GraphicsQueueCommon,
+	FontTexture = Device->CreateTexture("Font"_view, BarrierLayout::GraphicsQueueCommon,
 	{
 		.Width = fontImage.Width,
 		.Height = fontImage.Height,
@@ -114,7 +114,7 @@ void DrawText::Init(GpuDevice* device)
 	ShaderStages stages;
 	stages.AddStage(vertex);
 	stages.AddStage(pixel);
-	Pipeline = Device->CreateGraphicsPipeline("Text Pipeline"_view,
+	Pipeline = Device->CreatePipeline("Text Pipeline"_view,
 	{
 		.Stages = Move(stages),
 		.RenderTargetFormat = TextureFormat::Rgba8SrgbUnorm,
@@ -145,7 +145,7 @@ void DrawText::Init(GpuDevice* device)
 void DrawText::Shutdown()
 {
 	Device->DestroySampler(&Sampler);
-	Device->DestroyGraphicsPipeline(&Pipeline);
+	Device->DestroyPipeline(&Pipeline);
 	Device->DestroyTexture(&FontTexture);
 	Device->DestroyBuffer(&CharacterBuffer);
 
