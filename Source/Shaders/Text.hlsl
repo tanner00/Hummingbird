@@ -31,7 +31,7 @@ struct RootConstants
 };
 ConstantBuffer<RootConstants> RootConstants : register(b0);
 
-PixelInput VertexMain(uint vertexID : SV_VertexID)
+PixelInput VertexStart(uint vertexID : SV_VertexID)
 {
 	const StructuredBuffer<Character> characterBuffer = ResourceDescriptorHeap[RootConstants.CharacterBuffer];
 
@@ -72,7 +72,7 @@ float DistanceFieldRangeInScreenPixels(float2 uv)
 	return max(0.5f * dot(RootConstants.UnitRange, textureScreenSize), 1.0f);
 }
 
-float4 PixelMain(PixelInput input) : SV_TARGET
+float4 PixelStart(PixelInput input) : SV_TARGET
 {
 	const Texture2D<float3> texture = ResourceDescriptorHeap[RootConstants.Texture];
 	const SamplerState sampler = SamplerDescriptorHeap[RootConstants.Sampler];

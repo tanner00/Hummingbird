@@ -494,7 +494,7 @@ void Renderer::CreatePipelines()
 		stages.AddStage(vertex);
 		stages.AddStage(pixel);
 
-		const GraphicsPipeline pipeline = Device.CreateGraphicsPipeline("Scene Pipeline"_view,
+		const GraphicsPipeline pipeline = Device.CreatePipeline("Scene Pipeline"_view,
 		{
 			.Stages = Move(stages),
 			.RenderTargetFormat = TextureFormat::Rgba8SrgbUnorm,
@@ -513,8 +513,8 @@ void Renderer::CreatePipelines()
 
 void Renderer::DestroyPipelines()
 {
-	Device.DestroyGraphicsPipeline(&SceneOpaquePipeline);
-	Device.DestroyGraphicsPipeline(&SceneBlendPipeline);
+	Device.DestroyPipeline(&SceneOpaquePipeline);
+	Device.DestroyPipeline(&SceneBlendPipeline);
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
