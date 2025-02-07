@@ -49,12 +49,36 @@ struct Node
 	usize MeshIndex;
 };
 
-struct Material
+struct SpecularGlossiness
+{
+	Texture DiffuseTexture;
+	Float4 DiffuseFactor;
+
+	Texture SpecularGlossinessTexture;
+	Float3 SpecularFactor;
+	float GlossinessFactor;
+};
+
+struct MetallicRoughness
 {
 	Texture BaseColorTexture;
 	Float4 BaseColorFactor;
 
+	Texture MetallicRoughnessTexture;
+	float MetallicFactor;
+	float RoughnessFactor;
+};
+
+struct Material
+{
 	Texture NormalMapTexture;
+
+	union
+	{
+		SpecularGlossiness SpecularGlossiness;
+		MetallicRoughness MetallicRoughness;
+	};
+	bool IsSpecularGlossiness;
 
 	bool RequiresBlend;
 	float AlphaCutoff;
@@ -67,11 +91,13 @@ struct Scene
 {
 	Matrix ViewProjection;
 
+	uint32 DefaultSamplerIndex;
+
 	uint32 NodeBufferIndex;
 	uint32 MaterialBufferIndex;
 	uint32 DirectionalLightBufferIndex;
 
-	PAD(180);
+	PAD(176);
 };
 
 struct SceneRootConstants
@@ -93,12 +119,15 @@ struct Node
 
 struct Material
 {
-	uint32 BaseColorTextureIndex;
-	uint32 BaseColorSamplerIndex;
-	Float4 BaseColorFactor;
+	uint32 BaseColorOrDiffuseTextureIndex;
+	Float4 BaseColorOrDiffuseFactor;
 
 	uint32 NormalMapTextureIndex;
-	uint32 NormalMapSamplerIndex;
+
+	uint32 MetallicRoughnessOrSpecularGlossinessTextureIndex;
+	Float3 MetallicOrSpecularFactor;
+	float RoughnessOrGlossinessFactor;
+	bool32 IsSpecularGlossiness;
 
 	float AlphaCutoff;
 };
