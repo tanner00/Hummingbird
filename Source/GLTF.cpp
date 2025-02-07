@@ -394,25 +394,49 @@ GltfScene LoadGltfScene(StringView filePath)
 	{
 		const JsonObject& materialObject = materialValue.GetObject();
 
-		usize baseColorTexture = INDEX_NONE;
-		Float4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-		usize normalMapTexture = INDEX_NONE;
+		GltfMaterial material =
+		{
+			.NormalMapTexture = INDEX_NONE,
+			.AlphaMode = GltfAlphaMode::Opaque,
+			.AlphaCutoff = 0.5f,
+		};
 
 		if (materialObject.HasKey("pbrMetallicRoughness"_view))
 		{
 			const JsonObject& pbrMetallicRoughnessObject = materialObject["pbrMetallicRoughness"_view].GetObject();
 
+			material.IsSpecularGlossiness = false;
+
+			material.MetallicRoughness.BaseColorTexture = INDEX_NONE;
+			material.MetallicRoughness.BaseColorFactor = Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
+
+			material.MetallicRoughness.MetallicRoughnessTexture = INDEX_NONE;
+			material.MetallicRoughness.MetallicFactor = 1.0f;
+			material.MetallicRoughness.RoughnessFactor = 1.0f;
+
 			if (pbrMetallicRoughnessObject.HasKey("baseColorTexture"_view))
 			{
 				const JsonObject& baseColorTextureObject = pbrMetallicRoughnessObject["baseColorTexture"_view].GetObject();
-				baseColorTexture = static_cast<usize>(baseColorTextureObject["index"_view].GetDecimal());
+				material.MetallicRoughness.BaseColorTexture = static_cast<usize>(baseColorTextureObject["index"_view].GetDecimal());
+			}
+			if (pbrMetallicRoughnessObject.HasKey("baseColorFactor"_view))
+			{
+				const JsonArray& baseColorFactorArray = pbrMetallicRoughnessObject["baseColorFactor"_view].GetArray();
+				material.MetallicRoughness.BaseColorFactor = ToFloat4(baseColorFactorArray);
 			}
 
-			if (materialObject.HasKey("baseColorFactor"_view))
+			if (pbrMetallicRoughnessObject.HasKey("metallicRoughnessTexture"_view))
 			{
-				const JsonArray& baseColorFactorArray = materialObject["baseColorFactor"_view].GetArray();
-				baseColorFactor = ToFloat4(baseColorFactorArray);
+				const JsonObject& metallicRoughnessTextureObject = pbrMetallicRoughnessObject["metallicRoughnessTexture"_view].GetObject();
+				material.MetallicRoughness.MetallicRoughnessTexture = static_cast<usize>(metallicRoughnessTextureObject["index"_view].GetDecimal());
+			}
+			if (pbrMetallicRoughnessObject.HasKey("metallicFactor"_view))
+			{
+				material.MetallicRoughness.MetallicFactor = static_cast<float>(pbrMetallicRoughnessObject["metallicFactor"_view].GetDecimal());
+			}
+			if (pbrMetallicRoughnessObject.HasKey("roughnessFactor"_view))
+			{
+				material.MetallicRoughness.RoughnessFactor = static_cast<float>(pbrMetallicRoughnessObject["roughnessFactor"_view].GetDecimal());
 			}
 		}
 
@@ -424,16 +448,40 @@ GltfScene LoadGltfScene(StringView filePath)
 			{
 				const JsonObject& pbrSpecularGlossinessObject = extensionsObject["KHR_materials_pbrSpecularGlossiness"_view].GetObject();
 
+				material.IsSpecularGlossiness = true;
+
+				material.SpecularGlossiness.DiffuseTexture = INDEX_NONE;
+				material.SpecularGlossiness.DiffuseFactor = Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
+
+				material.SpecularGlossiness.SpecularGlossinessTexture = INDEX_NONE;
+				material.SpecularGlossiness.SpecularFactor = Float3 { 1.0f, 1.0f, 1.0f };
+				material.SpecularGlossiness.GlossinessFactor = 1.0f;
+
 				if (pbrSpecularGlossinessObject.HasKey("diffuseTexture"_view))
 				{
 					const JsonObject& diffuseTextureObject = pbrSpecularGlossinessObject["diffuseTexture"_view].GetObject();
-					baseColorTexture = static_cast<usize>(diffuseTextureObject["index"_view].GetDecimal());
+					material.MetallicRoughness.BaseColorTexture = static_cast<usize>(diffuseTextureObject["index"_view].GetDecimal());
 				}
-
 				if (pbrSpecularGlossinessObject.HasKey("diffuseFactor"_view))
 				{
 					const JsonArray& diffuseFactorArray = pbrSpecularGlossinessObject["diffuseFactor"_view].GetArray();
-					baseColorFactor = ToFloat4(diffuseFactorArray);
+					material.MetallicRoughness.BaseColorFactor = ToFloat4(diffuseFactorArray);
+				}
+
+				if (pbrSpecularGlossinessObject.HasKey("metallicRoughnessTexture"_view))
+				{
+					const JsonObject& specularGlossinessTextureObject = pbrSpecularGlossinessObject["specularGlossinessTexture"_view].GetObject();
+					material.SpecularGlossiness.SpecularGlossinessTexture = static_cast<usize>(specularGlossinessTextureObject["index"_view].GetDecimal());
+				}
+				if (pbrSpecularGlossinessObject.HasKey("specularFactor"_view))
+				{
+					const JsonArray& specularFactorArray = pbrSpecularGlossinessObject["specularFactor"_view].GetArray();
+					const Float4 specularFactor = ToFloat4(specularFactorArray);
+					material.SpecularGlossiness.SpecularFactor = Float3 { specularFactor.X, specularFactor.Y, specularFactor.Z };
+				}
+				if (pbrSpecularGlossinessObject.HasKey("roughnessFactor"_view))
+				{
+					material.MetallicRoughness.RoughnessFactor = static_cast<float>(pbrSpecularGlossinessObject["roughnessFactor"_view].GetDecimal());
 				}
 			}
 		}
@@ -441,11 +489,8 @@ GltfScene LoadGltfScene(StringView filePath)
 		if (materialObject.HasKey("normalTexture"_view))
 		{
 			const JsonObject& normalTextureObject = materialObject["normalTexture"_view].GetObject();
-			normalMapTexture = static_cast<usize>(normalTextureObject["index"_view].GetDecimal());
+			material.NormalMapTexture = static_cast<usize>(normalTextureObject["index"_view].GetDecimal());
 		}
-
-		GltfAlphaMode alphaMode = GltfAlphaMode::Opaque;
-		float alphaCutoff = 0.5f;
 
 		if (materialObject.HasKey("alphaMode"_view))
 		{
@@ -453,15 +498,15 @@ GltfScene LoadGltfScene(StringView filePath)
 
 			if (alphaModeString == "OPAQUE"_view)
 			{
-				alphaMode = GltfAlphaMode::Opaque;
+				material.AlphaMode = GltfAlphaMode::Opaque;
 			}
 			else if (alphaModeString == "MASK"_view)
 			{
-				alphaMode = GltfAlphaMode::Mask;
+				material.AlphaMode = GltfAlphaMode::Mask;
 			}
 			else if (alphaModeString == "BLEND"_view)
 			{
-				alphaMode = GltfAlphaMode::Blend;
+				material.AlphaMode = GltfAlphaMode::Blend;
 			}
 			else
 			{
@@ -471,10 +516,10 @@ GltfScene LoadGltfScene(StringView filePath)
 
 		if (materialObject.HasKey("alphaCutoff"_view))
 		{
-			alphaCutoff = static_cast<float>(materialObject["alphaCutoff"_view].GetDecimal());
+			material.AlphaCutoff = static_cast<float>(materialObject["alphaCutoff"_view].GetDecimal());
 		}
 
-		materials.Emplace(baseColorTexture, baseColorFactor, normalMapTexture, alphaMode, alphaCutoff);
+		materials.Add(material);
 	}
 
 	const auto toFilter = [](usize filter, bool magnification) -> GltfFilter

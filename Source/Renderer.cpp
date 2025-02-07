@@ -109,6 +109,7 @@ void Renderer::Update(const CameraController& cameraController)
 	const Hlsl::Scene sceneData =
 	{
 		.ViewProjection = projection * view,
+		.DefaultSamplerIndex = Device.Get(DefaultSampler),
 		.NodeBufferIndex = Device.Get(SceneNodeBuffer),
 		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer),
 		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer),
@@ -345,14 +346,36 @@ void Renderer::LoadScene(const GltfScene& scene)
 			return loadedTexture;
 		};
 
-		SceneMaterials.Add(Material
+		Material loadedMaterial =
 		{
-			.BaseColorTexture = convertTexture(scene, "Scene Base Color Texture"_view, material.BaseColorTexture),
-			.BaseColorFactor = material.BaseColorFactor,
 			.NormalMapTexture = convertTexture(scene, "Scene Normal Map Texture"_view, material.NormalMapTexture),
+			.IsSpecularGlossiness = material.IsSpecularGlossiness,
 			.RequiresBlend = material.AlphaMode == GltfAlphaMode::Blend,
 			.AlphaCutoff = material.AlphaCutoff,
-		});
+		};
+		if (material.IsSpecularGlossiness)
+		{
+			loadedMaterial.SpecularGlossiness.DiffuseTexture = convertTexture(scene, "Scene Diffuse Texture"_view,
+																			  material.SpecularGlossiness.DiffuseTexture);
+			loadedMaterial.SpecularGlossiness.DiffuseFactor = material.SpecularGlossiness.DiffuseFactor;
+
+			loadedMaterial.SpecularGlossiness.SpecularGlossinessTexture = convertTexture(scene, "Scene Specular Glossiness Texture"_view,
+																						 material.SpecularGlossiness.SpecularGlossinessTexture);
+			loadedMaterial.SpecularGlossiness.SpecularFactor = material.SpecularGlossiness.SpecularFactor;
+			loadedMaterial.SpecularGlossiness.GlossinessFactor = material.SpecularGlossiness.GlossinessFactor;
+		}
+		else
+		{
+			loadedMaterial.MetallicRoughness.BaseColorTexture = convertTexture(scene, "Scene Base Color Texture"_view,
+																			  material.MetallicRoughness.BaseColorTexture);
+			loadedMaterial.MetallicRoughness.BaseColorFactor = material.MetallicRoughness.BaseColorFactor;
+
+			loadedMaterial.MetallicRoughness.MetallicRoughnessTexture = convertTexture(scene, "Scene Metallic Roughness Texture"_view,
+																					   material.MetallicRoughness.MetallicRoughnessTexture);
+			loadedMaterial.MetallicRoughness.MetallicFactor = material.MetallicRoughness.MetallicFactor;
+			loadedMaterial.MetallicRoughness.RoughnessFactor = material.MetallicRoughness.RoughnessFactor;
+		}
+		SceneMaterials.Add(loadedMaterial);
 	}
 
 	SceneBuffer = Device.CreateBuffer("Scene Buffer"_view,
@@ -406,16 +429,41 @@ void Renderer::LoadScene(const GltfScene& scene)
 	Array<Hlsl::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
 	for (const Material& material : SceneMaterials)
 	{
-		const Texture& baseColorTexture = material.BaseColorTexture;
-		const Texture& normalMapTexture = material.NormalMapTexture;
+		Texture baseColorOrDiffuseTexture = WhiteTexture;
+		if (material.IsSpecularGlossiness && material.SpecularGlossiness.DiffuseTexture.IsValid())
+		{
+			baseColorOrDiffuseTexture = material.SpecularGlossiness.DiffuseTexture;
+		}
+		else if (!material.IsSpecularGlossiness && material.MetallicRoughness.BaseColorTexture.IsValid())
+		{
+			baseColorOrDiffuseTexture = material.MetallicRoughness.BaseColorTexture;
+		}
+
+		Texture metallicRoughnessOrSpecularGlossinessTexture = WhiteTexture;
+		if (material.IsSpecularGlossiness && material.SpecularGlossiness.SpecularGlossinessTexture.IsValid())
+		{
+			metallicRoughnessOrSpecularGlossinessTexture = material.SpecularGlossiness.SpecularGlossinessTexture;
+		}
+		else if (!material.IsSpecularGlossiness && material.MetallicRoughness.MetallicRoughnessTexture.IsValid())
+		{
+			metallicRoughnessOrSpecularGlossinessTexture = material.MetallicRoughness.MetallicRoughnessTexture;
+		}
 
 		materialData.Add(Hlsl::Material
 		{
-			.BaseColorTextureIndex = Device.Get(baseColorTexture.IsValid() ? baseColorTexture : WhiteTexture),
-			.BaseColorSamplerIndex = Device.Get(DefaultSampler),
-			.BaseColorFactor = material.BaseColorFactor,
-			.NormalMapTextureIndex = Device.Get(normalMapTexture.IsValid() ? normalMapTexture : DefaultNormalMapTexture),
-			.NormalMapSamplerIndex = Device.Get(DefaultSampler),
+			.BaseColorOrDiffuseTextureIndex = Device.Get(baseColorOrDiffuseTexture),
+			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness ?
+											material.SpecularGlossiness.DiffuseFactor :
+											material.MetallicRoughness.BaseColorFactor,
+			.NormalMapTextureIndex = Device.Get(material.NormalMapTexture.IsValid() ? material.NormalMapTexture : DefaultNormalMapTexture),
+			.MetallicRoughnessOrSpecularGlossinessTextureIndex = Device.Get(metallicRoughnessOrSpecularGlossinessTexture),
+			.MetallicOrSpecularFactor = material.IsSpecularGlossiness ?
+											material.SpecularGlossiness.SpecularFactor :
+											Float3 { material.MetallicRoughness.MetallicFactor, 0.0f, 0.0f },
+			.RoughnessOrGlossinessFactor = material.IsSpecularGlossiness ?
+											material.SpecularGlossiness.GlossinessFactor :
+											material.MetallicRoughness.RoughnessFactor,
+			.IsSpecularGlossiness = material.IsSpecularGlossiness,
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
@@ -468,8 +516,18 @@ void Renderer::UnloadScene()
 
 	for (Material& material : SceneMaterials)
 	{
-		Device.DestroyTexture(&material.BaseColorTexture);
 		Device.DestroyTexture(&material.NormalMapTexture);
+
+		if (material.IsSpecularGlossiness)
+		{
+			Device.DestroyTexture(&material.SpecularGlossiness.DiffuseTexture);
+			Device.DestroyTexture(&material.SpecularGlossiness.SpecularGlossinessTexture);
+		}
+		else
+		{
+			Device.DestroyTexture(&material.MetallicRoughness.BaseColorTexture);
+			Device.DestroyTexture(&material.MetallicRoughness.MetallicRoughnessTexture);
+		}
 	}
 
 	SceneMeshes.Clear();

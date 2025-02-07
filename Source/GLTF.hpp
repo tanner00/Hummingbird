@@ -142,12 +142,36 @@ struct GltfTexture
 	usize Sampler;
 };
 
-struct GltfMaterial
+struct GltfSpecularGlossiness
+{
+	usize DiffuseTexture;
+	Float4 DiffuseFactor;
+
+	usize SpecularGlossinessTexture;
+	Float3 SpecularFactor;
+	float GlossinessFactor;
+};
+
+struct GltfMetallicRoughness
 {
 	usize BaseColorTexture;
 	Float4 BaseColorFactor;
 
+	usize MetallicRoughnessTexture;
+	float MetallicFactor;
+	float RoughnessFactor;
+};
+
+struct GltfMaterial
+{
 	usize NormalMapTexture;
+
+	union
+	{
+		GltfSpecularGlossiness SpecularGlossiness;
+		GltfMetallicRoughness MetallicRoughness;
+	};
+	bool IsSpecularGlossiness;
 
 	GltfAlphaMode AlphaMode;
 	float AlphaCutoff;

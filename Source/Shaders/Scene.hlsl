@@ -37,6 +37,8 @@ struct Scene
 {
 	matrix ViewProjection;
 
+	uint DefaultSamplerIndex;
+
 	uint NodeBufferIndex;
 	uint MaterialBufferIndex;
 	uint DirectionalLightBufferIndex;
@@ -50,12 +52,15 @@ struct Node
 
 struct Material
 {
-	uint BaseColorTextureIndex;
-	uint BaseColorSamplerIndex;
-	float4 BaseColorFactor;
+	uint BaseColorOrDiffuseTextureIndex;
+	float4 BaseColorOrDiffuseFactor;
 
 	uint NormalMapTextureIndex;
-	uint NormalMapSamplerIndex;
+
+	uint MetallicRoughnessOrSpecularGlossinessTextureIndex;
+	float3 MetallicOrSpecularFactor;
+	float RoughnessOrGlossinessFactor;
+	bool IsSpecularGlossiness;
 
 	float AlphaCutoff;
 };
@@ -107,34 +112,40 @@ float3 SrgbToLinear(float3 x)
 
 float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
 {
-	const StructuredBuffer<Material> materialBuffer = ResourceDescriptorHeap[Scene.MaterialBufferIndex];
+	const SamplerState defaultSampler = ResourceDescriptorHeap[Scene.DefaultSamplerIndex];
 
+	const StructuredBuffer<Material> materialBuffer = ResourceDescriptorHeap[Scene.MaterialBufferIndex];
 	const Material material = materialBuffer[RootConstants.MaterialIndex];
 
-	const Texture2D<float4> baseColorTexture = ResourceDescriptorHeap[material.BaseColorTextureIndex];
-	const SamplerState baseColorSampler = ResourceDescriptorHeap[material.BaseColorSamplerIndex];
+	const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[material.BaseColorOrDiffuseTextureIndex];
+	const float4 baseColorOrDiffuse = baseColorOrDiffuseTexture.Sample(defaultSampler, input.TextureCoordinate);
 
-	const float4 baseColor = material.BaseColorFactor * baseColorTexture.Sample(baseColorSampler, input.TextureCoordinate);
-	if (baseColor.a < material.AlphaCutoff)
+	const float4 diffuseFactor = material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
+	const float4 baseColorFactor = !material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
+
+	const float4 diffuse = diffuseFactor * baseColorOrDiffuse;
+	const float4 baseColor = baseColorFactor * baseColorOrDiffuse;
+
+	const float alpha = max(diffuse.a, baseColor.a);
+	if (alpha < material.AlphaCutoff && RootConstants.ViewMode != ViewMode::Geometry)
 	{
 		discard;
 	}
 
 	const Texture2D<float3> normalMapTexture = ResourceDescriptorHeap[material.NormalMapTextureIndex];
-	const SamplerState normalMapSampler = ResourceDescriptorHeap[material.NormalMapSamplerIndex];
 
 	const float3 normal = normalize(input.Normal);
 	const float3 tangent = normalize(input.Tangent.xyz);
 	const float3 bitangent = normalize(cross(normal, tangent) * input.Tangent.w);
 
 	const float3x3 tbn = transpose(float3x3(tangent, bitangent, normal));
-	const float3 normalMap = normalMapTexture.Sample(normalMapSampler, input.TextureCoordinate).xyz * 2.0f - 1.0f;
+	const float3 normalMap = normalMapTexture.Sample(defaultSampler, input.TextureCoordinate).xyz * 2.0f - 1.0f;
 	const float3 shadeNormal = mul(tbn, normalMap);
 
 	switch (RootConstants.ViewMode)
 	{
 	case ViewMode::Unlit:
-		return baseColor;
+		return max(diffuse, baseColor);
 	case ViewMode::Geometry:
 		return ToColor(Hash(primitiveID));
 	case ViewMode::Normal:
@@ -147,9 +158,17 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 
 	const float3 lightDirection = normalize(-directionalLight.Direction);
 
-	const float3 diffuseFactor = saturate(dot(shadeNormal, lightDirection));
-	const float3 ambientFactor = 0.1f;
+	const float3 diffuseStrength = saturate(dot(shadeNormal, lightDirection));
+	const float3 ambientStrength = 0.15f;
 
-	const float4 finalColor = float4(baseColor.rgb * (diffuseFactor + ambientFactor), baseColor.a);
+	float4 finalColor;
+	if (material.IsSpecularGlossiness)
+	{
+		finalColor = float4(diffuse.rgb * (diffuseStrength + ambientStrength), diffuse.a);
+	}
+	else
+	{
+		finalColor = float4(baseColor.rgb * (diffuseStrength + ambientStrength), baseColor.a);
+	}
 	return finalColor;
 }
