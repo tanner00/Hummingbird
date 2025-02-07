@@ -92,6 +92,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	if (IsKeyPressedOnce(Key::R))
 	{
+		Device.WaitForIdle();
 		DestroyPipelines();
 		CreatePipelines();
 	}
