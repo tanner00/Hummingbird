@@ -1,3 +1,5 @@
+#include "PBR.hlsl"
+
 struct VertexInput
 {
 	float3 Position : POSITION0;
@@ -9,6 +11,7 @@ struct VertexInput
 struct PixelInput
 {
 	float4 Position : SV_POSITION;
+	float3 WorldPosition : POSITION0;
 	float2 TextureCoordinate : TEXCOORD0;
 	float3 Normal : NORMAL0;
 	float4 Tangent: TANGENT0;
@@ -36,6 +39,7 @@ ConstantBuffer<RootConstants> RootConstants : register(b0);
 struct Scene
 {
 	matrix ViewProjection;
+	float3 ViewPosition;
 
 	uint DefaultSamplerIndex;
 
@@ -75,39 +79,15 @@ PixelInput VertexStart(VertexInput input)
 	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
 	const Node node = nodeBuffer[RootConstants.NodeIndex];
 
+	const float4 worldPosition = mul(node.Transform, float4(input.Position, 1.0f));
+
 	PixelInput result;
-	result.Position = mul(Scene.ViewProjection, mul(node.Transform, float4(input.Position, 1.0f)));
+	result.Position = mul(Scene.ViewProjection, worldPosition);
+	result.WorldPosition = worldPosition.xyz;
 	result.TextureCoordinate = input.TextureCoordinate;
 	result.Normal = mul((float3x3)RootConstants.NormalTransform, input.Normal);
 	result.Tangent = float4(mul((float3x3)RootConstants.NormalTransform, input.Tangent.xyz), input.Tangent.w);
 	return result;
-}
-
-uint Hash(uint v)
-{
-	v ^= 2747636419;
-	v *= 2654435769;
-	v ^= v >> 16;
-	v *= 2654435769;
-	v ^= v >> 16;
-	v *= 2654435769;
-	return v;
-}
-
-float4 ToColor(uint v)
-{
-	return float4
-	(
-		float((v >>  0) & 0xFF) / 255.0f,
-		float((v >>  8) & 0xFF) / 255.0f,
-		float((v >> 16) & 0xFF) / 255.0f,
-		1.0f
-	);
-}
-
-float3 SrgbToLinear(float3 x)
-{
-	return select(x < 0.04045f, x / 12.92f, pow((x + 0.055f) / 1.055f, 2.4f));
 }
 
 float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARGET
@@ -140,7 +120,7 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 
 	const float3x3 tbn = transpose(float3x3(tangent, bitangent, normal));
 	const float3 normalMap = normalMapTexture.Sample(defaultSampler, input.TextureCoordinate).xyz * 2.0f - 1.0f;
-	const float3 shadeNormal = mul(tbn, normalMap);
+	const float3 shadeNormal = normalize(mul(tbn, normalMap));
 
 	switch (RootConstants.ViewMode)
 	{
@@ -154,21 +134,32 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 		break;
 	}
 
+	const Texture2D<float4> metallicRoughnessTexture = ResourceDescriptorHeap[material.MetallicRoughnessOrSpecularGlossinessTextureIndex];
+	const float4 metallicRoughness = metallicRoughnessTexture.Sample(defaultSampler, input.TextureCoordinate);
+
+	const float metallicFactor = !material.IsSpecularGlossiness ? material.MetallicOrSpecularFactor.x : 0.0f;
+	const float roughnessFactor = !material.IsSpecularGlossiness ? material.RoughnessOrGlossinessFactor : 0.0f;
+	const float metallic = metallicFactor * metallicRoughness.b;
+	const float roughness = roughnessFactor * metallicRoughness.g;
+
+	const Texture2D<float4> specularGlossinessTexture = ResourceDescriptorHeap[material.MetallicRoughnessOrSpecularGlossinessTextureIndex];
+	const float4 specularGlossiness = specularGlossinessTexture.Sample(defaultSampler, input.TextureCoordinate);
+
+	const float3 specularFactor = material.IsSpecularGlossiness ? material.MetallicOrSpecularFactor : 0.0f;
+	const float glossinessFactor = material.IsSpecularGlossiness ? material.RoughnessOrGlossinessFactor : 0.0f;
+	const float3 specular = specularFactor * specularGlossiness.rgb;
+	const float glossiness = glossinessFactor * SrgbToLinear(specularGlossiness.a);
+
 	const ConstantBuffer<DirectionalLight> directionalLight = ResourceDescriptorHeap[Scene.DirectionalLightBufferIndex];
 
-	const float3 lightDirection = normalize(-directionalLight.Direction);
+	const float3 lightDirection = normalize(directionalLight.Direction);
+	const float3 viewDirection = normalize(Scene.ViewPosition - input.WorldPosition);
 
-	const float3 diffuseStrength = saturate(dot(shadeNormal, lightDirection));
-	const float3 ambientStrength = 0.15f;
+	const float3 lit = material.IsSpecularGlossiness ?
+						PbrSpecularGlossiness(diffuse.rgb, specular, glossiness, shadeNormal, viewDirection, lightDirection) :
+						PbrMetallicRoughness(baseColor.rgb, metallic, roughness, shadeNormal, viewDirection, lightDirection);
 
-	float4 finalColor;
-	if (material.IsSpecularGlossiness)
-	{
-		finalColor = float4(diffuse.rgb * (diffuseStrength + ambientStrength), diffuse.a);
-	}
-	else
-	{
-		finalColor = float4(baseColor.rgb * (diffuseStrength + ambientStrength), baseColor.a);
-	}
-	return finalColor;
+	const float3 ambient = 0.10f * max(baseColor.rgb, diffuse.rgb);
+
+	return float4(lit + ambient, max(baseColor.a, diffuse.a));
 }

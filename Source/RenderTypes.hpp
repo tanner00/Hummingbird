@@ -90,6 +90,7 @@ namespace Hlsl
 struct Scene
 {
 	Matrix ViewProjection;
+	Float3 ViewPosition;
 
 	uint32 DefaultSamplerIndex;
 
@@ -97,7 +98,7 @@ struct Scene
 	uint32 MaterialBufferIndex;
 	uint32 DirectionalLightBufferIndex;
 
-	PAD(176);
+	PAD(164);
 };
 
 struct SceneRootConstants
