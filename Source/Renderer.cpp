@@ -106,9 +106,11 @@ void Renderer::Update(const CameraController& cameraController)
 		cameraController.GetNearZ(),
 		cameraController.GetFarZ()
 	);
+	const Vector viewPosition = cameraController.GetPosition();
 	const Hlsl::Scene sceneData =
 	{
 		.ViewProjection = projection * view,
+		.ViewPosition = Float3 { viewPosition.X, viewPosition.Y, viewPosition.Z },
 		.DefaultSamplerIndex = Device.Get(DefaultSampler),
 		.NodeBufferIndex = Device.Get(SceneNodeBuffer),
 		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer),
@@ -480,7 +482,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 	{
 		directionalLight = Hlsl::DirectionalLight
 		{
-			.Direction = { +0.0f, -1.0f, +0.0f },
+			.Direction = { +0.0f, +1.0f, +0.0f },
 		};
 	}
 	else
@@ -491,7 +493,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 		DecomposeTransform(scene.DirectionalLights[0].Transform, nullptr, &lightOrientation, nullptr);
 
 		static const Vector defaultLightDirection = Vector { +0.0f, +0.0f, -1.0f };
-		const Vector lightDirection = lightOrientation.Rotate(defaultLightDirection);
+		const Vector lightDirection = -lightOrientation.Rotate(defaultLightDirection);
 
 		directionalLight = Hlsl::DirectionalLight
 		{

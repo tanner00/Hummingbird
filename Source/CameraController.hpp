@@ -13,6 +13,11 @@ public:
 
 	void SetCamera(const GltfCamera& camera);
 
+	Vector GetPosition() const
+	{
+		return Position;
+	}
+
 	Matrix GetTransform() const
 	{
 		return Matrix::Translation(Position) * Orientation.ToMatrix();
