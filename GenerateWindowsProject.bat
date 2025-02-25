@@ -1,5 +1,5 @@
 @echo off
-premake5 vs2022 --fatal --file=Premake5.lua
+premake5 vs2022 --fatal --file=Hummingbird.lua
 mklink /j Build\Assets Assets\
 mklink /j Build\Shaders Source\Shaders
 mkdir Build\Debug
