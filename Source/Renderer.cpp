@@ -582,7 +582,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 {
 	for (usize i = 0; i < FramesInFlight; ++i)
 	{
-		SwapChainTextures[i] = Device.CreateTexture("SwapChain Render Target"_view, BarrierLayout::Undefined,
+		SwapChainTextures[i] = Device.CreateTexture("SwapChain Render Target Texture"_view, BarrierLayout::Undefined,
 		{
 			.Width = width,
 			.Height = height,
@@ -594,6 +594,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		Device.GetSwapChainResource(i));
 	}
 	DepthTexture = Device.CreateTexture("Depth Buffer"_view, BarrierLayout::DepthStencilWrite,
+	DepthTexture = Device.CreateTexture("Depth Texture"_view, BarrierLayout::DepthStencilWrite,
 	{
 		.Width = width,
 		.Height = height,

@@ -22,7 +22,7 @@ struct TextRootConstants
 	Matrix ViewProjection;
 	Float2 UnitRange;
 
-	uint32 CharacterBuffer;
+	uint32 CharacterBufferIndex;
 	uint32 Texture;
 	uint32 Sampler;
 };

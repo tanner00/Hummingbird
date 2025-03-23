@@ -25,7 +25,7 @@ struct RootConstants
 	matrix ViewProjection;
 	float2 UnitRange;
 
-	uint CharacterBuffer;
+	uint CharacterBufferIndex;
 	uint Texture;
 	uint Sampler;
 };
@@ -33,7 +33,7 @@ ConstantBuffer<RootConstants> RootConstants : register(b0);
 
 PixelInput VertexStart(uint vertexID : SV_VertexID)
 {
-	const StructuredBuffer<Character> characterBuffer = ResourceDescriptorHeap[RootConstants.CharacterBuffer];
+	const StructuredBuffer<Character> characterBuffer = ResourceDescriptorHeap[RootConstants.CharacterBufferIndex];
 
 	static const float2 vertices[] =
 	{
