@@ -88,7 +88,7 @@ void DrawText::Init(GpuDevice* device)
 		});
 	}
 
-	FontTexture = Device->CreateTexture("Font"_view, BarrierLayout::GraphicsQueueCommon,
+	FontTexture = Device->CreateTexture("Font Texture"_view, BarrierLayout::GraphicsQueueCommon,
 	{
 		.Width = fontImage.Width,
 		.Height = fontImage.Height,
@@ -191,7 +191,7 @@ void DrawText::Submit(GraphicsContext* graphics, uint32 width, uint32 height)
 
 	RootConstants.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
-	RootConstants.CharacterBuffer = Device->Get(CharacterBuffer);
+	RootConstants.CharacterBufferIndex = Device->Get(CharacterBuffer);
 	RootConstants.Texture = Device->Get(FontTexture);
 	RootConstants.Sampler = Device->Get(Sampler);
 
