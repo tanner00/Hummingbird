@@ -196,12 +196,20 @@ struct GltfCamera
 	float FarZ;
 };
 
-struct GltfDirectionalLight
+enum class GltfLightType
+{
+	Directional,
+	Point,
+};
+
+struct GltfLight
 {
 	Matrix Transform;
 
-	float IntensityLux;
+	float Intensity;
 	Float3 Color;
+
+	GltfLightType Type;
 };
 
 struct GltfScene
@@ -221,7 +229,7 @@ struct GltfScene
 	Array<GltfAccessor> Accessors;
 
 	Array<GltfCamera> Cameras;
-	Array<GltfDirectionalLight> DirectionalLights;
+	Array<GltfLight> Lights;
 };
 
 GltfScene LoadGltfScene(StringView filePath);

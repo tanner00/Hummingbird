@@ -1,4 +1,4 @@
-#include "Common.hlsl"
+#include "Common.hlsli"
 
 float3 FresnelSchlick(float3 f0, float3 halfwayDirection, float3 viewDirection)
 {
@@ -31,7 +31,8 @@ float3 PbrImplementation(float3 cDiffuse,
 						 float roughness,
 						 float3 normal,
 						 float3 viewDirection,
-						 float3 lightDirection)
+						 float3 lightDirection,
+						 float3 lightRadiance)
 {
 	const float3 halfwayDirection = normalize(viewDirection + lightDirection);
 
@@ -46,7 +47,6 @@ float3 PbrImplementation(float3 cDiffuse,
 
 	const float3 diffuse = (1.0f - f) * (cDiffuse / Pi);
 
-	const float lightRadiance = 1.0f;
 	return (diffuse + brdf) * lightRadiance * nDotL;
 }
 
@@ -55,11 +55,12 @@ float3 PbrMetallicRoughness(float3 baseColor,
 							float roughness,
 							float3 normal,
 							float3 viewDirection,
-							float3 lightDirection)
+							float3 lightDirection,
+							float3 lightRadiance)
 {
 	const float3 cDiffuse = lerp(baseColor.rgb, 0.0f, metallic);
 	const float3 f0 = lerp(0.04f, baseColor.rgb, metallic);
-	return PbrImplementation(cDiffuse, f0, roughness, normal, viewDirection, lightDirection);
+	return PbrImplementation(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }
 
 float3 PbrSpecularGlossiness(float3 diffuse,
@@ -67,10 +68,27 @@ float3 PbrSpecularGlossiness(float3 diffuse,
 							 float glossiness,
 							 float3 normal,
 							 float3 viewDirection,
-							 float3 lightDirection)
+							 float3 lightDirection,
+							 float3 lightRadiance)
 {
 	const float3 cDiffuse = lerp(diffuse, 0.0f, max(specular.r, max(specular.g, specular.b)));
 	const float3 f0 = specular;
 	const float roughness = 1.0f - glossiness;
-	return PbrImplementation(cDiffuse, f0, roughness, normal, viewDirection, lightDirection);
+	return PbrImplementation(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
+}
+
+float3 Pbr(float3 baseColor,
+		   float3 diffuse,
+		   float metallic,
+		   float3 specular,
+		   float roughness,
+		   float glossiness,
+		   float3 normal,
+		   float3 viewDirection,
+		   float3 lightDirection,
+		   float3 lightRadiance,
+		   bool isSpecularGlossiness)
+{
+	return isSpecularGlossiness ? PbrSpecularGlossiness(diffuse.rgb, specular, glossiness, normal, viewDirection, lightDirection, lightRadiance)
+								: PbrMetallicRoughness(baseColor.rgb, metallic, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }

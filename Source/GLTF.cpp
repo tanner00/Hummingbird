@@ -93,7 +93,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
-	Array<GltfDirectionalLight> directionalLightTemplates;
+	Array<GltfLight> lightTemplates;
 	if (rootObject.HasKey("extensions"_view))
 	{
 		const JsonObject& extensionsObject = rootObject["extensions"_view].GetObject();
@@ -106,9 +106,7 @@ GltfScene LoadGltfScene(StringView filePath)
 			{
 				const JsonObject& lightObject = light.GetObject();
 
-				VERIFY(lightObject["type"_view].GetString() == "directional"_view, "Unexpected GLTF light type!");
-
-				const float intensityLux = lightObject.HasKey("intensity"_view) ?
+				const float intensity = lightObject.HasKey("intensity"_view) ?
 											static_cast<float>(lightObject["intensity"_view].GetDecimal()) :
 											1.0f;
 
@@ -116,10 +114,27 @@ GltfScene LoadGltfScene(StringView filePath)
 										ToFloat4(lightObject["color"_view].GetArray()) :
 										Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
 
-				directionalLightTemplates.Add(GltfDirectionalLight
+				GltfLightType type = GltfLightType::Directional;
+
+				const String& typeString = lightObject["type"_view].GetString();
+				if (typeString == "directional"_view)
 				{
-					.IntensityLux = intensityLux,
+					type = GltfLightType::Directional;
+				}
+				else if (typeString == "point"_view)
+				{
+					type = GltfLightType::Point;
+				}
+				else
+				{
+					CHECK(false);
+				}
+
+				lightTemplates.Add(GltfLight
+				{
+					.Intensity = intensity,
 					.Color = Float3 { color.X, color.Y, color.Z },
+					.Type = type,
 				});
 			}
 		}
@@ -231,10 +246,10 @@ GltfScene LoadGltfScene(StringView filePath)
 			const JsonObject& extensionsObject = nodeObject["extensions"_view].GetObject();
 			if (extensionsObject.HasKey("KHR_lights_punctual"_view))
 			{
-				const JsonObject& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
-
-				light = static_cast<usize>(khrLightsPunctualObject["light"_view].GetDecimal());
 				lightIndices.Add(nodeIndex);
+
+				const JsonObject& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
+				light = static_cast<usize>(khrLightsPunctualObject["light"_view].GetDecimal());
 			}
 		}
 
@@ -261,14 +276,14 @@ GltfScene LoadGltfScene(StringView filePath)
 		cameras.Add(placedCamera);
 	}
 
-	Array<GltfDirectionalLight> directionalLights(GltfAllocator);
+	Array<GltfLight> lights(GltfAllocator);
 	for (usize lightIndex : lightIndices)
 	{
 		const GltfNode& node = nodes[lightIndex];
 
-		GltfDirectionalLight placedDirectionalLight = directionalLightTemplates[node.Light];
-		placedDirectionalLight.Transform = InternalCalculateGltfGlobalTransform(nodes, lightIndex);
-		directionalLights.Add(placedDirectionalLight);
+		GltfLight placedLight = lightTemplates[node.Light];
+		placedLight.Transform = InternalCalculateGltfGlobalTransform(nodes, lightIndex);
+		lights.Add(placedLight);
 	}
 
 	const JsonArray& bufferArray = rootObject["buffers"_view].GetArray();
@@ -655,7 +670,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		.Materials = Move(materials),
 		.Accessors = Move(accessors),
 		.Cameras = Move(cameras),
-		.DirectionalLights = Move(directionalLights),
+		.Lights = Move(lights),
 	};
 }
 

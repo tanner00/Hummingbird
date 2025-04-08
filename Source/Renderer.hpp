@@ -2,12 +2,9 @@
 
 #include "RenderTypes.hpp"
 
-#include "RHI/RHI.hpp"
-
 #include "Luft/NoCopy.hpp"
 
 struct GltfScene;
-
 class CameraController;
 
 class Renderer : public NoCopy
@@ -45,6 +42,8 @@ private:
 	Texture SwapChainTextures[FramesInFlight];
 	Texture DepthTexture;
 
+	Texture HdrTexture;
+
 	Texture WhiteTexture;
 	Texture DefaultNormalMapTexture;
 	Sampler DefaultSampler;
@@ -54,6 +53,8 @@ private:
 	Buffer SceneNodeBuffer;
 	Buffer SceneMaterialBuffer;
 	Buffer SceneDirectionalLightBuffer;
+	Buffer ScenePointLightsBuffer;
+	Buffer LuminanceBuffer;
 
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;
@@ -61,6 +62,11 @@ private:
 
 	GraphicsPipeline SceneOpaquePipeline;
 	GraphicsPipeline SceneBlendPipeline;
+
+	ComputePipeline LuminanceHistogramPipeline;
+	ComputePipeline LuminanceAveragePipeline;
+
+	GraphicsPipeline ToneMapPipeline;
 
 #if !RELEASE
 	double AverageCpuTime;

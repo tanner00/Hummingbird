@@ -5,6 +5,8 @@
 #include "Luft/Array.hpp"
 #include "Luft/Math.hpp"
 
+static constexpr TextureFormat HdrFormat = TextureFormat::Rgba32Float;
+
 enum class ViewMode : uint32
 {
 	Lit,
@@ -87,20 +89,6 @@ struct Material
 namespace Hlsl
 {
 
-struct Scene
-{
-	Matrix ViewProjection;
-	Float3 ViewPosition;
-
-	uint32 DefaultSamplerIndex;
-
-	uint32 NodeBufferIndex;
-	uint32 MaterialBufferIndex;
-	uint32 DirectionalLightBufferIndex;
-
-	PAD(164);
-};
-
 struct SceneRootConstants
 {
 	uint32 NodeIndex;
@@ -111,6 +99,44 @@ struct SceneRootConstants
 	PAD(4);
 
 	Matrix NormalTransform;
+};
+
+struct LuminanceHistogramRootConstants
+{
+	uint32 LuminanceBufferIndex;
+	uint32 HdrTextureIndex;
+};
+
+struct LuminanceAverageRootConstants
+{
+	uint32 LuminanceBufferIndex;
+
+	uint32 PixelCount;
+};
+
+struct ToneMapRootConstants
+{
+	uint32 HdrTextureIndex;
+	uint32 DefaultSamplerIndex;
+	uint32 LuminanceBufferIndex;
+
+	bool32 DebugViewMode;
+};
+
+struct Scene
+{
+	Matrix ViewProjection;
+	Float3 ViewPosition;
+
+	uint32 DefaultSamplerIndex;
+	uint32 NodeBufferIndex;
+	uint32 MaterialBufferIndex;
+	uint32 DirectionalLightBufferIndex;
+	uint32 PointLightsBufferIndex;
+
+	uint32 PointLightsCount;
+
+	PAD(156);
 };
 
 struct Node
@@ -135,9 +161,20 @@ struct Material
 
 struct DirectionalLight
 {
+	Float3 Color;
+	float IntensityLux;
+
 	Float3 Direction;
 
-	PAD(244);
+	PAD(228);
+};
+
+struct PointLight
+{
+	Float3 Color;
+	float IntensityCandela;
+
+	Float3 Position;
 };
 
 }
