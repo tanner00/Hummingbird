@@ -192,7 +192,7 @@ void DrawText::Submit(GraphicsContext* graphics, uint32 width, uint32 height)
 	RootConstants.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
 	RootConstants.CharacterBufferIndex = Device->Get(CharacterBuffer);
-	RootConstants.Texture = Device->Get(FontTexture);
+	RootConstants.Texture = Device->Get(FontTexture, ViewType::ShaderResource);
 	RootConstants.Sampler = Device->Get(Sampler);
 
 	Device->Write(CharacterBuffer, CharacterData.GetData());

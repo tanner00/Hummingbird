@@ -1,4 +1,4 @@
-#include "PBR.hlsl"
+#include "PBR.hlsli"
 
 struct VertexInput
 {
@@ -46,6 +46,9 @@ struct Scene
 	uint NodeBufferIndex;
 	uint MaterialBufferIndex;
 	uint DirectionalLightBufferIndex;
+	uint PointLightsBufferIndex;
+
+	uint PointLightsCount;
 };
 ConstantBuffer<Scene> Scene : register(b1);
 
@@ -71,7 +74,18 @@ struct Material
 
 struct DirectionalLight
 {
+	float3 Color;
+	float IntensityLux;
+
 	float3 Direction;
+};
+
+struct PointLight
+{
+	float3 Color;
+	float IntensityCandela;
+
+	float3 Position;
 };
 
 PixelInput VertexStart(VertexInput input)
@@ -107,6 +121,8 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 	const float4 baseColor = baseColorFactor * baseColorOrDiffuse;
 
 	const float alpha = max(diffuse.a, baseColor.a);
+
+	[branch]
 	if (alpha < material.AlphaCutoff && RootConstants.ViewMode != ViewMode::Geometry)
 	{
 		discard;
@@ -150,16 +166,55 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 	const float3 specular = specularFactor * specularGlossiness.rgb;
 	const float glossiness = glossinessFactor * SrgbToLinear(specularGlossiness.a);
 
-	const ConstantBuffer<DirectionalLight> directionalLight = ResourceDescriptorHeap[Scene.DirectionalLightBufferIndex];
-
-	const float3 lightDirection = normalize(directionalLight.Direction);
 	const float3 viewDirection = normalize(Scene.ViewPosition - input.WorldPosition);
 
-	const float3 lit = material.IsSpecularGlossiness ?
-						PbrSpecularGlossiness(diffuse.rgb, specular, glossiness, shadeNormal, viewDirection, lightDirection) :
-						PbrMetallicRoughness(baseColor.rgb, metallic, roughness, shadeNormal, viewDirection, lightDirection);
+	float3 finalColor = 0.0f;
 
-	const float3 ambient = 0.10f * max(baseColor.rgb, diffuse.rgb);
+	[branch]
+	if (Scene.PointLightsCount != 0)
+	{
+		const StructuredBuffer<PointLight> pointLightsBuffer = ResourceDescriptorHeap[Scene.PointLightsBufferIndex];
 
-	return float4(lit + ambient, max(baseColor.a, diffuse.a));
+		[loop]
+		for (uint i = 0; i < Scene.PointLightsCount; ++i)
+		{
+			const PointLight pointLight = pointLightsBuffer[i];
+
+			const float objectToLightDistance = distance(input.WorldPosition, pointLight.Position);
+			const float attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
+
+			const float3 contribution = Pbr(baseColor.rgb,
+											diffuse.rgb,
+											metallic,
+											specular,
+											roughness,
+											glossiness,
+											shadeNormal,
+											viewDirection,
+											normalize(pointLight.Position - input.WorldPosition),
+											attenuation * pointLight.IntensityCandela * pointLight.Color,
+											material.IsSpecularGlossiness);
+			finalColor += contribution;
+		}
+	}
+
+	const ConstantBuffer<DirectionalLight> directionalLightBuffer = ResourceDescriptorHeap[Scene.DirectionalLightBufferIndex];
+
+	const float3 directionalLightContribution = Pbr(baseColor.rgb,
+													diffuse.rgb,
+													metallic,
+													specular,
+													roughness,
+													glossiness,
+													shadeNormal,
+													viewDirection,
+													normalize(directionalLightBuffer.Direction),
+													directionalLightBuffer.IntensityLux * directionalLightBuffer.Color,
+													material.IsSpecularGlossiness);
+	finalColor += directionalLightContribution;
+
+	const float3 ambientLightContribution = 0.05f * directionalLightBuffer.IntensityLux * max(baseColor.rgb, diffuse.rgb);
+	finalColor += ambientLightContribution;
+
+	return float4(finalColor, alpha);
 }

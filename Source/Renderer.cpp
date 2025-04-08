@@ -4,6 +4,8 @@
 #include "DrawText.hpp"
 #include "GLTF.hpp"
 
+#include "Shaders/Luminance.hlsli"
+
 static Allocator* RendererAllocator = &GlobalAllocator::Get();
 
 Renderer::Renderer(const Platform::Window* window)
@@ -48,6 +50,13 @@ Renderer::Renderer(const Platform::Window* window)
 		.VerticalAddress = SamplerAddress::Wrap,
 	});
 
+	LuminanceBuffer = Device.CreateBuffer("Luminance Buffer"_view,
+	{
+		.Type = BufferType::StorageBuffer,
+		.Usage = BufferUsage::Static,
+		.Size = LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
+	});
+
 	CreatePipelines();
 }
 
@@ -55,6 +64,8 @@ Renderer::~Renderer()
 {
 	UnloadScene();
 	DestroyPipelines();
+
+	Device.DestroyBuffer(&LuminanceBuffer);
 
 	Device.DestroySampler(&DefaultSampler);
 	Device.DestroyTexture(&DefaultNormalMapTexture);
@@ -115,29 +126,29 @@ void Renderer::Update(const CameraController& cameraController)
 		.NodeBufferIndex = Device.Get(SceneNodeBuffer),
 		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer),
 		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer),
+		.PointLightsBufferIndex = ScenePointLightsBuffer.IsValid() ? Device.Get(ScenePointLightsBuffer) : 0,
+		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.IsValid() ? ScenePointLightsBuffer.GetCount() : 0),
 	};
 	Device.Write(SceneBuffer, &sceneData);
 
 	Graphics.Begin();
 
-	const Texture& frameTexture = SwapChainTextures[Device.GetFrameIndex()];
-
-	Graphics.SetViewport(frameTexture.GetWidth(), frameTexture.GetHeight());
+	Graphics.SetViewport(HdrTexture.GetWidth(), HdrTexture.GetHeight());
 
 	Graphics.TextureBarrier
 	(
 		{ BarrierStage::None, BarrierStage::RenderTarget },
 		{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
 		{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
-		frameTexture
+		HdrTexture
 	);
 
 	Graphics.SetPipeline(&SceneOpaquePipeline);
 
-	Graphics.ClearRenderTarget(frameTexture, { 0.0f, 0.0f, 0.0f, 1.0f });
+	Graphics.ClearRenderTarget(HdrTexture, { 0.0f, 0.0f, 0.0f, 1.0f });
 	Graphics.ClearDepthStencil(DepthTexture);
 
-	Graphics.SetRenderTarget(frameTexture, DepthTexture);
+	Graphics.SetRenderTarget(HdrTexture, DepthTexture);
 
 	for (usize i = 0; i < SceneNodes.GetLength(); ++i)
 	{
@@ -180,18 +191,91 @@ void Renderer::Update(const CameraController& cameraController)
 		}
 	}
 
+	Graphics.TextureBarrier
+	(
+		{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
+		{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
+		{ BarrierLayout::RenderTarget, BarrierLayout::ShaderResource },
+		HdrTexture
+	);
+	Graphics.BufferBarrier
+	(
+		{ BarrierStage::None, BarrierStage::ComputeShading },
+		{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
+		LuminanceBuffer
+	);
+
+	Hlsl::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
+	{
+		.LuminanceBufferIndex = Device.Get(LuminanceBuffer),
+		.HdrTextureIndex = Device.Get(HdrTexture, ViewType::ShaderResource),
+	};
+
+	Graphics.SetPipeline(&LuminanceHistogramPipeline);
+	Graphics.SetRootConstants(&luminanceHistogramRootConstants);
+	Graphics.Dispatch((HdrTexture.GetWidth() + 15) / 16, (HdrTexture.GetHeight() + 15) / 16, 1);
+
+	Graphics.BufferBarrier
+	(
+		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
+		LuminanceBuffer
+	);
+
+	Hlsl::LuminanceAverageRootConstants luminanceAverageRootConstants =
+	{
+		.LuminanceBufferIndex = Device.Get(LuminanceBuffer),
+		.PixelCount = HdrTexture.GetWidth() * HdrTexture.GetHeight(),
+	};
+
+	Graphics.SetPipeline(&LuminanceAveragePipeline);
+	Graphics.SetRootConstants(&luminanceAverageRootConstants);
+	Graphics.Dispatch(LuminanceHistogramBinsCount, 1, 1);
+
+	const Texture& swapChainTexture = SwapChainTextures[Device.GetFrameIndex()];
+
+	Graphics.BufferBarrier
+	(
+		{ BarrierStage::ComputeShading, BarrierStage::PixelShading },
+		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
+		LuminanceBuffer
+	);
+
+	Graphics.TextureBarrier
+	(
+		{ BarrierStage::None, BarrierStage::RenderTarget },
+		{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
+		{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
+		swapChainTexture
+	);
+
+	Graphics.SetRenderTarget(swapChainTexture);
+	Graphics.SetViewport(swapChainTexture.GetWidth(), swapChainTexture.GetHeight());
+
+	Hlsl::ToneMapRootConstants toneMapRootConstants =
+	{
+		.HdrTextureIndex = Device.Get(HdrTexture, ViewType::ShaderResource),
+		.DefaultSamplerIndex = Device.Get(DefaultSampler),
+		.LuminanceBufferIndex = Device.Get(LuminanceBuffer),
+		.DebugViewMode = viewMode != ViewMode::Lit,
+	};
+
+	Graphics.SetPipeline(&ToneMapPipeline);
+	Graphics.SetRootConstants(&toneMapRootConstants);
+	Graphics.Draw(3);
+
 #if !RELEASE
 	UpdateFrameTimes(startCpuTime);
 #endif
 
-	DrawText::Get().Submit(&Graphics, frameTexture.GetWidth(), frameTexture.GetHeight());
+	DrawText::Get().Submit(&Graphics, swapChainTexture.GetWidth(), swapChainTexture.GetHeight());
 
 	Graphics.TextureBarrier
 	(
 		{ BarrierStage::RenderTarget, BarrierStage::None },
 		{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
 		{ BarrierLayout::RenderTarget, BarrierLayout::Present },
-		frameTexture
+		swapChainTexture
 	);
 
 	Graphics.End();
@@ -453,12 +537,15 @@ void Renderer::LoadScene(const GltfScene& scene)
 
 		materialData.Add(Hlsl::Material
 		{
-			.BaseColorOrDiffuseTextureIndex = Device.Get(baseColorOrDiffuseTexture),
+			.BaseColorOrDiffuseTextureIndex = Device.Get(baseColorOrDiffuseTexture,
+														 ViewType::ShaderResource),
 			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness ?
 											material.SpecularGlossiness.DiffuseFactor :
 											material.MetallicRoughness.BaseColorFactor,
-			.NormalMapTextureIndex = Device.Get(material.NormalMapTexture.IsValid() ? material.NormalMapTexture : DefaultNormalMapTexture),
-			.MetallicRoughnessOrSpecularGlossinessTextureIndex = Device.Get(metallicRoughnessOrSpecularGlossinessTexture),
+			.NormalMapTextureIndex = Device.Get(material.NormalMapTexture.IsValid() ? material.NormalMapTexture : DefaultNormalMapTexture,
+												ViewType::ShaderResource),
+			.MetallicRoughnessOrSpecularGlossinessTextureIndex = Device.Get(metallicRoughnessOrSpecularGlossinessTexture,
+												ViewType::ShaderResource),
 			.MetallicOrSpecularFactor = material.IsSpecularGlossiness ?
 											material.SpecularGlossiness.SpecularFactor :
 											Float3 { material.MetallicRoughness.MetallicFactor, 0.0f, 0.0f },
@@ -477,35 +564,67 @@ void Renderer::LoadScene(const GltfScene& scene)
 		.Stride = sizeof(Hlsl::Material),
 	});
 
+	bool hasDirectionalLight = false;
 	Hlsl::DirectionalLight directionalLight;
-	if (scene.DirectionalLights.IsEmpty())
+	Array<Hlsl::PointLight> pointLights(RendererAllocator);
+
+	for (const GltfLight& light : scene.Lights)
+	{
+		Vector translation;
+		Quaternion orientation;
+		DecomposeTransform(light.Transform, &translation, &orientation, nullptr);
+
+		static const Vector defaultLightDirection = Vector { +0.0f, +0.0f, -1.0f };
+		const Vector direction = -orientation.Rotate(defaultLightDirection);
+
+		if (light.Type == GltfLightType::Directional)
+		{
+			CHECK(!hasDirectionalLight);
+			hasDirectionalLight = true;
+
+			directionalLight = Hlsl::DirectionalLight
+			{
+				.Color = light.Color,
+				.IntensityLux = light.Intensity,
+				.Direction = { direction.X, direction.Y, direction.Z },
+			};
+		}
+		else if (light.Type == GltfLightType::Point)
+		{
+			pointLights.Add(Hlsl::PointLight
+			{
+				.Color = light.Color,
+				.IntensityCandela = light.Intensity,
+				.Position = { translation.X, translation.Y, translation.Z },
+			});
+		}
+	}
+	if (!hasDirectionalLight)
 	{
 		directionalLight = Hlsl::DirectionalLight
 		{
+			.Color = { 1.0f, 1.0f, 1.0f },
+			.IntensityLux = 1.0f,
 			.Direction = { +0.0f, +1.0f, +0.0f },
 		};
 	}
-	else
-	{
-		CHECK(scene.DirectionalLights.GetLength() == 1);
 
-		Quaternion lightOrientation;
-		DecomposeTransform(scene.DirectionalLights[0].Transform, nullptr, &lightOrientation, nullptr);
-
-		static const Vector defaultLightDirection = Vector { +0.0f, +0.0f, -1.0f };
-		const Vector lightDirection = -lightOrientation.Rotate(defaultLightDirection);
-
-		directionalLight = Hlsl::DirectionalLight
-		{
-			.Direction = { lightDirection.X, lightDirection.Y, lightDirection.Z },
-		};
-	}
-	SceneDirectionalLightBuffer = Device.CreateBuffer("Scene Directional Light"_view, &directionalLight,
+	SceneDirectionalLightBuffer = Device.CreateBuffer("Scene Directional Light Buffer"_view, &directionalLight,
 	{
 		.Type = BufferType::ConstantBuffer,
 		.Usage = BufferUsage::Static,
 		.Size = sizeof(directionalLight),
 	});
+	if (!pointLights.IsEmpty())
+	{
+		ScenePointLightsBuffer = Device.CreateBuffer("Scene Point Lights Buffer"_view, pointLights.GetData(),
+		{
+			.Type = BufferType::StructuredBuffer,
+			.Usage = BufferUsage::Static,
+			.Size = pointLights.GetDataSize(),
+			.Stride = pointLights.GetElementSize(),
+		});
+	}
 }
 
 void Renderer::UnloadScene()
@@ -515,6 +634,7 @@ void Renderer::UnloadScene()
 	Device.DestroyBuffer(&SceneNodeBuffer);
 	Device.DestroyBuffer(&SceneMaterialBuffer);
 	Device.DestroyBuffer(&SceneDirectionalLightBuffer);
+	Device.DestroyBuffer(&ScenePointLightsBuffer);
 
 	for (Material& material : SceneMaterials)
 	{
@@ -539,27 +659,31 @@ void Renderer::UnloadScene()
 
 void Renderer::CreatePipelines()
 {
-	const auto createPipeline = [this](StringView shaderPath, bool alphaBlend) -> GraphicsPipeline
+	const auto createGraphicsPipeline = [this](StringView name,
+											   StringView path,
+											   TextureFormat format,
+											   bool alphaBlend,
+											   bool depth) -> GraphicsPipeline
 	{
 		Shader vertex = Device.CreateShader(
 		{
 			.Stage = ShaderStage::Vertex,
-			.FilePath = shaderPath,
+			.FilePath = path,
 		});
 		Shader pixel = Device.CreateShader(
 		{
 			.Stage = ShaderStage::Pixel,
-			.FilePath = shaderPath,
+			.FilePath = path,
 		});
 		ShaderStages stages;
 		stages.AddStage(vertex);
 		stages.AddStage(pixel);
 
-		const GraphicsPipeline pipeline = Device.CreatePipeline("Scene Pipeline"_view,
+		const GraphicsPipeline pipeline = Device.CreatePipeline(name,
 		{
 			.Stages = Move(stages),
-			.RenderTargetFormat = TextureFormat::Rgba8SrgbUnorm,
-			.DepthFormat = TextureFormat::Depth32,
+			.RenderTargetFormat = format,
+			.DepthFormat = depth ? TextureFormat::Depth32 : TextureFormat::None,
 			.AlphaBlend = alphaBlend,
 		});
 		Device.DestroyShader(&vertex);
@@ -567,13 +691,51 @@ void Renderer::CreatePipelines()
 
 		return pipeline;
 	};
+	const auto createComputePipeline = [this](StringView name, StringView path) -> ComputePipeline
+	{
+		Shader compute = Device.CreateShader(
+		{
+			.Stage = ShaderStage::Compute,
+			.FilePath = path,
+		});
 
-	SceneOpaquePipeline = createPipeline("Shaders/Scene.hlsl"_view, false);
-	SceneBlendPipeline = createPipeline("Shaders/Scene.hlsl"_view, true);
+		const ComputePipeline pipeline = Device.CreatePipeline(name,
+		{
+			.Stage = Move(compute),
+		});
+		Device.DestroyShader(&compute);
+
+		return pipeline;
+	};
+
+	SceneOpaquePipeline = createGraphicsPipeline("Scene Opaque Pipeline"_view,
+												 "Shaders/Scene.hlsl"_view,
+												 HdrFormat,
+												 false,
+												 true);
+	SceneBlendPipeline = createGraphicsPipeline("Scene Blend Pipeline"_view,
+												"Shaders/Scene.hlsl"_view,
+												HdrFormat,
+												true,
+												true);
+
+	ToneMapPipeline = createGraphicsPipeline("Tone Map Pipeline"_view,
+											 "Shaders/ToneMap.hlsl"_view,
+											 TextureFormat::Rgba8SrgbUnorm,
+											 false,
+											 false);
+
+	LuminanceHistogramPipeline = createComputePipeline("Luminance Histogram Pipeline"_view, "Shaders/LuminanceHistogram.hlsl"_view);
+	LuminanceAveragePipeline = createComputePipeline("Luminance Average Pipeline"_view, "Shaders/LuminanceAverage.hlsl"_view);
 }
 
 void Renderer::DestroyPipelines()
 {
+	Device.DestroyPipeline(&ToneMapPipeline);
+
+	Device.DestroyPipeline(&LuminanceHistogramPipeline);
+	Device.DestroyPipeline(&LuminanceAveragePipeline);
+
 	Device.DestroyPipeline(&SceneOpaquePipeline);
 	Device.DestroyPipeline(&SceneBlendPipeline);
 }
@@ -593,7 +755,6 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		},
 		Device.GetSwapChainResource(i));
 	}
-	DepthTexture = Device.CreateTexture("Depth Buffer"_view, BarrierLayout::DepthStencilWrite,
 	DepthTexture = Device.CreateTexture("Depth Texture"_view, BarrierLayout::DepthStencilWrite,
 	{
 		.Width = width,
@@ -601,6 +762,17 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.Type = TextureType::Rectangle,
 		.Format = TextureFormat::Depth32,
 		.MipMapCount = 1,
+	});
+
+	HdrTexture = Device.CreateTexture("HDR Texture"_view, BarrierLayout::RenderTarget,
+	{
+		.Width = width,
+		.Height = height,
+		.Type = TextureType::Rectangle,
+		.Format = HdrFormat,
+		.MipMapCount = 1,
+		.RenderTarget = true,
+		.Storage = true,
 	});
 }
 
@@ -611,4 +783,6 @@ void Renderer::DestroyScreenTextures()
 		Device.DestroyTexture(&texture);
 	}
 	Device.DestroyTexture(&DepthTexture);
+
+	Device.DestroyTexture(&HdrTexture);
 }
