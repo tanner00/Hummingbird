@@ -7,7 +7,7 @@ float3 FresnelSchlick(float3 f0, float3 halfwayDirection, float3 viewDirection)
 
 float NdfTrowbridgeReitz(float3 normal, float3 halfwayDirection, float roughness)
 {
-	const float alphaSquared = roughness * roughness * roughness * roughness;
+	const float alphaSquared = max(roughness * roughness * roughness * roughness, 0.00001f);
 	const float nDotH = dot(normal, halfwayDirection);
 	return alphaSquared / (Pi * pow(max((nDotH * nDotH) * (alphaSquared - 1.0f) + 1.0f, 0.0001f), 2.0f));
 }
