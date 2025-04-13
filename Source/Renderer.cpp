@@ -28,8 +28,8 @@ Renderer::Renderer(const Platform::Window* window)
 		.Format = TextureFormat::Rgba8SrgbUnorm,
 		.MipMapCount = 1,
 	});
-	static constexpr usize white = 0xFFFFFFFF;
-	Device.Write(WhiteTexture, &white);
+	static constexpr uint8 white[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+	Device.Write(WhiteTexture, white);
 
 	DefaultNormalMapTexture = Device.CreateTexture("Default Normal Map Texture"_view, BarrierLayout::GraphicsQueueCommon,
 	{
@@ -39,8 +39,8 @@ Renderer::Renderer(const Platform::Window* window)
 		.Format = TextureFormat::Rgba8Unorm,
 		.MipMapCount = 1,
 	});
-	static constexpr usize defaultNormal = 0x7F7FFF;
-	Device.Write(DefaultNormalMapTexture, &defaultNormal);
+	static constexpr uint8 defaultNormal[] = { 0x7F, 0x7F, 0xFF, 0x00 };
+	Device.Write(DefaultNormalMapTexture, defaultNormal);
 
 	DefaultSampler = Device.CreateSampler(
 	{
