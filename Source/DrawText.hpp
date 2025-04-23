@@ -49,8 +49,8 @@ class DrawText : public NoCopy
 public:
 	DrawText();
 
-	void Init(GpuDevice* device);
-	void Shutdown();
+	void Init(RHI::Device* device);
+	void Shutdown(const RHI::Device& device);
 
 	static DrawText& Get()
 	{
@@ -61,7 +61,7 @@ public:
 	void Draw(StringView text, Float2 position, Float3 rgb, float scale);
 	void Draw(StringView text, Float2 position, Float4 rgba, float scale);
 
-	void Submit(GraphicsContext* graphics, uint32 width, uint32 height);
+	void Submit(RHI::GraphicsContext* graphics, RHI::Device* device, uint32 width, uint32 height);
 
 private:
 	HashTable<char, Glyph> Glyphs;
@@ -73,12 +73,13 @@ private:
 	usize CharacterIndex;
 	Array<Hlsl::Character> CharacterData;
 
-	GraphicsPipeline Pipeline;
+	RHI::GraphicsPipeline Pipeline;
 
-	Texture FontTexture;
-	Sampler Sampler;
+	RHI::Resource FontTexture;
+	RHI::TextureView FontTextureView;
 
-	Buffer CharacterBuffer;
+	RHI::Sampler Sampler;
 
-	GpuDevice* Device;
+	RHI::Resource CharacterBuffers[RHI::FramesInFlight];
+	RHI::BufferView CharacterBufferViews[RHI::FramesInFlight];
 };

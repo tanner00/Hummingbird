@@ -21,7 +21,7 @@ end
 
 function UseWindowsSettings()
 	filter "platforms:Win64"
-		defines { "WINDOWS=1" }
+		defines { "PLATFORM_WINDOWS=1", extra_define }
 		system "Windows"
 		toolset "Msc"
 		architecture "x86_64"

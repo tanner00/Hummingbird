@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RHI/Common.hpp"
+#include "RHI/HLSL.hpp"
 
 #include "Luft/Array.hpp"
 #include "Luft/HashTable.hpp"
