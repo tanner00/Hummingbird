@@ -21,7 +21,7 @@ project "Hummingbird"
 	links { "Luft", "RHI" }
 
 	SetConfigurationSettings()
-	UseWindowsSettings()
+	UseWindowsSettings("RHI_D3D12=1")
 
 	files {
 		"Source/**.cpp", "Source/**.hpp",

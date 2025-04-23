@@ -43,29 +43,29 @@ struct DdsExtendedHeader
 static constexpr char FormatSignature[] = "DDS ";
 static usize HeadersSize = sizeof(DdsHeader) + sizeof(DdsExtendedHeader) + (sizeof(FormatSignature) - 1);
 
-static TextureFormat FromD3D12(DXGI_FORMAT format)
+static RHI::ResourceFormat From(DXGI_FORMAT format)
 {
 	switch (format)
 	{
 	case DXGI_FORMAT_UNKNOWN:
-		return TextureFormat::None;
+		return RHI::ResourceFormat::None;
 	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return TextureFormat::Rgba8Unorm;
+		return RHI::ResourceFormat::Rgba8Unorm;
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		return TextureFormat::Rgba8SrgbUnorm;
+		return RHI::ResourceFormat::Rgba8SrgbUnorm;
 	case DXGI_FORMAT_R32G32B32A32_FLOAT:
-		return TextureFormat::Rgba32Float;
+		return RHI::ResourceFormat::Rgba32Float;
 	case DXGI_FORMAT_BC7_UNORM:
-		return TextureFormat::Bc7Unorm;
+		return RHI::ResourceFormat::Bc7Unorm;
 	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return TextureFormat::Bc7SrgbUnorm;
+		return RHI::ResourceFormat::Bc7SrgbUnorm;
 	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		return TextureFormat::Depth24Stencil8;
+		return RHI::ResourceFormat::Depth24Stencil8;
 	case DXGI_FORMAT_D32_FLOAT:
-		return TextureFormat::Depth32;
+		return RHI::ResourceFormat::Depth32;
 	}
 	CHECK(false);
-	return TextureFormat::None;
+	return RHI::ResourceFormat::None;
 }
 
 static int32 Advance(usize* offset, usize count)
@@ -198,10 +198,10 @@ DdsImage LoadDdsImage(StringView filePath)
 	{
 		.Data = imageData,
 		.DataSize = imageDataSize,
-		.Format = FromD3D12(extendedHeader.DxgiFormat),
+		.Format = From(extendedHeader.DxgiFormat),
 		.Width = static_cast<uint32>(header.Width),
 		.Height = static_cast<uint32>(header.Height),
-		.MipMapCount = static_cast<uint32>(header.MipMapCount),
+		.MipMapCount = static_cast<uint16>(header.MipMapCount),
 	};
 }
 
