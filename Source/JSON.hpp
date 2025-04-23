@@ -9,7 +9,7 @@ class JsonValue;
 
 using JsonArray = Array<JsonValue>;
 
-enum class JsonTag
+enum class JsonTag : uint8
 {
 	None,
 	Object,

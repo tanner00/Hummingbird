@@ -6,13 +6,13 @@
 #include "Luft/HashTable.hpp"
 #include "Luft/Math.hpp"
 
-enum class GltfTargetType
+enum class GltfTargetType : uint8
 {
 	ArrayBuffer,
 	ElementArrayBuffer,
 };
 
-enum class GltfComponentType
+enum class GltfComponentType : uint8
 {
 	Int8,
 	Uint8,
@@ -23,7 +23,7 @@ enum class GltfComponentType
 	Count,
 };
 
-enum class GltfAccessorType
+enum class GltfAccessorType : uint8
 {
 	Scalar,
 	Vector2,
@@ -35,7 +35,7 @@ enum class GltfAccessorType
 	Count,
 };
 
-enum class GltfAttributeType
+enum class GltfAttributeType : uint8
 {
 	Position,
 	Normal,
@@ -52,7 +52,7 @@ struct Hash<GltfAttributeType>
 	}
 };
 
-enum class GltfFilter
+enum class GltfFilter : uint8
 {
 	Nearest,
 	Linear,
@@ -63,14 +63,14 @@ enum class GltfFilter
 	LinearMipMapLinear,
 };
 
-enum class GltfAddress
+enum class GltfAddress : uint8
 {
 	Repeat,
 	ClampToEdge,
 	MirroredRepeat,
 };
 
-enum class GltfAlphaMode
+enum class GltfAlphaMode : uint8
 {
 	Opaque,
 	Mask,
@@ -196,7 +196,7 @@ struct GltfCamera
 	float FarZ;
 };
 
-enum class GltfLightType
+enum class GltfLightType : uint8
 {
 	Directional,
 	Point,
