@@ -67,7 +67,8 @@ JsonValue::JsonValue(const JsonValue& copy)
 
 JsonValue& JsonValue::operator=(const JsonValue& copy)
 {
-	CHECK(&copy != this);
+	if (&copy == this)
+		return *this;
 
 	Tag = copy.Tag;
 
@@ -98,7 +99,7 @@ JsonValue& JsonValue::operator=(const JsonValue& copy)
 	return *this;
 }
 
-JsonValue::JsonValue(JsonValue&& move)
+JsonValue::JsonValue(JsonValue&& move) noexcept
 	: Tag(move.Tag)
 {
 	move.Tag = JsonTag::None;
@@ -132,9 +133,10 @@ JsonValue::JsonValue(JsonValue&& move)
 	}
 }
 
-JsonValue& JsonValue::operator=(JsonValue&& move)
+JsonValue& JsonValue::operator=(JsonValue&& move) noexcept
 {
-	CHECK(&move != this);
+	if (&move == this)
+		return *this;
 
 	this->~JsonValue();
 

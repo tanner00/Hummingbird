@@ -70,8 +70,8 @@ public:
 	JsonValue(const JsonValue& copy);
 	JsonValue& operator=(const JsonValue& copy);
 
-	JsonValue(JsonValue&& move);
-	JsonValue& operator=(JsonValue&& move);
+	JsonValue(JsonValue&& move) noexcept;
+	JsonValue& operator=(JsonValue&& move) noexcept;
 
 	JsonTag GetTag() const
 	{
