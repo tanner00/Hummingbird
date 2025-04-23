@@ -5,18 +5,15 @@
 static constexpr usize MaxCharactersPerFrame = 2048;
 
 DrawText::DrawText()
-	: Glyphs(64)
+	: Glyphs(64, &GlobalAllocator::Get())
 	, Ascender(0.0f)
 	, RootConstants()
 	, CharacterIndex(0)
-	, Device(nullptr)
 {
 }
 
-void DrawText::Init(GpuDevice* device)
+void DrawText::Init(RHI::Device* device)
 {
-	Device = device;
-
 	DdsImage fontImage = LoadDdsImage("Assets/Fonts/RobotoMSDF.dds"_view);
 
 	const JsonObject fontDescription = LoadJson("Assets/Fonts/RobotoMSDF.json"_view);
@@ -88,66 +85,92 @@ void DrawText::Init(GpuDevice* device)
 		});
 	}
 
-	FontTexture = Device->CreateTexture("Font Texture"_view, BarrierLayout::GraphicsQueueCommon,
+	FontTexture = device->Create(
 	{
-		.Width = fontImage.Width,
-		.Height = fontImage.Height,
-		.Type = TextureType::Rectangle,
+		.Type = RHI::ResourceType::Texture2D,
 		.Format = fontImage.Format,
+		.Flags = RHI::ResourceFlags::None,
+		.InitialLayout = RHI::BarrierLayout::GraphicsQueueCommon,
+		.Dimensions = { fontImage.Width, fontImage.Height } ,
+		.MipMapCount = fontImage.MipMapCount,
+		.Name = "Font Texture"_view,
+	});
+	FontTextureView = device->Create(
+	{
+		.Resource = FontTexture,
+		.Type = RHI::ViewType::ShaderResource,
+		.Format = FontTexture.Format,
 		.MipMapCount = fontImage.MipMapCount,
 	});
-	Device->Write(FontTexture, fontImage.Data);
+	device->Write(&FontTexture, fontImage.Data);
 
 	UnloadDdsImage(&fontImage);
 
-	Shader vertex = Device->CreateShader(
+	RHI::Shader vertex = device->Create(
 	{
-		.Stage = ShaderStage::Vertex,
+		.Stage = RHI::ShaderStage::Vertex,
 		.FilePath = "Shaders/Text.hlsl"_view,
 	});
-	Shader pixel = Device->CreateShader(
+	RHI::Shader pixel = device->Create(
 	{
-		.Stage = ShaderStage::Pixel,
+		.Stage = RHI::ShaderStage::Pixel,
 		.FilePath = "Shaders/Text.hlsl"_view,
 	});
 
-	ShaderStages stages;
+	RHI::ShaderStages stages;
 	stages.AddStage(vertex);
 	stages.AddStage(pixel);
-	Pipeline = Device->CreatePipeline("Text Pipeline"_view,
+	Pipeline = device->Create(
 	{
 		.Stages = Move(stages),
-		.RenderTargetFormat = TextureFormat::Rgba8SrgbUnorm,
-		.DepthFormat = TextureFormat::None,
+		.RenderTargetFormat = RHI::ResourceFormat::Rgba8SrgbUnorm,
+		.DepthStencilFormat = RHI::ResourceFormat::None,
 		.AlphaBlend = true,
+		.Name = "Text Pipeline"_view,
 	});
-	Device->DestroyShader(&vertex);
-	Device->DestroyShader(&pixel);
+	device->Destroy(&vertex);
+	device->Destroy(&pixel);
 
-	Sampler = Device->CreateSampler(
+	Sampler = device->Create(
 	{
-		.MinificationFilter = SamplerFilter::Linear,
-		.MagnificationFilter = SamplerFilter::Linear,
-		.HorizontalAddress = SamplerAddress::Wrap,
-		.VerticalAddress = SamplerAddress::Wrap,
+		.MinificationFilter = RHI::SamplerFilter::Linear,
+		.MagnificationFilter = RHI::SamplerFilter::Linear,
+		.HorizontalAddress = RHI::SamplerAddress::Wrap,
+		.VerticalAddress = RHI::SamplerAddress::Wrap,
 	});
 
 	CharacterData.GrowToLengthUninitialized(MaxCharactersPerFrame);
-	CharacterBuffer = Device->CreateBuffer("Character Buffer"_view,
+	for (usize i = 0; i < RHI::FramesInFlight; ++i)
 	{
-		.Type = BufferType::StructuredBuffer,
-		.Usage = BufferUsage::Stream,
-		.Size = MaxCharactersPerFrame * sizeof(Hlsl::Character),
-		.Stride = sizeof(Hlsl::Character),
-	});
+		CharacterBuffers[i] = device->Create(
+		{
+			.Format = RHI::ResourceFormat::None,
+			.Flags = RHI::ResourceFlags::Upload,
+			.InitialLayout = RHI::BarrierLayout::GraphicsQueueCommon,
+			.Size = MaxCharactersPerFrame * sizeof(Hlsl::Character),
+			.Name = "Character Buffer"_view,
+		});
+		CharacterBufferViews[i] = device->Create(
+		{
+			.Resource = CharacterBuffers[i],
+			.Type = RHI::ViewType::ShaderResource,
+			.Size = CharacterBuffers[i].Size,
+			.Stride = sizeof(Hlsl::Character),
+		});
+	}
 }
 
-void DrawText::Shutdown()
+void DrawText::Shutdown(const RHI::Device& device)
 {
-	Device->DestroySampler(&Sampler);
-	Device->DestroyPipeline(&Pipeline);
-	Device->DestroyTexture(&FontTexture);
-	Device->DestroyBuffer(&CharacterBuffer);
+	for (usize i = 0; i < RHI::FramesInFlight; ++i)
+	{
+		device.Destroy(&CharacterBufferViews[i]);
+		device.Destroy(&CharacterBuffers[i]);
+	}
+	device.Destroy(&Sampler);
+	device.Destroy(&Pipeline);
+	device.Destroy(&FontTextureView);
+	device.Destroy(&FontTexture);
 
 	this->~DrawText();
 }
@@ -185,19 +208,19 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 	}
 }
 
-void DrawText::Submit(GraphicsContext* graphics, uint32 width, uint32 height)
+void DrawText::Submit(RHI::GraphicsContext* graphics, RHI::Device* device, uint32 width, uint32 height)
 {
 	CHECK(graphics);
 
 	RootConstants.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
-	RootConstants.CharacterBufferIndex = Device->Get(CharacterBuffer);
-	RootConstants.Texture = Device->Get(FontTexture, ViewType::ShaderResource);
-	RootConstants.Sampler = Device->Get(Sampler);
+	RootConstants.CharacterBufferIndex = device->Get(CharacterBufferViews[device->GetFrameIndex()]);
+	RootConstants.Texture = device->Get(FontTextureView);
+	RootConstants.Sampler = device->Get(Sampler);
 
-	Device->Write(CharacterBuffer, CharacterData.GetData());
+	device->Write(&CharacterBuffers[device->GetFrameIndex()], CharacterData.GetData());
 
-	graphics->SetPipeline(&Pipeline);
+	graphics->SetPipeline(Pipeline);
 
 	graphics->SetRootConstants(&RootConstants);
 

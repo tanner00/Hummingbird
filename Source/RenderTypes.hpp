@@ -5,7 +5,19 @@
 #include "Luft/Array.hpp"
 #include "Luft/Math.hpp"
 
-static constexpr TextureFormat HdrFormat = TextureFormat::Rgba32Float;
+static constexpr RHI::ResourceFormat HdrFormat = RHI::ResourceFormat::Rgba32Float;
+
+struct Buffer
+{
+	RHI::Resource Resource;
+	RHI::BufferView View;
+};
+
+struct Texture
+{
+	RHI::Resource Resource;
+	RHI::TextureView View;
+};
 
 enum class ViewMode : uint32
 {
