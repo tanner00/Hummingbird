@@ -185,8 +185,6 @@ void Renderer::Update(const CameraController& cameraController)
 		HdrTexture
 	);
 
-	Graphics.SetPipeline(SceneOpaquePipeline);
-
 	Graphics.ClearRenderTarget(HdrTextureRenderTargetView, { 0.0f, 0.0f, 0.0f, 1.0f });
 	Graphics.ClearDepthStencil(DepthTexture.View);
 
