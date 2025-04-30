@@ -159,7 +159,7 @@ void Renderer::Update(const CameraController& cameraController)
 		cameraController.GetFarZ()
 	);
 	const Vector viewPosition = cameraController.GetPosition();
-	const Hlsl::Scene sceneData =
+	const HLSL::Scene sceneData =
 	{
 		.ViewProjection = projection * view,
 		.ViewPosition = Float3 { viewPosition.X, viewPosition.Y, viewPosition.Z },
@@ -169,7 +169,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
-		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.IsValid() ? ScenePointLightsBuffer.View.Size / sizeof(Hlsl::PointLight) : 0),
+		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.IsValid() ? ScenePointLightsBuffer.View.Size / sizeof(HLSL::PointLight) : 0),
 	};
 	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
 
@@ -199,7 +199,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 		for (const Primitive& primitive : mesh.Primitives)
 		{
-			const Hlsl::SceneRootConstants rootConstants =
+			const HLSL::SceneRootConstants rootConstants =
 			{
 				.NodeIndex = static_cast<uint32>(nodeIndex),
 				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
@@ -279,7 +279,7 @@ void Renderer::Update(const CameraController& cameraController)
 		SceneLuminanceBuffer.Resource
 	);
 
-	const Hlsl::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
+	const HLSL::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
 	{
 		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
 		.HdrTextureIndex = Device.Get(HdrTextureShaderResourceView),
@@ -296,7 +296,7 @@ void Renderer::Update(const CameraController& cameraController)
 		SceneLuminanceBuffer.Resource
 	);
 
-	Hlsl::LuminanceAverageRootConstants luminanceAverageRootConstants =
+	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
 	{
 		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
 		.PixelCount = HdrTexture.Dimensions.Width * HdrTexture.Dimensions.Height,
@@ -327,7 +327,7 @@ void Renderer::Update(const CameraController& cameraController)
 	Graphics.SetRenderTarget(swapChainTextureView);
 	Graphics.SetViewport(swapChainTexture.Dimensions.Width, swapChainTexture.Dimensions.Height);
 
-	const Hlsl::ToneMapRootConstants toneMapRootConstants =
+	const HLSL::ToneMapRootConstants toneMapRootConstants =
 	{
 		.HdrTextureIndex = Device.Get(HdrTextureShaderResourceView),
 		.DefaultSamplerIndex = Device.Get(DefaultSampler),
@@ -391,31 +391,31 @@ void Renderer::Resize(uint32 width, uint32 height)
 	Device.WaitForIdle();
 }
 
-void Renderer::LoadScene(const GltfScene& scene)
+void Renderer::LoadScene(const GLTF::Scene& scene)
 {
 	UnloadScene();
 
 	VERIFY(scene.Buffers.GetLength() == 1, "GLTF file contains multiple buffers!");
-	const GltfBuffer& vertexBuffer = scene.Buffers[0];
+	const GLTF::Buffer& vertexBuffer = scene.Buffers[0];
 
 	Array<Array<Float4>> computedTangents(RendererAllocator);
 	usize computedTangentsCount = 0;
 
-	for (const GltfMesh& mesh : scene.Meshes)
+	for (const GLTF::Mesh& mesh : scene.Meshes)
 	{
 		Array<Primitive> primitives(mesh.Primitives.GetLength(), RendererAllocator);
 
-		for (const GltfPrimitive& primitive : mesh.Primitives)
+		for (const GLTF::Primitive& primitive : mesh.Primitives)
 		{
-			const GltfAccessorView positionView = GetGltfAccessorView(scene, primitive.Attributes[GltfAttributeType::Position]);
-			const GltfAccessorView textureCoordinateView = GetGltfAccessorView(scene, primitive.Attributes[GltfAttributeType::Texcoord0]);
-			const GltfAccessorView normalView = GetGltfAccessorView(scene, primitive.Attributes[GltfAttributeType::Normal]);
-			const GltfAccessorView indexView = GetGltfAccessorView(scene, primitive.Indices);
+			const GLTF::AccessorView positionView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Position]);
+			const GLTF::AccessorView textureCoordinateView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Texcoord0]);
+			const GLTF::AccessorView normalView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Normal]);
+			const GLTF::AccessorView indexView = GLTF::GetAccessorView(scene, primitive.Indices);
 
-			GltfAccessorView tangentView;
-			if (primitive.Attributes.Contains(GltfAttributeType::Tangent))
+			GLTF::AccessorView tangentView;
+			if (primitive.Attributes.Contains(GLTF::AttributeType::Tangent))
 			{
-				tangentView = GetGltfAccessorView(scene, primitive.Attributes[GltfAttributeType::Tangent]);
+				tangentView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Tangent]);
 			}
 			else
 			{
@@ -429,7 +429,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 					primitiveTangents.Add(invalidTangent);
 				}
 
-				tangentView = GltfAccessorView
+				tangentView = GLTF::AccessorView
 				{
 					.Offset = vertexBuffer.Size + computedTangentsCount * sizeof(Float4),
 					.Stride = primitiveTangents.GetElementSize(),
@@ -468,7 +468,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 		});
 	}
 
-	GltfBuffer finalVertexBuffer = vertexBuffer;
+	GLTF::Buffer finalVertexBuffer = vertexBuffer;
 	if (!computedTangents.IsEmpty())
 	{
 		finalVertexBuffer.Size += computedTangentsCount * sizeof(Float4);
@@ -500,14 +500,14 @@ void Renderer::LoadScene(const GltfScene& scene)
 
 	for (usize meshIndex = 0; meshIndex < scene.Meshes.GetLength(); ++meshIndex)
 	{
-		const GltfMesh& gltfMesh = scene.Meshes[meshIndex];
+		const GLTF::Mesh& gltfMesh = scene.Meshes[meshIndex];
 
 		for (usize primitiveIndex = 0; primitiveIndex < gltfMesh.Primitives.GetLength(); ++primitiveIndex)
 		{
-			const GltfPrimitive& gltfPrimitive = scene.Meshes[meshIndex].Primitives[primitiveIndex];
+			const GLTF::Primitive& gltfPrimitive = scene.Meshes[meshIndex].Primitives[primitiveIndex];
 
-			const GltfAccessorView positionView = GetGltfAccessorView(scene, gltfPrimitive.Attributes[GltfAttributeType::Position]);
-			const GltfAccessorView indexView = GetGltfAccessorView(scene, gltfPrimitive.Indices);
+			const GLTF::AccessorView positionView = GLTF::GetAccessorView(scene, gltfPrimitive.Attributes[GLTF::AttributeType::Position]);
+			const GLTF::AccessorView indexView = GLTF::GetAccessorView(scene, gltfPrimitive.Indices);
 
 			const SubBuffer vertices = SubBuffer
 			{
@@ -555,13 +555,13 @@ void Renderer::LoadScene(const GltfScene& scene)
 	Array<AccelerationStructureInstance> instances(RendererAllocator);
 	for (usize i = 0; i < scene.Nodes.GetLength(); ++i)
 	{
-		const GltfNode& node = scene.Nodes[i];
+		const GLTF::Node& node = scene.Nodes[i];
 		if (node.Mesh == INDEX_NONE)
 		{
 			continue;
 		}
 
-		const Matrix transform = CalculateGltfGlobalTransform(scene, i);
+		const Matrix transform = GLTF::CalculateGlobalTransform(scene, i);
 
 		const Mesh& mesh = SceneMeshes[node.Mesh];
 		for (const Primitive& primitive : mesh.Primitives)
@@ -635,24 +635,24 @@ void Renderer::LoadScene(const GltfScene& scene)
 		Device.Destroy(&resource);
 	}
 
-	for (const GltfMaterial& gltfMaterial : scene.Materials)
+	for (const GLTF::Material& gltfMaterial : scene.Materials)
 	{
-		const auto convertTexture = [this](const GltfScene& scene, StringView textureName, usize textureIndex) -> Texture
+		const auto convertTexture = [this](const GLTF::Scene& scene, StringView textureName, usize textureIndex) -> Texture
 		{
 			if (textureIndex == INDEX_NONE)
 				return Texture { Resource::Invalid(), TextureView::Invalid() };
 
-			const GltfTexture& gltfTexture = scene.Textures[textureIndex];
-			const GltfImage& gltfImage = scene.Images[gltfTexture.Image];
+			const GLTF::Texture& gltfTexture = scene.Textures[textureIndex];
+			const GLTF::Image& gltfImage = scene.Images[gltfTexture.Image];
 
-			DdsImage image = LoadDdsImage(gltfImage.Path.AsView());
+			DDS::Image image = DDS::LoadImage(gltfImage.Path.AsView());
 			const Texture texture = CreateTexture(&Device,
 												  { image.Width, image.Height },
 												  image.MipMapCount,
 												  image.Format,
 												  image.Data,
 												  textureName);
-			UnloadDdsImage(&image);
+			DDS::UnloadImage(&image);
 
 			return texture;
 		};
@@ -661,7 +661,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 		{
 			.NormalMapTexture = convertTexture(scene, "Scene Normal Map Texture"_view, gltfMaterial.NormalMapTexture),
 			.IsSpecularGlossiness = gltfMaterial.IsSpecularGlossiness,
-			.RequiresBlend = gltfMaterial.AlphaMode == GltfAlphaMode::Blend,
+			.RequiresBlend = gltfMaterial.AlphaMode == GLTF::AlphaMode::Blend,
 			.AlphaCutoff = gltfMaterial.AlphaCutoff,
 		};
 		if (gltfMaterial.IsSpecularGlossiness)
@@ -696,7 +696,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 	for (Buffer& sceneBuffer : SceneBuffers)
 	{
 		sceneBuffer = CreateBuffer(&Device,
-								   sizeof(Hlsl::Scene),
+								   sizeof(HLSL::Scene),
 								   0,
 								   ResourceFlags::Upload,
 								   ViewType::ConstantBuffer,
@@ -704,23 +704,23 @@ void Renderer::LoadScene(const GltfScene& scene)
 								   "Scene Buffer"_view);
 	}
 
-	Array<Hlsl::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
+	Array<HLSL::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
 	for (const Node& node : SceneNodes)
 	{
-		nodeData.Add(Hlsl::Node
+		nodeData.Add(HLSL::Node
 		{
 			.Transform = node.Transform,
 		});
 	}
 	SceneNodeBuffer = CreateBuffer(&Device,
-								   SceneNodes.GetLength() * sizeof(Hlsl::Node),
-								   sizeof(Hlsl::Node),
+								   SceneNodes.GetLength() * sizeof(HLSL::Node),
+								   sizeof(HLSL::Node),
 								   ResourceFlags::None,
 								   ViewType::ShaderResource,
 								   nodeData.GetData(),
 								   "Scene Node Buffer"_view);
 
-	Array<Hlsl::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
+	Array<HLSL::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
 	for (const Material& material : SceneMaterials)
 	{
 		Texture baseColorOrDiffuseTexture = WhiteTexture;
@@ -743,7 +743,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 			metallicRoughnessOrSpecularGlossinessTexture = material.MetallicRoughness.MetallicRoughnessTexture;
 		}
 
-		materialData.Add(Hlsl::Material
+		materialData.Add(HLSL::Material
 		{
 			.BaseColorOrDiffuseTextureIndex = Device.Get(baseColorOrDiffuseTexture.View),
 			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness
@@ -762,18 +762,18 @@ void Renderer::LoadScene(const GltfScene& scene)
 		});
 	}
 	SceneMaterialBuffer = CreateBuffer(&Device,
-									   SceneMaterials.GetLength() * sizeof(Hlsl::Material),
-									   sizeof(Hlsl::Material),
+									   SceneMaterials.GetLength() * sizeof(HLSL::Material),
+									   sizeof(HLSL::Material),
 									   ResourceFlags::None,
 									   ViewType::ShaderResource,
 									   materialData.GetData(),
 									   "Scene Material Buffer"_view);
 
 	bool hasDirectionalLight = false;
-	Hlsl::DirectionalLight directionalLight;
-	Array<Hlsl::PointLight> pointLights(RendererAllocator);
+	HLSL::DirectionalLight directionalLight;
+	Array<HLSL::PointLight> pointLights(RendererAllocator);
 
-	for (const GltfLight& light : scene.Lights)
+	for (const GLTF::Light& light : scene.Lights)
 	{
 		Vector translation;
 		Quaternion orientation;
@@ -782,21 +782,21 @@ void Renderer::LoadScene(const GltfScene& scene)
 		static const Vector defaultLightDirection = Vector { +0.0f, +0.0f, -1.0f };
 		const Vector direction = -orientation.Rotate(defaultLightDirection);
 
-		if (light.Type == GltfLightType::Directional)
+		if (light.Type == GLTF::LightType::Directional)
 		{
 			CHECK(!hasDirectionalLight);
 			hasDirectionalLight = true;
 
-			directionalLight = Hlsl::DirectionalLight
+			directionalLight = HLSL::DirectionalLight
 			{
 				.Color = light.Color,
 				.IntensityLux = light.Intensity,
 				.Direction = { direction.X, direction.Y, direction.Z },
 			};
 		}
-		else if (light.Type == GltfLightType::Point)
+		else if (light.Type == GLTF::LightType::Point)
 		{
-			pointLights.Add(Hlsl::PointLight
+			pointLights.Add(HLSL::PointLight
 			{
 				.Color = light.Color,
 				.IntensityCandela = light.Intensity,
@@ -806,7 +806,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 	}
 	if (!hasDirectionalLight)
 	{
-		directionalLight = Hlsl::DirectionalLight
+		directionalLight = HLSL::DirectionalLight
 		{
 			.Color = { 1.0f, 1.0f, 1.0f },
 			.IntensityLux = 1.0f,
