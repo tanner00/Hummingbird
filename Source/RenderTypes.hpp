@@ -50,6 +50,8 @@ struct Primitive
 	usize IndexSize;
 
 	usize MaterialIndex;
+
+	RHI::Resource AccelerationStructureResource;
 };
 
 struct Mesh
@@ -145,10 +147,11 @@ struct Scene
 	uint32 MaterialBufferIndex;
 	uint32 DirectionalLightBufferIndex;
 	uint32 PointLightsBufferIndex;
+	uint32 AccelerationStructureIndex;
 
 	uint32 PointLightsCount;
 
-	PAD(156);
+	PAD(152);
 };
 
 struct Node

@@ -52,6 +52,9 @@ private:
 	Buffer ScenePointLightsBuffer;
 	Buffer SceneLuminanceBuffer;
 
+	RHI::Resource SceneAccelerationStructureResource;
+	RHI::AccelerationStructure SceneAccelerationStructure;
+
 	RHI::Resource HdrTexture;
 	RHI::TextureView HdrTextureRenderTargetView;
 	RHI::TextureView HdrTextureShaderResourceView;
