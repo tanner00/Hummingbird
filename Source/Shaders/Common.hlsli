@@ -1,4 +1,7 @@
+#pragma once
+
 static const float Pi = 3.14159265358979323846f;
+static const float Infinity = 1.#INF;
 
 uint Hash(uint v)
 {

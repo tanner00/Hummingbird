@@ -1,4 +1,5 @@
 #include "PBR.hlsli"
+#include "Shadow.hlsl"
 
 struct VertexInput
 {
@@ -47,6 +48,7 @@ struct Scene
 	uint MaterialBufferIndex;
 	uint DirectionalLightBufferIndex;
 	uint PointLightsBufferIndex;
+	uint AccelerationStructureIndex;
 
 	uint PointLightsCount;
 };
@@ -170,6 +172,8 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 
 	float3 finalColor = 0.0f;
 
+	const RaytracingAccelerationStructure accelerationStructure = ResourceDescriptorHeap[Scene.AccelerationStructureIndex];
+
 	[branch]
 	if (Scene.PointLightsCount != 0)
 	{
@@ -179,8 +183,9 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 		for (uint i = 0; i < Scene.PointLightsCount; ++i)
 		{
 			const PointLight pointLight = pointLightsBuffer[i];
+			const float3 pointLightDirection = normalize(pointLight.Position - input.WorldPosition);
+			const float objectToLightDistance = distance(pointLight.Position, input.WorldPosition);
 
-			const float objectToLightDistance = distance(input.WorldPosition, pointLight.Position);
 			const float attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
 
 			const float3 contribution = Pbr(baseColor.rgb,
@@ -191,14 +196,15 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 											glossiness,
 											shadeNormal,
 											viewDirection,
-											normalize(pointLight.Position - input.WorldPosition),
+											pointLightDirection,
 											attenuation * pointLight.IntensityCandela * pointLight.Color,
 											material.IsSpecularGlossiness);
-			finalColor += contribution;
+			finalColor += contribution * CastShadowRay(accelerationStructure, input.WorldPosition, pointLightDirection, objectToLightDistance);
 		}
 	}
 
 	const ConstantBuffer<DirectionalLight> directionalLightBuffer = ResourceDescriptorHeap[Scene.DirectionalLightBufferIndex];
+	const float3 directionalLightDirection = normalize(directionalLightBuffer.Direction);
 
 	const float3 directionalLightContribution = Pbr(baseColor.rgb,
 													diffuse.rgb,
@@ -208,10 +214,10 @@ float4 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_TARG
 													glossiness,
 													shadeNormal,
 													viewDirection,
-													normalize(directionalLightBuffer.Direction),
+													directionalLightDirection,
 													directionalLightBuffer.IntensityLux * directionalLightBuffer.Color,
 													material.IsSpecularGlossiness);
-	finalColor += directionalLightContribution;
+	finalColor += directionalLightContribution * CastShadowRay(accelerationStructure, input.WorldPosition, directionalLightDirection, Infinity);
 
 	const float3 ambientLightContribution = 0.05f * directionalLightBuffer.IntensityLux * max(baseColor.rgb, diffuse.rgb);
 	finalColor += ambientLightContribution;
