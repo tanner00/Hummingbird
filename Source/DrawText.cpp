@@ -146,11 +146,11 @@ void DrawText::Init(RHI::Device* device)
 		{
 			.Format = RHI::ResourceFormat::None,
 			.Flags = RHI::ResourceFlags::Upload,
-			.InitialLayout = RHI::BarrierLayout::GraphicsQueueCommon,
+			.InitialLayout = RHI::BarrierLayout::Undefined,
 			.Size = MaxCharactersPerFrame * sizeof(Hlsl::Character),
 			.Name = "Character Buffer"_view,
 		});
-		CharacterBufferViews[i] = device->Create(
+		CharacterBufferViews[i] = device->Create(RHI::BufferViewDescription
 		{
 			.Resource = CharacterBuffers[i],
 			.Type = RHI::ViewType::ShaderResource,

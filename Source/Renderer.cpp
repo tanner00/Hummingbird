@@ -36,17 +36,17 @@ static Texture CreateTexture(Device* device, ResourceDimensions dimensions, uint
 	return Texture { texture, view };
 }
 
-static Buffer CreateBuffer(Device* device, usize size, usize stride, ResourceFlags flags, BarrierLayout layout, ViewType type, const void* data, StringView name)
+static Buffer CreateBuffer(Device* device, usize size, usize stride, ResourceFlags flags, ViewType type, const void* data, StringView name)
 {
 	const Resource buffer = device->Create(
 	{
 		.Type = ResourceType::Buffer,
 		.Flags = flags,
-		.InitialLayout = layout,
+		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size,
 		.Name = name,
 	});
-	const BufferView view = device->Create(
+	const BufferView view = device->Create(BufferViewDescription
 	{
 		.Resource = buffer,
 		.Type = type,
@@ -81,7 +81,6 @@ Renderer::Renderer(const Platform::Window* window)
 										LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
 										0,
 										ResourceFlags::UnorderedAccess,
-										BarrierLayout::GraphicsQueueCommon,
 										ViewType::UnorderedAccess,
 										nullptr,
 										"Scene Luminance Buffer"_view);
@@ -698,7 +697,6 @@ void Renderer::LoadScene(const GltfScene& scene)
 								   sizeof(Hlsl::Scene),
 								   0,
 								   ResourceFlags::Upload,
-								   BarrierLayout::GraphicsQueueCommon,
 								   ViewType::ConstantBuffer,
 								   nullptr,
 								   "Scene Buffer"_view);
@@ -716,7 +714,6 @@ void Renderer::LoadScene(const GltfScene& scene)
 								   SceneNodes.GetLength() * sizeof(Hlsl::Node),
 								   sizeof(Hlsl::Node),
 								   ResourceFlags::None,
-								   BarrierLayout::GraphicsQueueCommon,
 								   ViewType::ShaderResource,
 								   nodeData.GetData(),
 								   "Scene Node Buffer"_view);
@@ -766,7 +763,6 @@ void Renderer::LoadScene(const GltfScene& scene)
 									   SceneMaterials.GetLength() * sizeof(Hlsl::Material),
 									   sizeof(Hlsl::Material),
 									   ResourceFlags::None,
-									   BarrierLayout::GraphicsQueueCommon,
 									   ViewType::ShaderResource,
 									   materialData.GetData(),
 									   "Scene Material Buffer"_view);
@@ -820,7 +816,6 @@ void Renderer::LoadScene(const GltfScene& scene)
 											   sizeof(directionalLight),
 											   0,
 											   ResourceFlags::None,
-											   BarrierLayout::GraphicsQueueCommon,
 											   ViewType::ConstantBuffer,
 											   &directionalLight,
 											   "Scene Directional Light Buffer"_view);
@@ -830,7 +825,6 @@ void Renderer::LoadScene(const GltfScene& scene)
 											  pointLights.GetDataSize(),
 											  pointLights.GetElementSize(),
 											  ResourceFlags::None,
-											  BarrierLayout::GraphicsQueueCommon,
 											  ViewType::ShaderResource,
 											  pointLights.GetData(),
 											  "Scene Point Lights Buffer"_view);
