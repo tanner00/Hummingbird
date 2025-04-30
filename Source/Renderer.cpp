@@ -637,7 +637,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	for (const GLTF::Material& gltfMaterial : scene.Materials)
 	{
-		const auto convertTexture = [this](const GLTF::Scene& scene, StringView textureName, usize textureIndex) -> Texture
+		const auto convertTexture = [this](const GLTF::Scene& scene, usize textureIndex, StringView textureName) -> Texture
 		{
 			if (textureIndex == INDEX_NONE)
 				return Texture { Resource::Invalid(), TextureView::Invalid() };
@@ -659,7 +659,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 		Material material =
 		{
-			.NormalMapTexture = convertTexture(scene, "Scene Normal Map Texture"_view, gltfMaterial.NormalMapTexture),
+			.NormalMapTexture = convertTexture(scene, gltfMaterial.NormalMapTexture, "Scene Normal Map Texture"_view),
 			.IsSpecularGlossiness = gltfMaterial.IsSpecularGlossiness,
 			.RequiresBlend = gltfMaterial.AlphaMode == GLTF::AlphaMode::Blend,
 			.AlphaCutoff = gltfMaterial.AlphaCutoff,
@@ -667,26 +667,26 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		if (gltfMaterial.IsSpecularGlossiness)
 		{
 			material.SpecularGlossiness.DiffuseTexture = convertTexture(scene,
-																		"Scene Diffuse Texture"_view,
-																		gltfMaterial.SpecularGlossiness.DiffuseTexture);
+																		gltfMaterial.SpecularGlossiness.DiffuseTexture,
+																		"Scene Diffuse Texture"_view);
 			material.SpecularGlossiness.DiffuseFactor = gltfMaterial.SpecularGlossiness.DiffuseFactor;
 
 			material.SpecularGlossiness.SpecularGlossinessTexture = convertTexture(scene,
-																				   "Scene Specular Glossiness Texture"_view,
-																				   gltfMaterial.SpecularGlossiness.SpecularGlossinessTexture);
+																				   gltfMaterial.SpecularGlossiness.SpecularGlossinessTexture,
+																				   "Scene Specular Glossiness Texture"_view);
 			material.SpecularGlossiness.SpecularFactor = gltfMaterial.SpecularGlossiness.SpecularFactor;
 			material.SpecularGlossiness.GlossinessFactor = gltfMaterial.SpecularGlossiness.GlossinessFactor;
 		}
 		else
 		{
 			material.MetallicRoughness.BaseColorTexture = convertTexture(scene,
-																		 "Scene Base Color Texture"_view,
-																		 gltfMaterial.MetallicRoughness.BaseColorTexture);
+																		 gltfMaterial.MetallicRoughness.BaseColorTexture,
+																		 "Scene Base Color Texture"_view);
 			material.MetallicRoughness.BaseColorFactor = gltfMaterial.MetallicRoughness.BaseColorFactor;
 
 			material.MetallicRoughness.MetallicRoughnessTexture = convertTexture(scene,
-																				 "Scene Metallic Roughness Texture"_view,
-																				 gltfMaterial.MetallicRoughness.MetallicRoughnessTexture);
+																				 gltfMaterial.MetallicRoughness.MetallicRoughnessTexture,
+																				 "Scene Metallic Roughness Texture"_view);
 			material.MetallicRoughness.MetallicFactor = gltfMaterial.MetallicRoughness.MetallicFactor;
 			material.MetallicRoughness.RoughnessFactor = gltfMaterial.MetallicRoughness.RoughnessFactor;
 		}
