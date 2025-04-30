@@ -6,13 +6,16 @@
 #include "Luft/HashTable.hpp"
 #include "Luft/Math.hpp"
 
-enum class GltfTargetType : uint8
+namespace GLTF
+{
+
+enum class TargetType : uint8
 {
 	ArrayBuffer,
 	ElementArrayBuffer,
 };
 
-enum class GltfComponentType : uint8
+enum class ComponentType : uint8
 {
 	Int8,
 	Uint8,
@@ -23,7 +26,7 @@ enum class GltfComponentType : uint8
 	Count,
 };
 
-enum class GltfAccessorType : uint8
+enum class AccessorType : uint8
 {
 	Scalar,
 	Vector2,
@@ -35,7 +38,7 @@ enum class GltfAccessorType : uint8
 	Count,
 };
 
-enum class GltfAttributeType : uint8
+enum class AttributeType : uint8
 {
 	Position,
 	Normal,
@@ -44,15 +47,15 @@ enum class GltfAttributeType : uint8
 };
 
 template<>
-struct Hash<GltfAttributeType>
+struct Hash<AttributeType>
 {
-	uint64 operator()(const GltfAttributeType key) const
+	uint64 operator()(const AttributeType key) const
 	{
 		return StringHash(&key, sizeof(key));
 	}
 };
 
-enum class GltfFilter : uint8
+enum class Filter : uint8
 {
 	Nearest,
 	Linear,
@@ -63,21 +66,21 @@ enum class GltfFilter : uint8
 	LinearMipMapLinear,
 };
 
-enum class GltfAddress : uint8
+enum class Address : uint8
 {
 	Repeat,
 	ClampToEdge,
 	MirroredRepeat,
 };
 
-enum class GltfAlphaMode : uint8
+enum class AlphaMode : uint8
 {
 	Opaque,
 	Mask,
 	Blend,
 };
 
-struct GltfNode
+struct Node
 {
 	Matrix Transform;
 
@@ -89,60 +92,60 @@ struct GltfNode
 	usize Light;
 };
 
-struct GltfBuffer
+struct Buffer
 {
 	uint8* Data;
 	usize Size;
 };
 
-struct GltfBufferView
+struct BufferView
 {
 	usize Buffer;
 	usize Size;
 	usize Offset;
-	GltfTargetType Target;
+	TargetType Target;
 };
 
-struct GltfPrimitive
+struct Primitive
 {
-	HashTable<GltfAttributeType, usize> Attributes;
+	HashTable<AttributeType, usize> Attributes;
 	usize Indices;
 	usize Material;
 };
 
-struct GltfMesh
+struct Mesh
 {
-	Array<GltfPrimitive> Primitives;
+	Array<Primitive> Primitives;
 };
 
-struct GltfAccessor
+struct Accessor
 {
 	usize BufferView;
 	usize Count;
 	usize Offset;
-	GltfComponentType ComponentType;
-	GltfAccessorType AccessorType;
+	ComponentType ComponentType;
+	AccessorType AccessorType;
 };
 
-struct GltfAccessorView
+struct AccessorView
 {
 	usize Offset;
 	usize Stride;
 	usize Size;
 };
 
-struct GltfImage
+struct Image
 {
 	String Path;
 };
 
-struct GltfTexture
+struct Texture
 {
 	usize Image;
 	usize Sampler;
 };
 
-struct GltfSpecularGlossiness
+struct SpecularGlossiness
 {
 	usize DiffuseTexture;
 	Float4 DiffuseFactor;
@@ -152,7 +155,7 @@ struct GltfSpecularGlossiness
 	float GlossinessFactor;
 };
 
-struct GltfMetallicRoughness
+struct MetallicRoughness
 {
 	usize BaseColorTexture;
 	Float4 BaseColorFactor;
@@ -162,30 +165,30 @@ struct GltfMetallicRoughness
 	float RoughnessFactor;
 };
 
-struct GltfMaterial
+struct Material
 {
 	usize NormalMapTexture;
 
 	union
 	{
-		GltfSpecularGlossiness SpecularGlossiness;
-		GltfMetallicRoughness MetallicRoughness;
+		SpecularGlossiness SpecularGlossiness;
+		MetallicRoughness MetallicRoughness;
 	};
 	bool IsSpecularGlossiness;
 
-	GltfAlphaMode AlphaMode;
+	AlphaMode AlphaMode;
 	float AlphaCutoff;
 };
 
-struct GltfSampler
+struct Sampler
 {
-	GltfFilter MinificationFilter;
-	GltfFilter MagnificationFilter;
-	GltfAddress HorizontalAddress;
-	GltfAddress VerticalAddress;
+	Filter MinificationFilter;
+	Filter MagnificationFilter;
+	Address HorizontalAddress;
+	Address VerticalAddress;
 };
 
-struct GltfCamera
+struct Camera
 {
 	Matrix Transform;
 
@@ -196,50 +199,50 @@ struct GltfCamera
 	float FarZ;
 };
 
-enum class GltfLightType : uint8
+enum class LightType : uint8
 {
 	Directional,
 	Point,
 };
 
-struct GltfLight
+struct Light
 {
 	Matrix Transform;
 
 	float Intensity;
 	Float3 Color;
 
-	GltfLightType Type;
+	LightType Type;
 };
 
-struct GltfScene
+struct Scene
 {
 	Array<usize> TopLevelNodes;
-	Array<GltfNode> Nodes;
+	Array<Node> Nodes;
 
-	Array<GltfBuffer> Buffers;
-	Array<GltfBufferView> BufferViews;
-	Array<GltfMesh> Meshes;
+	Array<Buffer> Buffers;
+	Array<BufferView> BufferViews;
+	Array<Mesh> Meshes;
 
-	Array<GltfImage> Images;
-	Array<GltfTexture> Textures;
-	Array<GltfSampler> Samplers;
-	Array<GltfMaterial> Materials;
+	Array<Image> Images;
+	Array<Texture> Textures;
+	Array<Sampler> Samplers;
+	Array<Material> Materials;
 
-	Array<GltfAccessor> Accessors;
+	Array<Accessor> Accessors;
 
-	Array<GltfCamera> Cameras;
-	Array<GltfLight> Lights;
+	Array<Camera> Cameras;
+	Array<Light> Lights;
 };
 
-GltfScene LoadGltfScene(StringView filePath);
-void UnloadGltfScene(GltfScene* scene);
+Scene LoadScene(StringView filePath);
+void UnloadScene(Scene* scene);
 
-Matrix CalculateGltfGlobalTransform(const GltfScene& scene, usize nodeIndex);
+Matrix CalculateGlobalTransform(const Scene& scene, usize nodeIndex);
 
-inline usize GetGltfAccessorSize(GltfAccessorType accessorType)
+inline usize GetAccessorSize(AccessorType accessorType)
 {
-	CHECK(static_cast<usize>(accessorType) < static_cast<usize>(GltfAccessorType::Count));
+	CHECK(static_cast<usize>(accessorType) < static_cast<usize>(AccessorType::Count));
 	static constexpr usize accessorSizes[] =
 	{
 		1,
@@ -253,9 +256,9 @@ inline usize GetGltfAccessorSize(GltfAccessorType accessorType)
 	return accessorSizes[static_cast<usize>(accessorType)];
 }
 
-inline usize GetGltfComponentSize(GltfComponentType componentType)
+inline usize GetComponentSize(ComponentType componentType)
 {
-	CHECK(static_cast<usize>(componentType) < static_cast<usize>(GltfComponentType::Count));
+	CHECK(static_cast<usize>(componentType) < static_cast<usize>(ComponentType::Count));
 
 	static constexpr usize componentSizes[] =
 	{
@@ -269,21 +272,23 @@ inline usize GetGltfComponentSize(GltfComponentType componentType)
 	return componentSizes[static_cast<usize>(componentType)];
 }
 
-inline usize GetGltfElementSize(GltfAccessorType accessorType, GltfComponentType componentType)
+inline usize GetElementSize(AccessorType accessorType, ComponentType componentType)
 {
-	return GetGltfAccessorSize(accessorType) * GetGltfComponentSize(componentType);
+	return GetAccessorSize(accessorType) * GetComponentSize(componentType);
 }
 
-inline GltfAccessorView GetGltfAccessorView(const GltfScene& scene, usize accessorIndex)
+inline AccessorView GetAccessorView(const Scene& scene, usize accessorIndex)
 {
-	const GltfAccessor& accessor = scene.Accessors[accessorIndex];
-	const GltfBufferView& bufferView = scene.BufferViews[accessor.BufferView];
+	const Accessor& accessor = scene.Accessors[accessorIndex];
+	const BufferView& bufferView = scene.BufferViews[accessor.BufferView];
 
-	const GltfBuffer& buffer = scene.Buffers[bufferView.Buffer];
+	const Buffer& buffer = scene.Buffers[bufferView.Buffer];
 	const usize offset = accessor.Offset + bufferView.Offset;
-	const usize stride = GetGltfElementSize(accessor.AccessorType, accessor.ComponentType);
+	const usize stride = GetElementSize(accessor.AccessorType, accessor.ComponentType);
 	const usize size = accessor.Count * stride;
 	CHECK(offset + size <= buffer.Size);
 
-	return GltfAccessorView { offset, stride, size };
+	return AccessorView { offset, stride, size };
+}
+
 }

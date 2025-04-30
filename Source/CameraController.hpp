@@ -2,7 +2,10 @@
 
 #include "Luft/Math.hpp"
 
-struct GltfCamera;
+namespace GLTF
+{
+struct Camera;
+}
 
 class CameraController
 {
@@ -11,7 +14,7 @@ public:
 
 	void Update(float timeDelta);
 
-	void SetCamera(const GltfCamera& camera);
+	void SetCamera(const GLTF::Camera& camera);
 
 	Vector GetPosition() const
 	{

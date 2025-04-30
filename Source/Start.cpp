@@ -23,9 +23,9 @@ void Start()
 	{
 		const double start = Platform::GetTime();
 
-		GltfScene scene = LoadGltfScene(scenes[sceneIndex]);
+		GLTF::Scene scene = GLTF::LoadScene(scenes[sceneIndex]);
 
-		const GltfCamera defaultCamera =
+		const GLTF::Camera defaultCamera =
 		{
 			.Transform = Matrix::Identity,
 			.FieldOfViewYRadians = Pi / 3.0f,
@@ -33,12 +33,12 @@ void Start()
 			.NearZ = 0.1f,
 			.FarZ = 1000.0f,
 		};
-		const GltfCamera camera = scene.Cameras.IsEmpty() ? defaultCamera : scene.Cameras[0];
+		const GLTF::Camera camera = scene.Cameras.IsEmpty() ? defaultCamera : scene.Cameras[0];
 
 		cameraController->SetCamera(camera);
 		renderer->SetScene(scene);
 
-		UnloadGltfScene(&scene);
+		GLTF::UnloadScene(&scene);
 
 		const double end = Platform::GetTime();
 		Platform::LogFormatted("Scene took %.2fs to load\n", end - start);

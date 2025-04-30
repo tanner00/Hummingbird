@@ -2,7 +2,10 @@
 
 #include <dxgiformat.h>
 
-static Allocator* DdsAllocator = &GlobalAllocator::Get();
+namespace DDS
+{
+
+static Allocator* Allocator = &GlobalAllocator::Get();
 
 struct PixelFormat
 {
@@ -16,7 +19,7 @@ struct PixelFormat
 	int32 AlphaBitMask;
 };
 
-struct DdsHeader
+struct Header
 {
 	int32 Size;
 	int32 Flags;
@@ -31,7 +34,7 @@ struct DdsHeader
 	int32 Reserved2;
 };
 
-struct DdsExtendedHeader
+struct ExtendedHeader
 {
 	DXGI_FORMAT DxgiFormat;
 	uint32 ResourceDimension;
@@ -41,7 +44,7 @@ struct DdsExtendedHeader
 };
 
 static constexpr char FormatSignature[] = "DDS ";
-static usize HeadersSize = sizeof(DdsHeader) + sizeof(DdsExtendedHeader) + (sizeof(FormatSignature) - 1);
+static usize HeadersSize = sizeof(Header) + sizeof(ExtendedHeader) + (sizeof(FormatSignature) - 1);
 
 static RHI::ResourceFormat From(DXGI_FORMAT format)
 {
@@ -105,48 +108,48 @@ static int32 ParseInt32(StringView view, usize* offset)
 	return value;
 }
 
-DdsImage LoadDdsImage(StringView filePath)
+Image LoadImage(StringView filePath)
 {
-	usize ddsFileSize;
-	char* ddsFileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &ddsFileSize, *DdsAllocator));
-	const StringView ddsFileView = { ddsFileData, ddsFileSize };
+	usize fileSize;
+	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &fileSize, *Allocator));
+	const StringView fileView = { fileData, fileSize };
 
-	VERIFY(ddsFileSize >= sizeof(FormatSignature) - 1, "Invalid DDS file!");
+	VERIFY(fileSize >= sizeof(FormatSignature) - 1, "Invalid DDS file!");
 	for (usize i = 0; i < sizeof(FormatSignature) - 1; ++i)
 	{
-		VERIFY(ddsFileView[i] == FormatSignature[i], "Unexpected image file format!");
+		VERIFY(fileView[i] == FormatSignature[i], "Unexpected image file format!");
 	}
 	usize offset = 4;
 
-	DdsHeader header =
+	Header header =
 	{
-		.Size = ParseInt32(ddsFileView, &offset),
-		.Flags = ParseInt32(ddsFileView, &offset),
-		.Height = ParseInt32(ddsFileView, &offset),
-		.Width = ParseInt32(ddsFileView, &offset),
-		.PitchOrLinearSize = ParseInt32(ddsFileView, &offset),
-		.Depth = ParseInt32(ddsFileView, &offset),
-		.MipMapCount = ParseInt32(ddsFileView, &offset),
-		.Reserved1 = { Advance(&offset, sizeof(DdsHeader::Reserved1)) },
+		.Size = ParseInt32(fileView, &offset),
+		.Flags = ParseInt32(fileView, &offset),
+		.Height = ParseInt32(fileView, &offset),
+		.Width = ParseInt32(fileView, &offset),
+		.PitchOrLinearSize = ParseInt32(fileView, &offset),
+		.Depth = ParseInt32(fileView, &offset),
+		.MipMapCount = ParseInt32(fileView, &offset),
+		.Reserved1 = { Advance(&offset, sizeof(Header::Reserved1)) },
 		.Format =
 		{
-			.Size = ParseInt32(ddsFileView, &offset),
-			.Flags = ParseInt32(ddsFileView, &offset),
-			.CompressedOrCustomFormat = ParseInt32(ddsFileView, &offset),
-			.RgbBitCount = ParseInt32(ddsFileView, &offset),
-			.RedBitMask = ParseInt32(ddsFileView, &offset),
-			.GreenBitMask = ParseInt32(ddsFileView, &offset),
-			.BlueBitMask = ParseInt32(ddsFileView, &offset),
-			.AlphaBitMask = ParseInt32(ddsFileView, &offset),
+			.Size = ParseInt32(fileView, &offset),
+			.Flags = ParseInt32(fileView, &offset),
+			.CompressedOrCustomFormat = ParseInt32(fileView, &offset),
+			.RgbBitCount = ParseInt32(fileView, &offset),
+			.RedBitMask = ParseInt32(fileView, &offset),
+			.GreenBitMask = ParseInt32(fileView, &offset),
+			.BlueBitMask = ParseInt32(fileView, &offset),
+			.AlphaBitMask = ParseInt32(fileView, &offset),
 		},
 		.Caps =
 		{
-			ParseInt32(ddsFileView, &offset),
-			ParseInt32(ddsFileView, &offset),
-			ParseInt32(ddsFileView, &offset),
-			ParseInt32(ddsFileView, &offset),
+			ParseInt32(fileView, &offset),
+			ParseInt32(fileView, &offset),
+			ParseInt32(fileView, &offset),
+			ParseInt32(fileView, &offset),
 		},
-		.Reserved2 = Advance(&offset, sizeof(DdsHeader::Reserved2)),
+		.Reserved2 = Advance(&offset, sizeof(Header::Reserved2)),
 	};
 	if (header.Height < 0)
 	{
@@ -177,13 +180,13 @@ DdsImage LoadDdsImage(StringView filePath)
 	VERIFY(header.Format.Flags & pixelFormatCompressedOrCustomFlag, "Unexpected DDS file type!");
 	VERIFY(header.Format.CompressedOrCustomFormat == pixelFormatExtendedHeader, "Unexpected DDS file type!");
 
-	const DdsExtendedHeader extendedHeader =
+	const ExtendedHeader extendedHeader =
 	{
-		.DxgiFormat = static_cast<DXGI_FORMAT>(ParseUint32(ddsFileView, &offset)),
-		.ResourceDimension = ParseUint32(ddsFileView, &offset),
-		.MiscFlags1 = ParseUint32(ddsFileView, &offset),
-		.ArraySize = ParseUint32(ddsFileView, &offset),
-		.MiscFlags2 = ParseUint32(ddsFileView, &offset),
+		.DxgiFormat = static_cast<DXGI_FORMAT>(ParseUint32(fileView, &offset)),
+		.ResourceDimension = ParseUint32(fileView, &offset),
+		.MiscFlags1 = ParseUint32(fileView, &offset),
+		.ArraySize = ParseUint32(fileView, &offset),
+		.MiscFlags2 = ParseUint32(fileView, &offset),
 	};
 
 	static constexpr usize extendedHeaderRectangleTexture = 3;
@@ -191,10 +194,10 @@ DdsImage LoadDdsImage(StringView filePath)
 	VERIFY(extendedHeader.ResourceDimension == extendedHeaderRectangleTexture, "Unexpected DDS file type!");
 	VERIFY(extendedHeader.ArraySize == 1, "Unexpected DDS file type!");
 
-	uint8* imageData = reinterpret_cast<uint8*>(ddsFileData + HeadersSize);
-	const usize imageDataSize = ddsFileSize - HeadersSize;
+	uint8* imageData = reinterpret_cast<uint8*>(fileData + HeadersSize);
+	const usize imageDataSize = fileSize - HeadersSize;
 
-	return DdsImage
+	return Image
 	{
 		.Data = imageData,
 		.DataSize = imageDataSize,
@@ -205,11 +208,13 @@ DdsImage LoadDdsImage(StringView filePath)
 	};
 }
 
-void UnloadDdsImage(DdsImage* image)
+void UnloadImage(Image* image)
 {
-	DdsAllocator->Deallocate(image->Data - HeadersSize, image->DataSize + HeadersSize);
+	Allocator->Deallocate(image->Data - HeadersSize, image->DataSize + HeadersSize);
 	image->Data = nullptr;
 	image->DataSize = 0;
 	image->Width = 0;
 	image->Height = 0;
+}
+
 }

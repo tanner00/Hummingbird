@@ -14,7 +14,7 @@ struct Glyph
 	float Advance;
 };
 
-namespace Hlsl
+namespace HLSL
 {
 
 struct TextRootConstants
@@ -68,10 +68,10 @@ private:
 
 	float Ascender;
 
-	Hlsl::TextRootConstants RootConstants;
+	HLSL::TextRootConstants RootConstants;
 
 	usize CharacterIndex;
-	Array<Hlsl::Character> CharacterData;
+	Array<HLSL::Character> CharacterData;
 
 	RHI::GraphicsPipeline Pipeline;
 
