@@ -192,9 +192,9 @@ void Renderer::Update(const CameraController& cameraController)
 
 	Graphics.SetRenderTarget(HdrTextureRenderTargetView, DepthTexture.View);
 
-	for (usize i = 0; i < SceneNodes.GetLength(); ++i)
+	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetLength(); ++nodeIndex)
 	{
-		const Node& node = SceneNodes[i];
+		const Node& node = SceneNodes[nodeIndex];
 		const Mesh& mesh = SceneMeshes[node.MeshIndex];
 
 		const Matrix normalTransform = node.Transform.GetInverse().GetTranspose();
@@ -203,7 +203,7 @@ void Renderer::Update(const CameraController& cameraController)
 		{
 			const Hlsl::SceneRootConstants rootConstants =
 			{
-				.NodeIndex = static_cast<uint32>(i),
+				.NodeIndex = static_cast<uint32>(nodeIndex),
 				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
 				.ViewMode = viewMode,
 				.NormalTransform = normalTransform,
@@ -281,7 +281,7 @@ void Renderer::Update(const CameraController& cameraController)
 		SceneLuminanceBuffer.Resource
 	);
 
-	Hlsl::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
+	const Hlsl::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
 	{
 		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
 		.HdrTextureIndex = Device.Get(HdrTextureShaderResourceView),
@@ -329,7 +329,7 @@ void Renderer::Update(const CameraController& cameraController)
 	Graphics.SetRenderTarget(swapChainTextureView);
 	Graphics.SetViewport(swapChainTexture.Dimensions.Width, swapChainTexture.Dimensions.Height);
 
-	Hlsl::ToneMapRootConstants toneMapRootConstants =
+	const Hlsl::ToneMapRootConstants toneMapRootConstants =
 	{
 		.HdrTextureIndex = Device.Get(HdrTextureShaderResourceView),
 		.DefaultSamplerIndex = Device.Get(DefaultSampler),
@@ -400,7 +400,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 	VERIFY(scene.Buffers.GetLength() == 1, "GLTF file contains multiple buffers!");
 	const GltfBuffer& vertexBuffer = scene.Buffers[0];
 
-	Array<Array<Float4>> computedTangents = Array<Array<Float4>> { RendererAllocator };
+	Array<Array<Float4>> computedTangents(RendererAllocator);
 	usize computedTangentsCount = 0;
 
 	for (const GltfMesh& mesh : scene.Meshes)
@@ -424,7 +424,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 				Platform::LogFormatted("LoadScene: Missing tangents from primitive!\n");
 
 				const usize tangentsCount = normalView.Size / normalView.Stride;
-				Array<Float4> primitiveTangents = Array<Float4> { tangentsCount, RendererAllocator };
+				Array<Float4> primitiveTangents(tangentsCount, RendererAllocator);
 				for (usize i = 0; i < tangentsCount; ++i)
 				{
 					static constexpr Float4 invalidTangent = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -668,22 +668,26 @@ void Renderer::LoadScene(const GltfScene& scene)
 		};
 		if (material.IsSpecularGlossiness)
 		{
-			loadedMaterial.SpecularGlossiness.DiffuseTexture = convertTexture(scene, "Scene Diffuse Texture"_view,
+			loadedMaterial.SpecularGlossiness.DiffuseTexture = convertTexture(scene,
+																			  "Scene Diffuse Texture"_view,
 																			  material.SpecularGlossiness.DiffuseTexture);
 			loadedMaterial.SpecularGlossiness.DiffuseFactor = material.SpecularGlossiness.DiffuseFactor;
 
-			loadedMaterial.SpecularGlossiness.SpecularGlossinessTexture = convertTexture(scene, "Scene Specular Glossiness Texture"_view,
+			loadedMaterial.SpecularGlossiness.SpecularGlossinessTexture = convertTexture(scene,
+																						 "Scene Specular Glossiness Texture"_view,
 																						 material.SpecularGlossiness.SpecularGlossinessTexture);
 			loadedMaterial.SpecularGlossiness.SpecularFactor = material.SpecularGlossiness.SpecularFactor;
 			loadedMaterial.SpecularGlossiness.GlossinessFactor = material.SpecularGlossiness.GlossinessFactor;
 		}
 		else
 		{
-			loadedMaterial.MetallicRoughness.BaseColorTexture = convertTexture(scene, "Scene Base Color Texture"_view,
-																			  material.MetallicRoughness.BaseColorTexture);
+			loadedMaterial.MetallicRoughness.BaseColorTexture = convertTexture(scene,
+																			   "Scene Base Color Texture"_view,
+																			   material.MetallicRoughness.BaseColorTexture);
 			loadedMaterial.MetallicRoughness.BaseColorFactor = material.MetallicRoughness.BaseColorFactor;
 
-			loadedMaterial.MetallicRoughness.MetallicRoughnessTexture = convertTexture(scene, "Scene Metallic Roughness Texture"_view,
+			loadedMaterial.MetallicRoughness.MetallicRoughnessTexture = convertTexture(scene,
+																					   "Scene Metallic Roughness Texture"_view,
 																					   material.MetallicRoughness.MetallicRoughnessTexture);
 			loadedMaterial.MetallicRoughness.MetallicFactor = material.MetallicRoughness.MetallicFactor;
 			loadedMaterial.MetallicRoughness.RoughnessFactor = material.MetallicRoughness.RoughnessFactor;
@@ -744,17 +748,17 @@ void Renderer::LoadScene(const GltfScene& scene)
 		materialData.Add(Hlsl::Material
 		{
 			.BaseColorOrDiffuseTextureIndex = Device.Get(baseColorOrDiffuseTexture.View),
-			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness ?
-											material.SpecularGlossiness.DiffuseFactor :
-											material.MetallicRoughness.BaseColorFactor,
+			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness
+									  ? material.SpecularGlossiness.DiffuseFactor
+									  : material.MetallicRoughness.BaseColorFactor,
 			.NormalMapTextureIndex = Device.Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
 			.MetallicRoughnessOrSpecularGlossinessTextureIndex = Device.Get(metallicRoughnessOrSpecularGlossinessTexture.View),
-			.MetallicOrSpecularFactor = material.IsSpecularGlossiness ?
-											material.SpecularGlossiness.SpecularFactor :
-											Float3 { material.MetallicRoughness.MetallicFactor, 0.0f, 0.0f },
-			.RoughnessOrGlossinessFactor = material.IsSpecularGlossiness ?
-											material.SpecularGlossiness.GlossinessFactor :
-											material.MetallicRoughness.RoughnessFactor,
+			.MetallicOrSpecularFactor = material.IsSpecularGlossiness
+									  ? material.SpecularGlossiness.SpecularFactor
+									  : Float3 { material.MetallicRoughness.MetallicFactor, 0.0f, 0.0f },
+			.RoughnessOrGlossinessFactor = material.IsSpecularGlossiness
+										 ? material.SpecularGlossiness.GlossinessFactor
+										 : material.MetallicRoughness.RoughnessFactor,
 			.IsSpecularGlossiness = material.IsSpecularGlossiness,
 			.AlphaCutoff = material.AlphaCutoff,
 		});
