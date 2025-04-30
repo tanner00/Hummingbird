@@ -435,10 +435,10 @@ static JsonArray ParseJsonArray(StringView buffer, usize* index)
 	if (PeekCharacter(buffer, *index) == ']')
 	{
 		Advance(index, 1);
-		return JsonArray { JsonAllocator };
+		return JsonArray(JsonAllocator);
 	}
 
-	JsonArray array { JsonAllocator };
+	JsonArray array(JsonAllocator);
 	while (IsInRange(buffer, *index))
 	{
 		array.Add(ParseJsonValue(buffer, index));
