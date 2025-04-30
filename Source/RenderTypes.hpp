@@ -100,7 +100,7 @@ struct Material
 	float AlphaCutoff;
 };
 
-namespace Hlsl
+namespace HLSL
 {
 
 struct SceneRootConstants

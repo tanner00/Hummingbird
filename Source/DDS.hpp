@@ -5,7 +5,10 @@
 #include "Luft/Base.hpp"
 #include "Luft/String.hpp"
 
-struct DdsImage
+namespace DDS
+{
+
+struct Image
 {
 	uint8* Data;
 	usize DataSize;
@@ -18,5 +21,7 @@ struct DdsImage
 	uint16 MipMapCount;
 };
 
-DdsImage LoadDdsImage(StringView filePath);
-void UnloadDdsImage(DdsImage* image);
+Image LoadImage(StringView filePath);
+void UnloadImage(Image* image);
+
+}

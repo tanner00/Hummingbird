@@ -1,7 +1,10 @@
 #include "GLTF.hpp"
 #include "JSON.hpp"
 
-static Allocator* GltfAllocator = &GlobalAllocator::Get();
+namespace GLTF
+{
+
+static Allocator* Allocator = &GlobalAllocator::Get();
 
 static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 {
@@ -10,7 +13,7 @@ static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 	const usize directoryLength = sceneFilePath.ReverseFind(pathSeparator);
 	VERIFY(directoryLength != INDEX_NONE, "Invalid GLTF file path!");
 
-	String fullPath = String { directoryLength + sizeof(pathSeparator) + filePath.GetLength(), GltfAllocator };
+	String fullPath = String { directoryLength + sizeof(pathSeparator) + filePath.GetLength(), Allocator };
 	fullPath.Append(sceneFilePath, directoryLength);
 	fullPath.Append(pathSeparator);
 	fullPath.Append(filePath);
@@ -18,18 +21,18 @@ static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 	return fullPath;
 }
 
-static Matrix InternalCalculateGltfGlobalTransform(const Array<GltfNode>& nodes, usize nodeIndex)
+static Matrix InternalCalculateGlobalTransform(const Array<Node>& nodes, usize nodeIndex)
 {
 	if (nodeIndex == INDEX_NONE)
 	{
 		return Matrix::Identity;
 	}
 
-	const GltfNode& node = nodes[nodeIndex];
-	return InternalCalculateGltfGlobalTransform(nodes, node.Parent) * node.Transform;
+	const Node& node = nodes[nodeIndex];
+	return InternalCalculateGlobalTransform(nodes, node.Parent) * node.Transform;
 }
 
-static Float4 ToFloat4(const JsonArray& floatArray)
+static Float4 ToFloat4(const JSON::Array& floatArray)
 {
 	VERIFY(floatArray.GetLength() == 3 || floatArray.GetLength() == 4, "Expected GLTF float array to have 3 or 4 components!");
 	return Float4
@@ -41,49 +44,49 @@ static Float4 ToFloat4(const JsonArray& floatArray)
 	};
 }
 
-GltfScene LoadGltfScene(StringView filePath)
+Scene LoadScene(StringView filePath)
 {
-	const JsonObject rootObject = LoadJson(filePath);
+	const JSON::Object rootObject = JSON::Load(filePath);
 
-	const JsonArray& sceneArray = rootObject["scenes"_view].GetArray();
+	const JSON::Array& sceneArray = rootObject["scenes"_view].GetArray();
 	VERIFY(sceneArray.GetLength() == 1, "GLTF file contains multiple scenes!");
 
-	const JsonObject& sceneObject = sceneArray[0].GetObject();
+	const JSON::Object& sceneObject = sceneArray[0].GetObject();
 
-	const JsonArray& sceneNodeArray = sceneObject["nodes"_view].GetArray();
-	Array<usize> sceneNodes(sceneNodeArray.GetLength(), GltfAllocator);
-	for (const JsonValue& nodeValue : sceneNodeArray)
+	const JSON::Array& sceneNodeArray = sceneObject["nodes"_view].GetArray();
+	Array<usize> sceneNodes(sceneNodeArray.GetLength(), Allocator);
+	for (const JSON::Value& nodeValue : sceneNodeArray)
 	{
 		sceneNodes.Emplace(static_cast<usize>(nodeValue.GetDecimal()));
 	}
 
-	Array<GltfCamera> cameraTemplates(GltfAllocator);
+	Array<Camera> cameraTemplates(Allocator);
 	if (rootObject.HasKey("cameras"_view))
 	{
-		const JsonArray& cameraArray = rootObject["cameras"_view].GetArray();
+		const JSON::Array& cameraArray = rootObject["cameras"_view].GetArray();
 		cameraTemplates.Reserve(cameraArray.GetLength());
-		for (const JsonValue& cameraValue : cameraArray)
+		for (const JSON::Value& cameraValue : cameraArray)
 		{
-			const JsonObject& cameraObject = cameraValue.GetObject();
+			const JSON::Object& cameraObject = cameraValue.GetObject();
 
 			const bool perspective = cameraObject.HasKey("perspective"_view) && cameraObject["type"_view].GetString() == "perspective"_view;
 			VERIFY(perspective, "Expected GLTF camera to be perspective!");
 
-			const JsonObject& perspectiveCameraObject = cameraObject["perspective"_view].GetObject();
+			const JSON::Object& perspectiveCameraObject = cameraObject["perspective"_view].GetObject();
 
 			const float fieldOfViewYRadians = static_cast<float>(perspectiveCameraObject["yfov"_view].GetDecimal());
 
-			const float aspectRatio = perspectiveCameraObject.HasKey("aspectRatio"_view) ?
-										static_cast<float>(perspectiveCameraObject["aspectRatio"_view].GetDecimal())
-										: (16.0f / 9.0f);
+			const float aspectRatio = perspectiveCameraObject.HasKey("aspectRatio"_view)
+									? static_cast<float>(perspectiveCameraObject["aspectRatio"_view].GetDecimal())
+									: (16.0f / 9.0f);
 
 			const float nearZ = static_cast<float>(perspectiveCameraObject["znear"_view].GetDecimal());
 
-			const float farZ = perspectiveCameraObject.HasKey("zfar"_view) ?
-									static_cast<float>(perspectiveCameraObject["zfar"_view].GetDecimal()) :
-									1000.0f;
+			const float farZ = perspectiveCameraObject.HasKey("zfar"_view)
+							 ? static_cast<float>(perspectiveCameraObject["zfar"_view].GetDecimal())
+							 : 1000.0f;
 
-			cameraTemplates.Add(GltfCamera
+			cameraTemplates.Add(Camera
 			{
 				.FieldOfViewYRadians = fieldOfViewYRadians,
 				.AspectRatio = aspectRatio,
@@ -93,44 +96,44 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
-	Array<GltfLight> lightTemplates;
+	Array<Light> lightTemplates;
 	if (rootObject.HasKey("extensions"_view))
 	{
-		const JsonObject& extensionsObject = rootObject["extensions"_view].GetObject();
+		const JSON::Object& extensionsObject = rootObject["extensions"_view].GetObject();
 		if (extensionsObject.HasKey("KHR_lights_punctual"_view))
 		{
-			const JsonObject& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
-			const JsonArray& lightsArray = khrLightsPunctualObject["lights"_view].GetArray();
+			const JSON::Object& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
+			const JSON::Array& lightsArray = khrLightsPunctualObject["lights"_view].GetArray();
 
-			for (const JsonValue& light : lightsArray)
+			for (const JSON::Value& light : lightsArray)
 			{
-				const JsonObject& lightObject = light.GetObject();
+				const JSON::Object& lightObject = light.GetObject();
 
-				const float intensity = lightObject.HasKey("intensity"_view) ?
-											static_cast<float>(lightObject["intensity"_view].GetDecimal()) :
-											1.0f;
+				const float intensity = lightObject.HasKey("intensity"_view)
+									  ? static_cast<float>(lightObject["intensity"_view].GetDecimal())
+									  : 1.0f;
 
-				const Float4 color = lightObject.HasKey("color"_view) ?
-										ToFloat4(lightObject["color"_view].GetArray()) :
-										Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
+				const Float4 color = lightObject.HasKey("color"_view)
+								   ? ToFloat4(lightObject["color"_view].GetArray())
+								   : Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
 
-				GltfLightType type = GltfLightType::Directional;
+				LightType type = LightType::Directional;
 
 				const String& typeString = lightObject["type"_view].GetString();
 				if (typeString == "directional"_view)
 				{
-					type = GltfLightType::Directional;
+					type = LightType::Directional;
 				}
 				else if (typeString == "point"_view)
 				{
-					type = GltfLightType::Point;
+					type = LightType::Point;
 				}
 				else
 				{
 					CHECK(false);
 				}
 
-				lightTemplates.Add(GltfLight
+				lightTemplates.Add(Light
 				{
 					.Intensity = intensity,
 					.Color = Float3 { color.X, color.Y, color.Z },
@@ -140,17 +143,17 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
-	Array<usize> cameraIndices(GltfAllocator);
-	Array<usize> lightIndices(GltfAllocator);
+	Array<usize> cameraIndices(Allocator);
+	Array<usize> lightIndices(Allocator);
 
-	const JsonArray& nodeArray = rootObject["nodes"_view].GetArray();
-	Array<GltfNode> nodes(nodeArray.GetLength(), GltfAllocator);
+	const JSON::Array& nodeArray = rootObject["nodes"_view].GetArray();
+	Array<Node> nodes(nodeArray.GetLength(), Allocator);
 	for (usize nodeIndex = 0; nodeIndex < nodeArray.GetLength(); ++nodeIndex)
 	{
-		const JsonObject& nodeObject = nodeArray[nodeIndex].GetObject();
+		const JSON::Object& nodeObject = nodeArray[nodeIndex].GetObject();
 
 		Matrix transform = Matrix::Identity;
-		Array<usize> childNodes(GltfAllocator);
+		Array<usize> childNodes(Allocator);
 		usize mesh = INDEX_NONE;
 		usize camera = INDEX_NONE;
 		usize light = INDEX_NONE;
@@ -165,7 +168,7 @@ GltfScene LoadGltfScene(StringView filePath)
 			Vector translation = Vector::Zero;
 			if (hasTranslation)
 			{
-				const JsonArray& translationArray = nodeObject["translation"_view].GetArray();
+				const JSON::Array& translationArray = nodeObject["translation"_view].GetArray();
 				VERIFY(translationArray.GetLength() == 3, "Invalid GLTF translation!");
 
 				translation =
@@ -179,7 +182,7 @@ GltfScene LoadGltfScene(StringView filePath)
 			Quaternion rotation = Quaternion::Identity;
 			if (hasRotation)
 			{
-				const JsonArray& rotationArray = nodeObject["rotation"_view].GetArray();
+				const JSON::Array& rotationArray = nodeObject["rotation"_view].GetArray();
 				VERIFY(rotationArray.GetLength() == 4, "Invalid GLTF rotation!");
 
 				rotation =
@@ -194,7 +197,7 @@ GltfScene LoadGltfScene(StringView filePath)
 			Vector scale = Vector { 1.0f, 1.0f, 1.0f };
 			if (hasScale)
 			{
-				const JsonArray& scaleArray = nodeObject["scale"_view].GetArray();
+				const JSON::Array& scaleArray = nodeObject["scale"_view].GetArray();
 				VERIFY(scaleArray.GetLength() == 3, "Invalid GLTF scale!");
 
 				scale =
@@ -205,7 +208,9 @@ GltfScene LoadGltfScene(StringView filePath)
 				};
 			}
 
-			transform = Matrix::Translation(translation.X, translation.Y, translation.Z) * rotation.ToMatrix() * Matrix::Scale(scale.X, scale.Y, scale.Z);
+			transform = Matrix::Translation(translation.X, translation.Y, translation.Z)
+					  * rotation.ToMatrix()
+					  * Matrix::Scale(scale.X, scale.Y, scale.Z);
 		}
 		if (nodeObject.HasKey("matrix"_view))
 		{
@@ -213,11 +218,11 @@ GltfScene LoadGltfScene(StringView filePath)
 				   !nodeObject.HasKey("rotation"_view) &&
 				   !nodeObject.HasKey("scale"_view), "Invalid GLTF node property combination!");
 
-			const JsonArray& matrixArray = nodeObject["matrix"_view].GetArray();
+			const JSON::Array& matrixArray = nodeObject["matrix"_view].GetArray();
 			VERIFY(matrixArray.GetLength() == 16, "Invalid GLTF matrix!");
 
 			float* element = &transform.M00;
-			for (const JsonValue& elementValue : matrixArray)
+			for (const JSON::Value& elementValue : matrixArray)
 			{
 				*element = static_cast<float>(elementValue.GetDecimal());
 				++element;
@@ -229,9 +234,9 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 		if (nodeObject.HasKey("children"_view))
 		{
-			const JsonArray& childrenArray = nodeObject["children"_view].GetArray();
+			const JSON::Array& childrenArray = nodeObject["children"_view].GetArray();
 			childNodes.Reserve(childrenArray.GetLength());
-			for (const JsonValue& childValue : childrenArray)
+			for (const JSON::Value& childValue : childrenArray)
 			{
 				childNodes.Emplace(static_cast<usize>(childValue.GetDecimal()));
 			}
@@ -243,12 +248,12 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 		if (nodeObject.HasKey("extensions"_view))
 		{
-			const JsonObject& extensionsObject = nodeObject["extensions"_view].GetObject();
+			const JSON::Object& extensionsObject = nodeObject["extensions"_view].GetObject();
 			if (extensionsObject.HasKey("KHR_lights_punctual"_view))
 			{
 				lightIndices.Add(nodeIndex);
 
-				const JsonObject& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
+				const JSON::Object& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
 				light = static_cast<usize>(khrLightsPunctualObject["light"_view].GetDecimal());
 			}
 		}
@@ -258,7 +263,7 @@ GltfScene LoadGltfScene(StringView filePath)
 
 	for (usize i = 0; i < nodes.GetLength(); ++i)
 	{
-		const GltfNode& node = nodes[i];
+		const Node& node = nodes[i];
 
 		for (const usize childNodeIndex : node.ChildNodes)
 		{
@@ -266,31 +271,31 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
-	Array<GltfCamera> cameras(cameraIndices.GetLength(), GltfAllocator);
+	Array<Camera> cameras(cameraIndices.GetLength(), Allocator);
 	for (usize cameraIndex : cameraIndices)
 	{
-		const GltfNode& node = nodes[cameraIndex];
+		const Node& node = nodes[cameraIndex];
 
-		GltfCamera placedCamera = cameraTemplates[node.Camera];
-		placedCamera.Transform = InternalCalculateGltfGlobalTransform(nodes, cameraIndex);
+		Camera placedCamera = cameraTemplates[node.Camera];
+		placedCamera.Transform = InternalCalculateGlobalTransform(nodes, cameraIndex);
 		cameras.Add(placedCamera);
 	}
 
-	Array<GltfLight> lights(GltfAllocator);
+	Array<Light> lights(Allocator);
 	for (usize lightIndex : lightIndices)
 	{
-		const GltfNode& node = nodes[lightIndex];
+		const Node& node = nodes[lightIndex];
 
-		GltfLight placedLight = lightTemplates[node.Light];
-		placedLight.Transform = InternalCalculateGltfGlobalTransform(nodes, lightIndex);
+		Light placedLight = lightTemplates[node.Light];
+		placedLight.Transform = InternalCalculateGlobalTransform(nodes, lightIndex);
 		lights.Add(placedLight);
 	}
 
-	const JsonArray& bufferArray = rootObject["buffers"_view].GetArray();
-	Array<GltfBuffer> buffers(bufferArray.GetLength(), GltfAllocator);
-	for (const JsonValue& bufferValue : bufferArray)
+	const JSON::Array& bufferArray = rootObject["buffers"_view].GetArray();
+	Array<Buffer> buffers(bufferArray.GetLength(), Allocator);
+	for (const JSON::Value& bufferValue : bufferArray)
 	{
-		const JsonObject& bufferObject = bufferValue.GetObject();
+		const JSON::Object& bufferObject = bufferValue.GetObject();
 
 		const String& bufferPath = bufferObject["uri"_view].GetString();
 		const String fullPath = ResolveFilePath(filePath, bufferPath.AsView());
@@ -298,17 +303,17 @@ GltfScene LoadGltfScene(StringView filePath)
 		const usize bufferSize = static_cast<usize>(bufferObject["byteLength"_view].GetDecimal());
 
 		usize fileSize;
-		uint8* bufferData = Platform::ReadEntireFile(fullPath.GetData(), fullPath.GetLength(), &fileSize, *GltfAllocator);
+		uint8* bufferData = Platform::ReadEntireFile(fullPath.GetData(), fullPath.GetLength(), &fileSize, *Allocator);
 		VERIFY(bufferSize == fileSize, "Failed to read GLTF buffer!");
 
 		buffers.Emplace(bufferData, bufferSize);
 	}
 
-	const JsonArray& bufferViewArray = rootObject["bufferViews"_view].GetArray();
-	Array<GltfBufferView> bufferViews(bufferViewArray.GetLength(), GltfAllocator);
-	for (const JsonValue& bufferViewValue : bufferViewArray)
+	const JSON::Array& bufferViewArray = rootObject["bufferViews"_view].GetArray();
+	Array<BufferView> bufferViews(bufferViewArray.GetLength(), Allocator);
+	for (const JSON::Value& bufferViewValue : bufferViewArray)
 	{
-		const JsonObject& bufferViewObject = bufferViewValue.GetObject();
+		const JSON::Object& bufferViewObject = bufferViewValue.GetObject();
 
 		const usize buffer = static_cast<usize>(bufferViewObject["buffer"_view].GetDecimal());
 		const usize size = static_cast<usize>(bufferViewObject["byteLength"_view].GetDecimal());
@@ -317,34 +322,34 @@ GltfScene LoadGltfScene(StringView filePath)
 		if (bufferViewObject.HasKey("byteOffset"_view))
 			offset = static_cast<usize>(bufferViewObject["byteOffset"_view].GetDecimal());
 
-		GltfTargetType targetType;
+		TargetType targetType;
 		if (bufferViewObject.HasKey("target"_view))
 		{
 			const usize targetTypeNumber = static_cast<usize>(bufferViewObject["target"_view].GetDecimal());
 			if (targetTypeNumber == 34962)
-				targetType = GltfTargetType::ArrayBuffer;
+				targetType = TargetType::ArrayBuffer;
 			else if (targetTypeNumber == 34963)
-				targetType = GltfTargetType::ElementArrayBuffer;
+				targetType = TargetType::ElementArrayBuffer;
 			else
 				VERIFY(false, "Unexpected GLTF target type!");
 		}
 		else
-			targetType = GltfTargetType::ArrayBuffer;
+			targetType = TargetType::ArrayBuffer;
 
 		bufferViews.Emplace(buffer, size, offset, targetType);
 	}
 
-	const JsonArray& meshArray = rootObject["meshes"_view].GetArray();
-	Array<GltfMesh> meshes(meshArray.GetLength(), GltfAllocator);
-	for (const JsonValue& meshValue : meshArray)
+	const JSON::Array& meshArray = rootObject["meshes"_view].GetArray();
+	Array<Mesh> meshes(meshArray.GetLength(), Allocator);
+	for (const JSON::Value& meshValue : meshArray)
 	{
-		const JsonObject& meshObject = meshValue.GetObject();
+		const JSON::Object& meshObject = meshValue.GetObject();
 
-		const JsonArray& primitiveArray = meshObject["primitives"_view].GetArray();
-		Array<GltfPrimitive> primitives(primitiveArray.GetLength());
-		for (const JsonValue& primitiveValue : primitiveArray)
+		const JSON::Array& primitiveArray = meshObject["primitives"_view].GetArray();
+		Array<Primitive> primitives(primitiveArray.GetLength());
+		for (const JSON::Value& primitiveValue : primitiveArray)
 		{
-			const JsonObject& primitiveObject = primitiveValue.GetObject();
+			const JSON::Object& primitiveObject = primitiveValue.GetObject();
 
 			if (primitiveObject.HasKey("mode"_view))
 				VERIFY(static_cast<usize>(primitiveObject["mode"_view].GetDecimal()) == 4, "Unexpected GLTF primitive type!");
@@ -352,17 +357,17 @@ GltfScene LoadGltfScene(StringView filePath)
 			const usize indices = static_cast<usize>(primitiveObject["indices"_view].GetDecimal());
 			const usize material = static_cast<usize>(primitiveObject["material"_view].GetDecimal());
 
-			const JsonObject& attributesObject = primitiveObject["attributes"_view].GetObject();
-			HashTable<GltfAttributeType, usize> attributes { 4, GltfAllocator };
+			const JSON::Object& attributesObject = primitiveObject["attributes"_view].GetObject();
+			HashTable<AttributeType, usize> attributes { 4, Allocator };
 
 			if (attributesObject.HasKey("POSITION"_view))
-				attributes.Add(GltfAttributeType::Position, static_cast<usize>(attributesObject["POSITION"_view].GetDecimal()));
+				attributes.Add(AttributeType::Position, static_cast<usize>(attributesObject["POSITION"_view].GetDecimal()));
 			if (attributesObject.HasKey("NORMAL"_view))
-				attributes.Add(GltfAttributeType::Normal, static_cast<usize>(attributesObject["NORMAL"_view].GetDecimal()));
+				attributes.Add(AttributeType::Normal, static_cast<usize>(attributesObject["NORMAL"_view].GetDecimal()));
 			if (attributesObject.HasKey("TANGENT"_view))
-				attributes.Add(GltfAttributeType::Tangent, static_cast<usize>(attributesObject["TANGENT"_view].GetDecimal()));
+				attributes.Add(AttributeType::Tangent, static_cast<usize>(attributesObject["TANGENT"_view].GetDecimal()));
 			if (attributesObject.HasKey("TEXCOORD_0"_view))
-				attributes.Add(GltfAttributeType::Texcoord0, static_cast<usize>(attributesObject["TEXCOORD_0"_view].GetDecimal()));
+				attributes.Add(AttributeType::Texcoord0, static_cast<usize>(attributesObject["TEXCOORD_0"_view].GetDecimal()));
 
 			primitives.Emplace(Move(attributes), indices, material);
 		}
@@ -370,14 +375,14 @@ GltfScene LoadGltfScene(StringView filePath)
 		meshes.Emplace(Move(primitives));
 	}
 
-	Array<GltfImage> images(GltfAllocator);
+	Array<Image> images(Allocator);
 	if (rootObject.HasKey("images"_view))
 	{
-		const JsonArray& imageArray = rootObject["images"_view].GetArray();
+		const JSON::Array& imageArray = rootObject["images"_view].GetArray();
 		images.Reserve(imageArray.GetLength());
-		for (const JsonValue& imageValue : imageArray)
+		for (const JSON::Value& imageValue : imageArray)
 		{
-			const JsonObject& imageObject = imageValue.GetObject();
+			const JSON::Object& imageObject = imageValue.GetObject();
 
 			const String& imagePath = imageObject["uri"_view].GetString();
 			const String fullPath = ResolveFilePath(filePath, imagePath.AsView());
@@ -386,39 +391,41 @@ GltfScene LoadGltfScene(StringView filePath)
 		}
 	}
 
-	Array<GltfTexture> textures(GltfAllocator);
+	Array<Texture> textures(Allocator);
 	if (rootObject.HasKey("textures"_view))
 	{
-		const JsonArray& textureArray = rootObject["textures"_view].GetArray();
+		const JSON::Array& textureArray = rootObject["textures"_view].GetArray();
 		textures.Reserve(textureArray.GetLength());
-		for (const JsonValue& textureValue : textureArray)
+		for (const JSON::Value& textureValue : textureArray)
 		{
-			const JsonObject& textureObject = textureValue.GetObject();
+			const JSON::Object& textureObject = textureValue.GetObject();
 
 			const usize image = static_cast<usize>(textureObject["source"_view].GetDecimal());
 
-			const usize sampler = textureObject.HasKey("sampler"_view) ? static_cast<usize>(textureObject["sampler"_view].GetDecimal()) : INDEX_NONE;
+			const usize sampler = textureObject.HasKey("sampler"_view)
+								? static_cast<usize>(textureObject["sampler"_view].GetDecimal())
+								: INDEX_NONE;
 
 			textures.Emplace(image, sampler);
 		}
 	}
 
-	const JsonArray& materialArray = rootObject["materials"_view].GetArray();
-	Array<GltfMaterial> materials(materialArray.GetLength(), GltfAllocator);
-	for (const JsonValue& materialValue : materialArray)
+	const JSON::Array& materialArray = rootObject["materials"_view].GetArray();
+	Array<Material> materials(materialArray.GetLength(), Allocator);
+	for (const JSON::Value& materialValue : materialArray)
 	{
-		const JsonObject& materialObject = materialValue.GetObject();
+		const JSON::Object& materialObject = materialValue.GetObject();
 
-		GltfMaterial material =
+		Material material =
 		{
 			.NormalMapTexture = INDEX_NONE,
-			.AlphaMode = GltfAlphaMode::Opaque,
+			.AlphaMode = AlphaMode::Opaque,
 			.AlphaCutoff = 0.5f,
 		};
 
 		if (materialObject.HasKey("pbrMetallicRoughness"_view))
 		{
-			const JsonObject& pbrMetallicRoughnessObject = materialObject["pbrMetallicRoughness"_view].GetObject();
+			const JSON::Object& pbrMetallicRoughnessObject = materialObject["pbrMetallicRoughness"_view].GetObject();
 
 			material.IsSpecularGlossiness = false;
 
@@ -431,18 +438,18 @@ GltfScene LoadGltfScene(StringView filePath)
 
 			if (pbrMetallicRoughnessObject.HasKey("baseColorTexture"_view))
 			{
-				const JsonObject& baseColorTextureObject = pbrMetallicRoughnessObject["baseColorTexture"_view].GetObject();
+				const JSON::Object& baseColorTextureObject = pbrMetallicRoughnessObject["baseColorTexture"_view].GetObject();
 				material.MetallicRoughness.BaseColorTexture = static_cast<usize>(baseColorTextureObject["index"_view].GetDecimal());
 			}
 			if (pbrMetallicRoughnessObject.HasKey("baseColorFactor"_view))
 			{
-				const JsonArray& baseColorFactorArray = pbrMetallicRoughnessObject["baseColorFactor"_view].GetArray();
+				const JSON::Array& baseColorFactorArray = pbrMetallicRoughnessObject["baseColorFactor"_view].GetArray();
 				material.MetallicRoughness.BaseColorFactor = ToFloat4(baseColorFactorArray);
 			}
 
 			if (pbrMetallicRoughnessObject.HasKey("metallicRoughnessTexture"_view))
 			{
-				const JsonObject& metallicRoughnessTextureObject = pbrMetallicRoughnessObject["metallicRoughnessTexture"_view].GetObject();
+				const JSON::Object& metallicRoughnessTextureObject = pbrMetallicRoughnessObject["metallicRoughnessTexture"_view].GetObject();
 				material.MetallicRoughness.MetallicRoughnessTexture = static_cast<usize>(metallicRoughnessTextureObject["index"_view].GetDecimal());
 			}
 			if (pbrMetallicRoughnessObject.HasKey("metallicFactor"_view))
@@ -457,11 +464,11 @@ GltfScene LoadGltfScene(StringView filePath)
 
 		if (materialObject.HasKey("extensions"_view))
 		{
-			const JsonObject& extensionsObject = materialObject["extensions"_view].GetObject();
+			const JSON::Object& extensionsObject = materialObject["extensions"_view].GetObject();
 
 			if (extensionsObject.HasKey("KHR_materials_pbrSpecularGlossiness"_view))
 			{
-				const JsonObject& pbrSpecularGlossinessObject = extensionsObject["KHR_materials_pbrSpecularGlossiness"_view].GetObject();
+				const JSON::Object& pbrSpecularGlossinessObject = extensionsObject["KHR_materials_pbrSpecularGlossiness"_view].GetObject();
 
 				material.IsSpecularGlossiness = true;
 
@@ -474,23 +481,23 @@ GltfScene LoadGltfScene(StringView filePath)
 
 				if (pbrSpecularGlossinessObject.HasKey("diffuseTexture"_view))
 				{
-					const JsonObject& diffuseTextureObject = pbrSpecularGlossinessObject["diffuseTexture"_view].GetObject();
+					const JSON::Object& diffuseTextureObject = pbrSpecularGlossinessObject["diffuseTexture"_view].GetObject();
 					material.MetallicRoughness.BaseColorTexture = static_cast<usize>(diffuseTextureObject["index"_view].GetDecimal());
 				}
 				if (pbrSpecularGlossinessObject.HasKey("diffuseFactor"_view))
 				{
-					const JsonArray& diffuseFactorArray = pbrSpecularGlossinessObject["diffuseFactor"_view].GetArray();
+					const JSON::Array& diffuseFactorArray = pbrSpecularGlossinessObject["diffuseFactor"_view].GetArray();
 					material.MetallicRoughness.BaseColorFactor = ToFloat4(diffuseFactorArray);
 				}
 
 				if (pbrSpecularGlossinessObject.HasKey("metallicRoughnessTexture"_view))
 				{
-					const JsonObject& specularGlossinessTextureObject = pbrSpecularGlossinessObject["specularGlossinessTexture"_view].GetObject();
+					const JSON::Object& specularGlossinessTextureObject = pbrSpecularGlossinessObject["specularGlossinessTexture"_view].GetObject();
 					material.SpecularGlossiness.SpecularGlossinessTexture = static_cast<usize>(specularGlossinessTextureObject["index"_view].GetDecimal());
 				}
 				if (pbrSpecularGlossinessObject.HasKey("specularFactor"_view))
 				{
-					const JsonArray& specularFactorArray = pbrSpecularGlossinessObject["specularFactor"_view].GetArray();
+					const JSON::Array& specularFactorArray = pbrSpecularGlossinessObject["specularFactor"_view].GetArray();
 					const Float4 specularFactor = ToFloat4(specularFactorArray);
 					material.SpecularGlossiness.SpecularFactor = Float3 { specularFactor.X, specularFactor.Y, specularFactor.Z };
 				}
@@ -503,7 +510,7 @@ GltfScene LoadGltfScene(StringView filePath)
 
 		if (materialObject.HasKey("normalTexture"_view))
 		{
-			const JsonObject& normalTextureObject = materialObject["normalTexture"_view].GetObject();
+			const JSON::Object& normalTextureObject = materialObject["normalTexture"_view].GetObject();
 			material.NormalMapTexture = static_cast<usize>(normalTextureObject["index"_view].GetDecimal());
 		}
 
@@ -513,15 +520,15 @@ GltfScene LoadGltfScene(StringView filePath)
 
 			if (alphaModeString == "OPAQUE"_view)
 			{
-				material.AlphaMode = GltfAlphaMode::Opaque;
+				material.AlphaMode = AlphaMode::Opaque;
 			}
 			else if (alphaModeString == "MASK"_view)
 			{
-				material.AlphaMode = GltfAlphaMode::Mask;
+				material.AlphaMode = AlphaMode::Mask;
 			}
 			else if (alphaModeString == "BLEND"_view)
 			{
-				material.AlphaMode = GltfAlphaMode::Blend;
+				material.AlphaMode = AlphaMode::Blend;
 			}
 			else
 			{
@@ -537,7 +544,7 @@ GltfScene LoadGltfScene(StringView filePath)
 		materials.Add(material);
 	}
 
-	const auto toFilter = [](usize filter, bool magnification) -> GltfFilter
+	const auto toFilter = [](usize filter, bool magnification) -> Filter
 	{
 		if (magnification)
 			CHECK(filter == 9728 || filter == 9729);
@@ -545,71 +552,71 @@ GltfScene LoadGltfScene(StringView filePath)
 		switch (filter)
 		{
 		case 9728:
-			return GltfFilter::Nearest;
+			return Filter::Nearest;
 		case 9729:
-			return GltfFilter::Linear;
+			return Filter::Linear;
 		case 9984:
-			return GltfFilter::NearestMipMapNearest;
+			return Filter::NearestMipMapNearest;
 		case 9985:
-			return GltfFilter::LinearMipMapNearest;
+			return Filter::LinearMipMapNearest;
 		case 9986:
-			return GltfFilter::NearestMipMapLinear;
+			return Filter::NearestMipMapLinear;
 		case 9987:
-			return GltfFilter::LinearMipMapLinear;
+			return Filter::LinearMipMapLinear;
 		default:
 			CHECK(false);
 		}
-		return GltfFilter::Nearest;
+		return Filter::Nearest;
 	};
 
-	const auto toAddress = [](usize address) -> GltfAddress
+	const auto toAddress = [](usize address) -> Address
 	{
 		switch (address)
 		{
 		case 10497:
-			return GltfAddress::Repeat;
+			return Address::Repeat;
 		case 33071:
-			return GltfAddress::ClampToEdge;
+			return Address::ClampToEdge;
 		case 33648:
-			return GltfAddress::MirroredRepeat;
+			return Address::MirroredRepeat;
 		default:
 			CHECK(false);
 		}
-		return GltfAddress::Repeat;
+		return Address::Repeat;
 	};
 
-	Array<GltfSampler> samplers(GltfAllocator);
+	Array<Sampler> samplers(Allocator);
 	if (rootObject.HasKey("samplers"_view))
 	{
-		const JsonArray& samplerArray = rootObject["samplers"_view].GetArray();
+		const JSON::Array& samplerArray = rootObject["samplers"_view].GetArray();
 		samplers.Reserve(samplerArray.GetLength());
-		for (const JsonValue& samplerValue : samplerArray)
+		for (const JSON::Value& samplerValue : samplerArray)
 		{
-			const JsonObject& samplerObject = samplerValue.GetObject();
+			const JSON::Object& samplerObject = samplerValue.GetObject();
 
-			const GltfFilter minification = samplerObject.HasKey("minFilter"_view) ?
-												toFilter(static_cast<usize>(samplerObject["minFilter"_view].GetDecimal()), false) :
-												GltfFilter::Linear;
-			const GltfFilter magnification = samplerObject.HasKey("magFilter"_view) ?
-												toFilter(static_cast<usize>(samplerObject["magFilter"_view].GetDecimal()), true) :
-												GltfFilter::Linear;
+			const Filter minification = samplerObject.HasKey("minFilter"_view)
+									  ? toFilter(static_cast<usize>(samplerObject["minFilter"_view].GetDecimal()), false)
+									  : Filter::Linear;
+			const Filter magnification = samplerObject.HasKey("magFilter"_view)
+									   ? toFilter(static_cast<usize>(samplerObject["magFilter"_view].GetDecimal()), true)
+									   : Filter::Linear;
 
-			const GltfAddress horizontal = samplerObject.HasKey("wrapS"_view) ?
-												toAddress(static_cast<usize>(samplerObject["wrapS"_view].GetDecimal())) :
-												GltfAddress::Repeat;
-			const GltfAddress vertical = samplerObject.HasKey("wrapT"_view) ?
-												toAddress(static_cast<usize>(samplerObject["wrapT"_view].GetDecimal())) :
-												GltfAddress::Repeat;
+			const Address horizontal = samplerObject.HasKey("wrapS"_view)
+									 ? toAddress(static_cast<usize>(samplerObject["wrapS"_view].GetDecimal()))
+									 : Address::Repeat;
+			const Address vertical = samplerObject.HasKey("wrapT"_view)
+								   ? toAddress(static_cast<usize>(samplerObject["wrapT"_view].GetDecimal()))
+								   : Address::Repeat;
 
 			samplers.Emplace(minification, magnification, horizontal, vertical);
 		}
 	}
 
-	const JsonArray& accessorArray = rootObject["accessors"_view].GetArray();
-	Array<GltfAccessor> accessors(accessorArray.GetLength(), GltfAllocator);
-	for (const JsonValue& accessorValue : accessorArray)
+	const JSON::Array& accessorArray = rootObject["accessors"_view].GetArray();
+	Array<Accessor> accessors(accessorArray.GetLength(), Allocator);
+	for (const JSON::Value& accessorValue : accessorArray)
 	{
-		const JsonObject& accessorObject = accessorValue.GetObject();
+		const JSON::Object& accessorObject = accessorValue.GetObject();
 
 		const usize bufferView = static_cast<usize>(accessorObject["bufferView"_view].GetDecimal());
 		const usize count = static_cast<usize>(accessorObject["count"_view].GetDecimal());
@@ -620,44 +627,44 @@ GltfScene LoadGltfScene(StringView filePath)
 		if (accessorObject.HasKey("byteOffset"_view))
 			offset = static_cast<usize>(accessorObject["byteOffset"_view].GetDecimal());
 
-		GltfComponentType componentType;
+		ComponentType componentType;
 		if (componentTypeNumber == 5120)
-			componentType = GltfComponentType::Int8;
+			componentType = ComponentType::Int8;
 		else if (componentTypeNumber == 5121)
-			componentType = GltfComponentType::Uint8;
+			componentType = ComponentType::Uint8;
 		else if (componentTypeNumber == 5122)
-			componentType = GltfComponentType::Uint16;
+			componentType = ComponentType::Uint16;
 		else if (componentTypeNumber == 5123)
-			componentType = GltfComponentType::Int16;
+			componentType = ComponentType::Int16;
 		else if (componentTypeNumber == 5125)
-			componentType = GltfComponentType::Uint32;
+			componentType = ComponentType::Uint32;
 		else if (componentTypeNumber == 5126)
-			componentType = GltfComponentType::Float32;
+			componentType = ComponentType::Float32;
 		else
 			VERIFY(false, "Unexpected GLTF component type!");
 
-		GltfAccessorType accessorType;
+		AccessorType accessorType;
 		if (accessorTypeString == "SCALAR"_view)
-			accessorType = GltfAccessorType::Scalar;
+			accessorType = AccessorType::Scalar;
 		else if (accessorTypeString == "VEC2"_view)
-			accessorType = GltfAccessorType::Vector2;
+			accessorType = AccessorType::Vector2;
 		else if (accessorTypeString == "VEC3"_view)
-			accessorType = GltfAccessorType::Vector3;
+			accessorType = AccessorType::Vector3;
 		else if (accessorTypeString == "VEC4"_view)
-			accessorType = GltfAccessorType::Vector4;
+			accessorType = AccessorType::Vector4;
 		else if (accessorTypeString == "MAT2"_view)
-			accessorType = GltfAccessorType::Matrix2;
+			accessorType = AccessorType::Matrix2;
 		else if (accessorTypeString == "MAT3"_view)
-			accessorType = GltfAccessorType::Matrix3;
+			accessorType = AccessorType::Matrix3;
 		else if (accessorTypeString == "MAT4"_view)
-			accessorType = GltfAccessorType::Matrix4;
+			accessorType = AccessorType::Matrix4;
 		else
 			VERIFY(false, "Unexpected GLTF accessor type!");
 
 		accessors.Emplace(bufferView, count, offset, componentType, accessorType);
 	}
 
-	return GltfScene
+	return Scene
 	{
 		.TopLevelNodes = Move(sceneNodes),
 		.Nodes = Move(nodes),
@@ -674,15 +681,17 @@ GltfScene LoadGltfScene(StringView filePath)
 	};
 }
 
-void UnloadGltfScene(GltfScene* scene)
+void UnloadScene(Scene* scene)
 {
-	for (GltfBuffer& buffer : scene->Buffers)
+	for (Buffer& buffer : scene->Buffers)
 	{
-		GltfAllocator->Deallocate(buffer.Data, buffer.Size);
+		Allocator->Deallocate(buffer.Data, buffer.Size);
 	}
 }
 
-Matrix CalculateGltfGlobalTransform(const GltfScene& scene, usize nodeIndex)
+Matrix CalculateGlobalTransform(const Scene& scene, usize nodeIndex)
 {
-	return InternalCalculateGltfGlobalTransform(scene.Nodes, nodeIndex);
+	return InternalCalculateGlobalTransform(scene.Nodes, nodeIndex);
+}
+
 }

@@ -4,12 +4,15 @@
 #include "Luft/HashTable.hpp"
 #include "Luft/String.hpp"
 
-class JsonObject;
-class JsonValue;
+namespace JSON
+{
 
-using JsonArray = Array<JsonValue>;
+class Object;
+class Value;
 
-enum class JsonTag : uint8
+using Array = Array<Value>;
+
+enum class Tag : uint8
 {
 	None,
 	Object,
@@ -20,128 +23,128 @@ enum class JsonTag : uint8
 	Null,
 };
 
-class JsonValue
+class Value
 {
 public:
-	JsonValue()
+	Value()
 	{
-		Platform::MemorySet(this, 0, sizeof(JsonValue));
+		Platform::MemorySet(this, 0, sizeof(Value));
 	}
 
-	explicit JsonValue(JsonTag null)
+	explicit Value(Tag null)
 		: NullValue(nullptr)
-		, Tag(JsonTag::Null)
+		, Tag(Tag::Null)
 	{
-		CHECK(null == JsonTag::Null);
+		CHECK(null == Tag::Null);
 	}
 
-	explicit JsonValue(JsonObject* owning)
+	explicit Value(Object* owning)
 		: ObjectValue(owning)
-		, Tag(JsonTag::Object)
+		, Tag(Tag::Object)
 	{
 	}
 
-	explicit JsonValue(JsonArray&& array)
+	explicit Value(Array&& array)
 		: ArrayValue(Move(array))
-		, Tag(JsonTag::Array)
+		, Tag(Tag::Array)
 	{
 	}
 
-	explicit JsonValue(String&& string)
+	explicit Value(String&& string)
 		: StringValue(Move(string))
-		, Tag(JsonTag::String)
+		, Tag(Tag::String)
 	{
 	}
 
-	explicit JsonValue(double decimal)
+	explicit Value(double decimal)
 		: DecimalValue(decimal)
-		, Tag(JsonTag::Decimal)
+		, Tag(Tag::Decimal)
 	{
 	}
 
-	explicit JsonValue(bool boolean)
+	explicit Value(bool boolean)
 		: BooleanValue(boolean)
-		, Tag(JsonTag::Boolean)
+		, Tag(Tag::Boolean)
 	{
 	}
 
-	~JsonValue();
+	~Value();
 
-	JsonValue(const JsonValue& copy);
-	JsonValue& operator=(const JsonValue& copy);
+	Value(const Value& copy);
+	Value& operator=(const Value& copy);
 
-	JsonValue(JsonValue&& move) noexcept;
-	JsonValue& operator=(JsonValue&& move) noexcept;
+	Value(Value&& move) noexcept;
+	Value& operator=(Value&& move) noexcept;
 
-	JsonTag GetTag() const
+	Tag GetTag() const
 	{
 		return Tag;
 	}
 
-	const JsonObject& GetObject() const
+	const Object& GetObject() const
 	{
-		VERIFY(Tag == JsonTag::Object, "Unexpected JSON value type!");
+		VERIFY(Tag == Tag::Object, "Unexpected JSON value type!");
 		CHECK(ObjectValue);
 		return *ObjectValue;
 	}
 
-	const JsonArray& GetArray() const
+	const Array& GetArray() const
 	{
-		VERIFY(Tag == JsonTag::Array, "Unexpected JSON value type!");
+		VERIFY(Tag == Tag::Array, "Unexpected JSON value type!");
 		return ArrayValue;
 	}
 
 	const String& GetString() const
 	{
-		VERIFY(Tag == JsonTag::String, "Unexpected JSON value type!");
+		VERIFY(Tag == Tag::String, "Unexpected JSON value type!");
 		return StringValue;
 	}
 
 	double GetDecimal() const
 	{
-		VERIFY(Tag == JsonTag::Decimal, "Unexpected JSON value type!");
+		VERIFY(Tag == Tag::Decimal, "Unexpected JSON value type!");
 		return DecimalValue;
 	}
 
 	bool GetBoolean() const
 	{
-		VERIFY(Tag == JsonTag::Boolean, "Unexpected JSON value type!");
+		VERIFY(Tag == Tag::Boolean, "Unexpected JSON value type!");
 		return BooleanValue;
 	}
 
 private:
 	union
 	{
-		JsonObject* ObjectValue;
-		JsonArray ArrayValue;
+		Object* ObjectValue;
+		Array ArrayValue;
 		String StringValue;
 		double DecimalValue;
 		bool BooleanValue;
 		void* NullValue;
 	};
-	JsonTag Tag;
+	Tag Tag;
 };
 
-class JsonObject
+class Object
 {
 public:
-	JsonObject()
+	Object()
 		: Objects(1)
 	{
 	}
 
-	explicit JsonObject(HashTable<String, JsonValue>&& objects)
+	explicit Object(HashTable<String, Value>&& objects)
 		: Objects(Move(objects))
 	{
 	}
 
-	JsonValue& operator[](StringView key)
+	Value& operator[](StringView key)
 	{
 		VERIFY(HasKey(key), "Key not present in JSON object!");
 		return Objects[key];
 	}
 
-	const JsonValue& operator[](StringView key) const
+	const Value& operator[](StringView key) const
 	{
 		VERIFY(HasKey(key), "Key not present in JSON object!");
 		return Objects[key];
@@ -153,7 +156,9 @@ public:
 	}
 
 private:
-	HashTable<String, JsonValue> Objects;
+	HashTable<String, Value> Objects;
 };
 
-JsonObject LoadJson(StringView filePath);
+Object Load(StringView filePath);
+
+}

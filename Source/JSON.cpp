@@ -2,70 +2,73 @@
 
 #include "Luft/Math.hpp"
 
-static JsonArray ParseJsonArray(StringView buffer, usize* index);
-static JsonObject ParseJsonObject(StringView buffer, usize* index);
+namespace JSON
+{
 
-static Allocator* JsonAllocator = &GlobalAllocator::Get();
+static Allocator* Allocator = &GlobalAllocator::Get();
 
-JsonValue::~JsonValue()
+static Array ParseArray(StringView buffer, usize* index);
+static Object ParseObject(StringView buffer, usize* index);
+
+Value::~Value()
 {
 	switch (Tag)
 	{
-	case JsonTag::Object:
-		ObjectValue->~JsonObject();
-		JsonAllocator->Deallocate(ObjectValue, sizeof(*ObjectValue));
+	case Tag::Object:
+		ObjectValue->~Object();
+		Allocator->Deallocate(ObjectValue, sizeof(*ObjectValue));
 		ObjectValue = nullptr;
 		break;
-	case JsonTag::Array:
+	case Tag::Array:
 		ArrayValue.~Array();
 		break;
-	case JsonTag::String:
+	case Tag::String:
 		StringValue.~String();
 		break;
-	case JsonTag::Decimal:
+	case Tag::Decimal:
 		DecimalValue = 0.0;
 		break;
-	case JsonTag::Boolean:
+	case Tag::Boolean:
 		BooleanValue = false;
 		break;
-	case JsonTag::Null:
+	case Tag::Null:
 		NullValue = nullptr;
 		break;
-	case JsonTag::None:
+	case Tag::None:
 		break;
 	}
-	Tag = JsonTag::None;
+	Tag = Tag::None;
 }
 
-JsonValue::JsonValue(const JsonValue& copy)
+Value::Value(const Value& copy)
 	: Tag(copy.Tag)
 {
 	switch (Tag)
 	{
-	case JsonTag::Object:
+	case Tag::Object:
 		ObjectValue = copy.ObjectValue;
 		break;
-	case JsonTag::Array:
+	case Tag::Array:
 		ArrayValue = copy.ArrayValue;
 		break;
-	case JsonTag::String:
+	case Tag::String:
 		StringValue = copy.StringValue;
 		break;
-	case JsonTag::Decimal:
+	case Tag::Decimal:
 		DecimalValue = copy.DecimalValue;
 		break;
-	case JsonTag::Boolean:
+	case Tag::Boolean:
 		BooleanValue = copy.BooleanValue;
 		break;
-	case JsonTag::Null:
+	case Tag::Null:
 		NullValue = nullptr;
 		break;
-	case JsonTag::None:
+	case Tag::None:
 		break;
 	}
 }
 
-JsonValue& JsonValue::operator=(const JsonValue& copy)
+Value& Value::operator=(const Value& copy)
 {
 	if (&copy == this)
 		return *this;
@@ -74,100 +77,100 @@ JsonValue& JsonValue::operator=(const JsonValue& copy)
 
 	switch (Tag)
 	{
-	case JsonTag::Object:
+	case Tag::Object:
 		ObjectValue = copy.ObjectValue;
 		break;
-	case JsonTag::Array:
+	case Tag::Array:
 		ArrayValue = copy.ArrayValue;
 		break;
-	case JsonTag::String:
+	case Tag::String:
 		StringValue = copy.StringValue;
 		break;
-	case JsonTag::Decimal:
+	case Tag::Decimal:
 		DecimalValue = copy.DecimalValue;
 		break;
-	case JsonTag::Boolean:
+	case Tag::Boolean:
 		BooleanValue = copy.BooleanValue;
 		break;
-	case JsonTag::Null:
+	case Tag::Null:
 		NullValue = nullptr;
 		break;
-	case JsonTag::None:
+	case Tag::None:
 		break;
 	}
 
 	return *this;
 }
 
-JsonValue::JsonValue(JsonValue&& move) noexcept
+Value::Value(Value&& move) noexcept
 	: Tag(move.Tag)
 {
-	move.Tag = JsonTag::None;
+	move.Tag = Tag::None;
 
 	switch (Tag)
 	{
-	case JsonTag::Object:
+	case Tag::Object:
 		ObjectValue = move.ObjectValue;
 		move.ObjectValue = nullptr;
 		break;
-	case JsonTag::Array:
-		new (&ArrayValue, LuftNewMarker {}) JsonArray { Move(move.ArrayValue) };
+	case Tag::Array:
+		new (&ArrayValue, LuftNewMarker {}) Array { Move(move.ArrayValue) };
 		break;
-	case JsonTag::String:
+	case Tag::String:
 		new (&StringValue, LuftNewMarker {}) String { Move(move.StringValue) };
 		break;
-	case JsonTag::Decimal:
+	case Tag::Decimal:
 		DecimalValue = move.DecimalValue;
 		move.DecimalValue = 0.0;
 		break;
-	case JsonTag::Boolean:
+	case Tag::Boolean:
 		BooleanValue = move.BooleanValue;
 		move.BooleanValue = false;
 		break;
-	case JsonTag::Null:
+	case Tag::Null:
 		NullValue = nullptr;
 		move.NullValue = nullptr;
 		break;
-	case JsonTag::None:
+	case Tag::None:
 		break;
 	}
 }
 
-JsonValue& JsonValue::operator=(JsonValue&& move) noexcept
+Value& Value::operator=(Value&& move) noexcept
 {
 	if (&move == this)
 		return *this;
 
-	this->~JsonValue();
+	this->~Value();
 
 	Tag = move.Tag;
-	move.Tag = JsonTag::None;
+	move.Tag = Tag::None;
 
 	switch (Tag)
 	{
-	case JsonTag::Object:
+	case Tag::Object:
 		ObjectValue = move.ObjectValue;
 		move.ObjectValue = nullptr;
 		break;
-	case JsonTag::Array:
+	case Tag::Array:
 		ArrayValue = Move(move.ArrayValue);
 		break;
-	case JsonTag::String:
+	case Tag::String:
 		StringValue = Move(move.StringValue);
 		break;
-	case JsonTag::Decimal:
+	case Tag::Decimal:
 		DecimalValue = move.DecimalValue;
 		move.DecimalValue = 0.0;
 		break;
-	case JsonTag::Boolean:
+	case Tag::Boolean:
 		BooleanValue = move.BooleanValue;
 		move.BooleanValue = false;
 		break;
-	case JsonTag::Null:
+	case Tag::Null:
 		NullValue = nullptr;
 		move.NullValue = nullptr;
 		break;
-	case JsonTag::None:
+	case Tag::None:
 		break;
 	}
 
@@ -356,7 +359,7 @@ static String ParseString(StringView buffer, usize* index)
 	return result;
 }
 
-static double ParseJsonNumber(StringView buffer, usize* index)
+static double ParseNumber(StringView buffer, usize* index)
 {
 	const double mantissa = ParseDoubleNoExponent(buffer, index);
 	int64 exponent = 0;
@@ -371,50 +374,50 @@ static double ParseJsonNumber(StringView buffer, usize* index)
 	return mantissa * multiplier;
 }
 
-static JsonValue ParseJsonValue(StringView buffer, usize* index)
+static Value ParseValue(StringView buffer, usize* index)
 {
 	CHECK(index);
 
 	SkipWhitespace(buffer, index);
 
-	JsonValue value = {};
+	Value value = {};
 
 	const char leading = PeekCharacter(buffer, *index);
 	if (leading == '"')
 	{
-		value = JsonValue { ParseString(buffer, index) };
+		value = Value { ParseString(buffer, index) };
 	}
 	else if (IsDigit(leading) || leading == '-' || leading == '+')
 	{
-		value = JsonValue { ParseJsonNumber(buffer, index) };
+		value = Value { ParseNumber(buffer, index) };
 	}
 	else if (leading == '{')
 	{
-		JsonObject* object = JsonAllocator->Create<JsonObject>(ParseJsonObject(buffer, index));
+		Object* object = Allocator->Create<Object>(ParseObject(buffer, index));
 
-		value = JsonValue { object };
+		value = Value { object };
 	}
 	else if (leading == '[')
 	{
-		value = JsonValue { ParseJsonArray(buffer, index) };
+		value = Value { ParseArray(buffer, index) };
 	}
 	else if (leading == 't')
 	{
 		ExpectString(buffer, index, "true"_view);
 
-		value = JsonValue { true };
+		value = Value { true };
 	}
 	else if (leading == 'f')
 	{
 		ExpectString(buffer, index, "false"_view);
 
-		value = JsonValue { false };
+		value = Value { false };
 	}
 	else if (leading == 'n')
 	{
 		ExpectString(buffer, index, "null"_view);
 
-		value = JsonValue { JsonTag::Null };
+		value = Value { Tag::Null };
 	}
 	else
 	{
@@ -425,7 +428,7 @@ static JsonValue ParseJsonValue(StringView buffer, usize* index)
 	return value;
 }
 
-static JsonArray ParseJsonArray(StringView buffer, usize* index)
+static Array ParseArray(StringView buffer, usize* index)
 {
 	CHECK(index);
 
@@ -435,13 +438,13 @@ static JsonArray ParseJsonArray(StringView buffer, usize* index)
 	if (PeekCharacter(buffer, *index) == ']')
 	{
 		Advance(index, 1);
-		return JsonArray(JsonAllocator);
+		return Array(Allocator);
 	}
 
-	JsonArray array(JsonAllocator);
+	Array array(Allocator);
 	while (IsInRange(buffer, *index))
 	{
-		array.Add(ParseJsonValue(buffer, index));
+		array.Add(ParseValue(buffer, index));
 
 		if (PeekCharacter(buffer, *index) != ',')
 		{
@@ -454,7 +457,7 @@ static JsonArray ParseJsonArray(StringView buffer, usize* index)
 	return array;
 }
 
-static JsonObject ParseJsonObject(StringView buffer, usize* index)
+static Object ParseObject(StringView buffer, usize* index)
 {
 	CHECK(index);
 
@@ -465,18 +468,18 @@ static JsonObject ParseJsonObject(StringView buffer, usize* index)
 	if (PeekCharacter(buffer, *index) == '}')
 	{
 		Advance(index, 1);
-		return JsonObject {};
+		return Object {};
 	}
 
-	static constexpr usize jsonObjectBucketCount = 8;
-	HashTable<String, JsonValue> object(jsonObjectBucketCount, JsonAllocator);
+	static constexpr usize objectBucketCount = 8;
+	HashTable<String, Value> object(objectBucketCount, Allocator);
 
 	while (IsInRange(buffer, *index))
 	{
 		String key = ParseString(buffer, index);
 		SkipWhitespace(buffer, index);
 		ExpectCharacter(buffer, index, ':');
-		JsonValue value = ParseJsonValue(buffer, index);
+		Value value = ParseValue(buffer, index);
 
 		object.Add(Move(key), Move(value));
 
@@ -489,18 +492,20 @@ static JsonObject ParseJsonObject(StringView buffer, usize* index)
 	}
 	ExpectCharacter(buffer, index, '}');
 
-	return JsonObject { Move(object) };
+	return Object { Move(object) };
 }
 
-JsonObject LoadJson(StringView filePath)
+Object Load(StringView filePath)
 {
-	usize jsonFileSize;
-	char* jsonFileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &jsonFileSize, *JsonAllocator));
-	const StringView jsonFileView = { jsonFileData, jsonFileSize };
+	usize fileSize;
+	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &fileSize, *Allocator));
+	const StringView fileView = { fileData, fileSize };
 
 	usize index = 0;
-	const JsonObject object = ParseJsonObject(jsonFileView, &index);
+	const Object object = ParseObject(fileView, &index);
 
-	JsonAllocator->Deallocate(jsonFileData, jsonFileSize);
+	Allocator->Deallocate(fileData, fileSize);
 	return object;
+}
+
 }

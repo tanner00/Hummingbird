@@ -80,7 +80,7 @@ void CameraController::Update(float timeDelta)
 	}
 }
 
-void CameraController::SetCamera(const GltfCamera& camera)
+void CameraController::SetCamera(const GLTF::Camera& camera)
 {
 	DecomposeTransform(camera.Transform, &Position, &Orientation, nullptr);
 

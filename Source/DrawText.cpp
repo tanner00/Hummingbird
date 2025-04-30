@@ -14,27 +14,27 @@ DrawText::DrawText()
 
 void DrawText::Init(RHI::Device* device)
 {
-	DdsImage fontImage = LoadDdsImage("Assets/Fonts/RobotoMSDF.dds"_view);
+	DDS::Image fontImage = DDS::LoadImage("Assets/Fonts/RobotoMSDF.dds"_view);
 
-	const JsonObject fontDescription = LoadJson("Assets/Fonts/RobotoMSDF.json"_view);
+	const JSON::Object fontDescription = JSON::Load("Assets/Fonts/RobotoMSDF.json"_view);
 
-	const JsonObject& fontAtlasDescription = fontDescription["atlas"_view].GetObject();
+	const JSON::Object& fontAtlasDescription = fontDescription["atlas"_view].GetObject();
 
 	const double distanceRange = fontAtlasDescription["distanceRange"_view].GetDecimal();
 	const uint32 width = static_cast<uint32>(fontAtlasDescription["width"_view].GetDecimal());
 	const uint32 height = static_cast<uint32>(fontAtlasDescription["height"_view].GetDecimal());
 
-	const JsonObject& fontMetrics = fontDescription["metrics"_view].GetObject();
+	const JSON::Object& fontMetrics = fontDescription["metrics"_view].GetObject();
 	Ascender = static_cast<float>(fontMetrics["ascender"_view].GetDecimal());
 
 	RootConstants.UnitRange.X = static_cast<float>(distanceRange / width);
 	RootConstants.UnitRange.Y = static_cast<float>(distanceRange / height);
 
-	const JsonArray& fontGlyphs = fontDescription["glyphs"_view].GetArray();
+	const JSON::Array& fontGlyphs = fontDescription["glyphs"_view].GetArray();
 
-	for (const JsonValue& glyphValue : fontGlyphs)
+	for (const JSON::Value& glyphValue : fontGlyphs)
 	{
-		const JsonObject& glyphObject = glyphValue.GetObject();
+		const JSON::Object& glyphObject = glyphValue.GetObject();
 
 		const float advance = static_cast<float>(glyphObject["advance"_view].GetDecimal());
 		Float2 atlasPosition = { 0.0f, 0.0f };
@@ -44,7 +44,7 @@ void DrawText::Init(RHI::Device* device)
 
 		if (glyphObject.HasKey("atlasBounds"_view))
 		{
-			const JsonObject& atlasBounds = glyphObject["atlasBounds"_view].GetObject();
+			const JSON::Object& atlasBounds = glyphObject["atlasBounds"_view].GetObject();
 
 			const double left = atlasBounds["left"_view].GetDecimal();
 			const double bottom = atlasBounds["bottom"_view].GetDecimal();
@@ -60,7 +60,7 @@ void DrawText::Init(RHI::Device* device)
 
 		if (glyphObject.HasKey("planeBounds"_view))
 		{
-			const JsonObject& planeBounds = glyphObject["planeBounds"_view].GetObject();
+			const JSON::Object& planeBounds = glyphObject["planeBounds"_view].GetObject();
 
 			const double left = planeBounds["left"_view].GetDecimal();
 			const double bottom = planeBounds["bottom"_view].GetDecimal();
@@ -104,7 +104,7 @@ void DrawText::Init(RHI::Device* device)
 	});
 	device->Write(&FontTexture, fontImage.Data);
 
-	UnloadDdsImage(&fontImage);
+	DDS::UnloadImage(&fontImage);
 
 	RHI::Shader vertex = device->Create(
 	{
@@ -147,7 +147,7 @@ void DrawText::Init(RHI::Device* device)
 			.Format = RHI::ResourceFormat::None,
 			.Flags = RHI::ResourceFlags::Upload,
 			.InitialLayout = RHI::BarrierLayout::Undefined,
-			.Size = MaxCharactersPerFrame * sizeof(Hlsl::Character),
+			.Size = MaxCharactersPerFrame * sizeof(HLSL::Character),
 			.Name = "Character Buffer"_view,
 		});
 		CharacterBufferViews[i] = device->Create(RHI::BufferViewDescription
@@ -155,7 +155,7 @@ void DrawText::Init(RHI::Device* device)
 			.Resource = CharacterBuffers[i],
 			.Type = RHI::ViewType::ShaderResource,
 			.Size = CharacterBuffers[i].Size,
-			.Stride = sizeof(Hlsl::Character),
+			.Stride = sizeof(HLSL::Character),
 		});
 	}
 }
@@ -192,7 +192,7 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 	{
 		const Glyph& glyph = Glyphs[text[i]];
 
-		CharacterData[CharacterIndex] = Hlsl::Character
+		CharacterData[CharacterIndex] = HLSL::Character
 		{
 			.Color = rgba,
 			.ScreenPosition = currentPosition,

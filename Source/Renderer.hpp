@@ -4,8 +4,12 @@
 
 #include "Luft/NoCopy.hpp"
 
-struct GltfScene;
 class CameraController;
+
+namespace GLTF
+{
+struct Scene;
+}
 
 class Renderer : public NoCopy
 {
@@ -17,7 +21,7 @@ public:
 
 	void Resize(uint32 width, uint32 height);
 
-	void SetScene(const GltfScene& scene)
+	void SetScene(const GLTF::Scene& scene)
 	{
 		LoadScene(scene);
 	}
@@ -27,7 +31,7 @@ private:
 	void UpdateFrameTimes(double startCpuTime);
 #endif
 
-	void LoadScene(const GltfScene& scene);
+	void LoadScene(const GLTF::Scene& scene);
 	void UnloadScene();
 
 	void CreatePipelines();
