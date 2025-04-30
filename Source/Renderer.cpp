@@ -169,6 +169,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer.View),
 		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
+		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
 		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.IsValid() ? ScenePointLightsBuffer.View.Size / sizeof(Hlsl::PointLight) : 0),
 	};
 	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
@@ -223,11 +224,45 @@ void Renderer::Update(const CameraController& cameraController)
 
 			Graphics.SetRootConstants(&rootConstants);
 
-			Graphics.SetVertexBuffer(SceneVertexBuffer.Resource, 0, primitive.PositionOffset, primitive.PositionSize, primitive.PositionStride);
-			Graphics.SetVertexBuffer(SceneVertexBuffer.Resource, 1, primitive.TextureCoordinateOffset, primitive.TextureCoordinateSize, primitive.TextureCoordinateStride);
-			Graphics.SetVertexBuffer(SceneVertexBuffer.Resource, 2, primitive.NormalOffset, primitive.NormalSize, primitive.NormalStride);
-			Graphics.SetVertexBuffer(SceneVertexBuffer.Resource, 3, primitive.TangentOffset, primitive.TangentSize, primitive.TangentStride);
-			Graphics.SetIndexBuffer(SceneVertexBuffer.Resource, primitive.IndexOffset, primitive.IndexSize, primitive.IndexStride);
+			Graphics.SetVertexBuffer(0,
+									 SubBuffer
+									 {
+										.Resource = SceneVertexBuffer.Resource,
+										.Size = primitive.PositionSize,
+										.Stride = primitive.PositionStride,
+										.Offset = primitive.PositionOffset,
+									 });
+			Graphics.SetVertexBuffer(1,
+									 SubBuffer
+									 {
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.TextureCoordinateSize,
+										 .Stride = primitive.TextureCoordinateStride,
+										 .Offset = primitive.TextureCoordinateOffset,
+									 });
+			Graphics.SetVertexBuffer(2,
+									 SubBuffer
+									 {
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.NormalSize,
+										 .Stride = primitive.NormalStride,
+										 .Offset = primitive.NormalOffset,
+									 });
+			Graphics.SetVertexBuffer(3,
+									 SubBuffer
+									 {
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.TangentSize,
+										 .Stride = primitive.TangentStride,
+										 .Offset = primitive.TangentOffset,
+									 });
+			Graphics.SetIndexBuffer(SubBuffer
+									{
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.IndexSize,
+										 .Stride = primitive.IndexStride,
+										 .Offset = primitive.IndexOffset,
+									});
 
 			Graphics.DrawIndexed(primitive.IndexSize / primitive.IndexStride);
 		}
@@ -426,6 +461,7 @@ void Renderer::LoadScene(const GltfScene& scene)
 				.IndexStride = indexView.Stride,
 				.IndexSize = indexView.Size,
 				.MaterialIndex = primitive.Material,
+				.AccelerationStructureResource = {},
 			});
 		}
 
@@ -435,6 +471,91 @@ void Renderer::LoadScene(const GltfScene& scene)
 		});
 	}
 
+	GltfBuffer finalVertexBuffer = vertexBuffer;
+	if (!computedTangents.IsEmpty())
+	{
+		finalVertexBuffer.Size += computedTangentsCount * sizeof(Float4);
+		finalVertexBuffer.Data = static_cast<uint8*>(RendererAllocator->Allocate(finalVertexBuffer.Size));
+		Platform::MemoryCopy(finalVertexBuffer.Data, vertexBuffer.Data, vertexBuffer.Size);
+
+		usize tangentsOffset = 0;
+		for (const Array<Float4>& tangents : computedTangents)
+		{
+			Platform::MemoryCopy(finalVertexBuffer.Data + vertexBuffer.Size + tangentsOffset, tangents.GetData(), tangents.GetDataSize());
+			tangentsOffset += tangents.GetDataSize();
+		}
+	}
+	SceneVertexBuffer = CreateBuffer(&Device,
+									 finalVertexBuffer.Size,
+									 0,
+									 ResourceFlags::None,
+									 ViewType::ShaderResource,
+									 finalVertexBuffer.Data,
+									 "Scene Vertex Buffer"_view);
+	if (!computedTangents.IsEmpty())
+	{
+		RendererAllocator->Deallocate(finalVertexBuffer.Data, finalVertexBuffer.Size);
+	}
+
+	Array<Resource> transientResources(RendererAllocator);
+
+	Graphics.Begin();
+
+	for (usize meshIndex = 0; meshIndex < scene.Meshes.GetLength(); ++meshIndex)
+	{
+		const GltfMesh& gltfMesh = scene.Meshes[meshIndex];
+
+		for (usize primitiveIndex = 0; primitiveIndex < gltfMesh.Primitives.GetLength(); ++primitiveIndex)
+		{
+			const GltfPrimitive& gltfPrimitive = scene.Meshes[meshIndex].Primitives[primitiveIndex];
+
+			const GltfAccessorView positionView = GetGltfAccessorView(scene, gltfPrimitive.Attributes[GltfAttributeType::Position]);
+			const GltfAccessorView indexView = GetGltfAccessorView(scene, gltfPrimitive.Indices);
+
+			const SubBuffer vertices = SubBuffer
+			{
+				.Resource = SceneVertexBuffer.Resource,
+				.Size = positionView.Size,
+				.Stride = positionView.Stride,
+				.Offset = positionView.Offset,
+			};
+			const SubBuffer indices = SubBuffer
+			{
+				.Resource = SceneVertexBuffer.Resource,
+				.Size = indexView.Size,
+				.Stride = indexView.Stride,
+				.Offset = indexView.Offset,
+			};
+			const AccelerationStructureSize size = Device.GetAccelerationStructureSize(vertices, indices);
+
+			Resource scratchResource = Device.Create(
+			{
+				.Type = ResourceType::Buffer,
+				.Format = ResourceFormat::None,
+				.Flags = ResourceFlags::UnorderedAccess,
+				.InitialLayout = BarrierLayout::Undefined,
+				.Size = size.ScratchSize,
+				.Name = "Scratch Primitive Acceleration Structure"_view,
+			});
+			const Resource resultResource = Device.Create(
+			{
+				.Type = ResourceType::Buffer,
+				.Format = ResourceFormat::None,
+				.Flags = ResourceFlags::AccelerationStructure,
+				.InitialLayout = BarrierLayout::Undefined,
+				.Size = size.ResultSize,
+				.Name = "Primitive Acceleration Structure"_view,
+			});
+			Graphics.BuildAccelerationStructure(vertices, indices, scratchResource, resultResource);
+
+			Primitive& primitive = SceneMeshes[meshIndex].Primitives[primitiveIndex];
+			primitive.AccelerationStructureResource = resultResource;
+
+			transientResources.Add(scratchResource);
+		}
+	}
+
+	Array<AccelerationStructureInstance> instances(RendererAllocator);
 	for (usize i = 0; i < scene.Nodes.GetLength(); ++i)
 	{
 		const GltfNode& node = scene.Nodes[i];
@@ -443,11 +564,78 @@ void Renderer::LoadScene(const GltfScene& scene)
 			continue;
 		}
 
+		const Matrix transform = CalculateGltfGlobalTransform(scene, i);
+
+		const Mesh& mesh = SceneMeshes[node.Mesh];
+		for (const Primitive& primitive : mesh.Primitives)
+		{
+			instances.Add(AccelerationStructureInstance
+			{
+				.Transform = transform,
+				.AccelerationStructureResource = primitive.AccelerationStructureResource,
+			});
+		}
+
 		SceneNodes.Add(Node
 		{
-			.Transform = CalculateGltfGlobalTransform(scene, i),
+			.Transform = transform,
 			.MeshIndex = node.Mesh,
 		});
+	}
+
+	const Resource instancesResource = Device.Create(
+	{
+		.Type = ResourceType::AccelerationStructureInstances,
+		.Format = ResourceFormat::None,
+		.Flags = ResourceFlags::Upload,
+		.InitialLayout = BarrierLayout::Undefined,
+		.Size = instances.GetLength() * Device.GetAccelerationStructureInstanceSize(),
+		.Name = "Scene Acceleration Structure Instances"_view,
+	});
+	Device.Write(&instancesResource, instances.GetData());
+
+	const SubBuffer instancesBuffer = SubBuffer
+	{
+		.Resource = instancesResource,
+		.Size = instancesResource.Size,
+		.Stride = Device.GetAccelerationStructureInstanceSize(),
+	};
+	const AccelerationStructureSize size = Device.GetAccelerationStructureSize(instancesBuffer);
+
+	const Resource scratchResource = Device.Create(
+	{
+		.Type = ResourceType::Buffer,
+		.Format = ResourceFormat::None,
+		.Flags = ResourceFlags::UnorderedAccess,
+		.InitialLayout = BarrierLayout::Undefined,
+		.Size = size.ScratchSize,
+		.Name = "Scratch Scene Acceleration Structure"_view,
+	});
+	SceneAccelerationStructureResource = Device.Create(
+	{
+		.Type = ResourceType::Buffer,
+		.Format = ResourceFormat::None,
+		.Flags = ResourceFlags::AccelerationStructure,
+		.InitialLayout = BarrierLayout::Undefined,
+		.Size = size.ResultSize,
+		.Name = "Scene Acceleration Structure"_view,
+	});
+	Graphics.BuildAccelerationStructure(instancesBuffer, scratchResource, SceneAccelerationStructureResource);
+
+	SceneAccelerationStructure = Device.Create(AccelerationStructureDescription
+	{
+		.AccelerationStructureResource = SceneAccelerationStructureResource,
+	});
+
+	Graphics.End();
+	Device.Submit(Graphics);
+	Device.WaitForIdle();
+
+	transientResources.Add(scratchResource);
+	transientResources.Add(instancesResource);
+	for (Resource& resource : transientResources)
+	{
+		Device.Destroy(&resource);
 	}
 
 	for (const GltfMaterial& material : scene.Materials)
@@ -514,33 +702,6 @@ void Renderer::LoadScene(const GltfScene& scene)
 								   ViewType::ConstantBuffer,
 								   nullptr,
 								   "Scene Buffer"_view);
-	}
-
-	GltfBuffer finalVertexBuffer = vertexBuffer;
-	if (!computedTangents.IsEmpty())
-	{
-		finalVertexBuffer.Size += computedTangentsCount * sizeof(Float4);
-		finalVertexBuffer.Data = static_cast<uint8*>(RendererAllocator->Allocate(finalVertexBuffer.Size));
-		Platform::MemoryCopy(finalVertexBuffer.Data, vertexBuffer.Data, vertexBuffer.Size);
-
-		usize tangentsOffset = 0;
-		for (const Array<Float4>& tangents : computedTangents)
-		{
-			Platform::MemoryCopy(finalVertexBuffer.Data + vertexBuffer.Size + tangentsOffset, tangents.GetData(), tangents.GetDataSize());
-			tangentsOffset += tangents.GetDataSize();
-		}
-	}
-	SceneVertexBuffer = CreateBuffer(&Device,
-									 finalVertexBuffer.Size,
-									 0,
-									 ResourceFlags::None,
-									 BarrierLayout::GraphicsQueueCommon,
-									 ViewType::ShaderResource,
-									 finalVertexBuffer.Data,
-									 "Scene Vertex Buffer"_view);
-	if (!computedTangents.IsEmpty())
-	{
-		RendererAllocator->Deallocate(finalVertexBuffer.Data, finalVertexBuffer.Size);
 	}
 
 	Array<Hlsl::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
@@ -693,6 +854,16 @@ void Renderer::UnloadScene()
 	Device.Destroy(&SceneDirectionalLightBuffer.View);
 	Device.Destroy(&ScenePointLightsBuffer.Resource);
 	Device.Destroy(&ScenePointLightsBuffer.View);
+
+	for (Mesh& mesh : SceneMeshes)
+	{
+		for (Primitive& primitive : mesh.Primitives)
+		{
+			Device.Destroy(&primitive.AccelerationStructureResource);
+		}
+	}
+	Device.Destroy(&SceneAccelerationStructureResource);
+	Device.Destroy(&SceneAccelerationStructure);
 
 	for (Material& material : SceneMaterials)
 	{
