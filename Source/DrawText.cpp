@@ -152,10 +152,13 @@ void DrawText::Init(RHI::Device* device)
 		});
 		CharacterBufferViews[i] = device->Create(RHI::BufferViewDescription
 		{
-			.Resource = CharacterBuffers[i],
 			.Type = RHI::ViewType::ShaderResource,
-			.Size = CharacterBuffers[i].Size,
-			.Stride = sizeof(HLSL::Character),
+			.Buffer =
+			{
+				.Resource = CharacterBuffers[i],
+				.Size = CharacterBuffers[i].Size,
+				.Stride = sizeof(HLSL::Character),
+			},
 		});
 	}
 }

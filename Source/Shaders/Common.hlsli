@@ -1,5 +1,7 @@
 #pragma once
 
+typedef uint16_t uint16;
+
 static const float Pi = 3.14159265358979323846f;
 static const float Infinity = 1.#INF;
 

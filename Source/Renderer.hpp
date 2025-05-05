@@ -43,18 +43,19 @@ private:
 	RHI::Device Device;
 	RHI::GraphicsContext Graphics;
 
-	Texture SwapChainTextures[RHI::FramesInFlight];
-	Texture DepthTexture;
-	Texture WhiteTexture;
-	Texture DefaultNormalMapTexture;
+	BasicTexture SwapChainTextures[RHI::FramesInFlight];
+	BasicTexture DepthTexture;
+	BasicTexture WhiteTexture;
+	BasicTexture DefaultNormalMapTexture;
 
-	Buffer SceneBuffers[RHI::FramesInFlight];
-	Buffer SceneVertexBuffer;
-	Buffer SceneNodeBuffer;
-	Buffer SceneMaterialBuffer;
-	Buffer SceneDirectionalLightBuffer;
-	Buffer ScenePointLightsBuffer;
-	Buffer SceneLuminanceBuffer;
+	BasicBuffer SceneBuffers[RHI::FramesInFlight];
+	BasicBuffer SceneVertexBuffer;
+	BasicBuffer ScenePrimitiveBuffer;
+	BasicBuffer SceneNodeBuffer;
+	BasicBuffer SceneMaterialBuffer;
+	BasicBuffer SceneDirectionalLightBuffer;
+	BasicBuffer ScenePointLightsBuffer;
+	BasicBuffer SceneLuminanceBuffer;
 
 	RHI::Resource SceneAccelerationStructureResource;
 	RHI::AccelerationStructure SceneAccelerationStructure;

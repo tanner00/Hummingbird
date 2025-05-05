@@ -10,7 +10,12 @@ using namespace RHI;
 
 static ::Allocator* RendererAllocator = &GlobalAllocator::Get();
 
-static Texture CreateTexture(Device* device, ResourceDimensions dimensions, uint16 mipMapCount, ResourceFormat format, const void* data, StringView name)
+static BasicTexture CreateBasicTexture(Device* device,
+									   ResourceDimensions dimensions,
+									   uint16 mipMapCount,
+									   ResourceFormat format,
+									   const void* data,
+									   StringView name)
 {
 	CHECK(data);
 
@@ -33,10 +38,16 @@ static Texture CreateTexture(Device* device, ResourceDimensions dimensions, uint
 	});
 	device->Write(&texture, data);
 
-	return Texture { texture, view };
+	return BasicTexture { texture, view };
 }
 
-static Buffer CreateBuffer(Device* device, usize size, usize stride, ResourceFlags flags, ViewType type, const void* data, StringView name)
+static BasicBuffer CreateBasicBuffer(Device* device,
+									 usize size,
+									 usize stride,
+									 ResourceFlags flags,
+									 ViewType type,
+									 const void* data,
+									 StringView name)
 {
 	const Resource buffer = device->Create(
 	{
@@ -48,15 +59,18 @@ static Buffer CreateBuffer(Device* device, usize size, usize stride, ResourceFla
 	});
 	const BufferView view = device->Create(BufferViewDescription
 	{
-		.Resource = buffer,
 		.Type = type,
-		.Size = size,
-		.Stride = stride,
+		.Buffer =
+		{
+			.Resource = buffer,
+			.Size = size,
+			.Stride = stride,
+		},
 	});
 	if (data)
 		device->Write(&buffer, data);
 
-	return Buffer { buffer, view };
+	return BasicBuffer { buffer, view };
 }
 
 Renderer::Renderer(const Platform::Window* window)
@@ -72,18 +86,18 @@ Renderer::Renderer(const Platform::Window* window)
 	DrawText::Get().Init(&Device);
 
 	static constexpr uint8 white[] = { 0xFF, 0xFF, 0xFF, 0xFF };
-	WhiteTexture = CreateTexture(&Device, { 1, 1 }, 1, ResourceFormat::Rgba8Unorm, white, "White Texture"_view);
+	WhiteTexture = CreateBasicTexture(&Device, { 1, 1 }, 1, ResourceFormat::Rgba8Unorm, white, "White Texture"_view);
 
 	static constexpr uint8 defaultNormal[] = { 0x7F, 0x7F, 0xFF, 0x00 };
-	DefaultNormalMapTexture = CreateTexture(&Device, { 1, 1 }, 1, ResourceFormat::Rgba8Unorm, defaultNormal, "Default Normal Map Texture"_view);
+	DefaultNormalMapTexture = CreateBasicTexture(&Device, { 1, 1 }, 1, ResourceFormat::Rgba8Unorm, defaultNormal, "Default Normal Map Texture"_view);
 
-	SceneLuminanceBuffer = CreateBuffer(&Device,
-										LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
-										0,
-										ResourceFlags::UnorderedAccess,
-										ViewType::UnorderedAccess,
-										nullptr,
-										"Scene Luminance Buffer"_view);
+	SceneLuminanceBuffer = CreateBasicBuffer(&Device,
+											 LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
+											 0,
+											 ResourceFlags::UnorderedAccess,
+											 ViewType::UnorderedAccess,
+											 nullptr,
+											 "Scene Luminance Buffer"_view);
 
 	DefaultSampler = Device.Create(
 	{
@@ -164,12 +178,14 @@ void Renderer::Update(const CameraController& cameraController)
 		.ViewProjection = projection * view,
 		.ViewPosition = Float3 { viewPosition.X, viewPosition.Y, viewPosition.Z },
 		.DefaultSamplerIndex = Device.Get(DefaultSampler),
+		.VertexBufferIndex = Device.Get(SceneVertexBuffer.View),
+		.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
 		.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
 		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer.View),
 		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
-		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.IsValid() ? ScenePointLightsBuffer.View.Size / sizeof(HLSL::PointLight) : 0),
+		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
 	};
 	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
 
@@ -224,10 +240,10 @@ void Renderer::Update(const CameraController& cameraController)
 			Graphics.SetVertexBuffer(0,
 									 SubBuffer
 									 {
-										.Resource = SceneVertexBuffer.Resource,
-										.Size = primitive.PositionSize,
-										.Stride = primitive.PositionStride,
-										.Offset = primitive.PositionOffset,
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.PositionSize,
+										 .Stride = primitive.PositionStride,
+										 .Offset = primitive.PositionOffset,
 									 });
 			Graphics.SetVertexBuffer(1,
 									 SubBuffer
@@ -442,6 +458,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 			primitives.Add(Primitive
 			{
+				.GlobalIndex = {},
 				.PositionOffset = positionView.Offset,
 				.PositionStride = positionView.Stride,
 				.PositionSize = positionView.Size,
@@ -468,6 +485,17 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		});
 	}
 
+	for (BasicBuffer& sceneBuffer : SceneBuffers)
+	{
+		sceneBuffer = CreateBasicBuffer(&Device,
+										sizeof(HLSL::Scene),
+										0,
+										ResourceFlags::Upload,
+										ViewType::ConstantBuffer,
+										nullptr,
+										"Scene Buffer"_view);
+	}
+
 	GLTF::Buffer finalVertexBuffer = vertexBuffer;
 	if (!computedTangents.IsEmpty())
 	{
@@ -482,22 +510,46 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			tangentsOffset += tangents.GetDataSize();
 		}
 	}
-	SceneVertexBuffer = CreateBuffer(&Device,
-									 finalVertexBuffer.Size,
-									 0,
-									 ResourceFlags::None,
-									 ViewType::ShaderResource,
-									 finalVertexBuffer.Data,
-									 "Scene Vertex Buffer"_view);
+	SceneVertexBuffer = CreateBasicBuffer(&Device,
+										  finalVertexBuffer.Size,
+										  0,
+										  ResourceFlags::None,
+										  ViewType::ShaderResource,
+										  finalVertexBuffer.Data,
+										  "Scene Vertex Buffer"_view);
 	if (!computedTangents.IsEmpty())
 	{
 		RendererAllocator->Deallocate(finalVertexBuffer.Data, finalVertexBuffer.Size);
 	}
 
+	Array<HLSL::Primitive> primitiveData(RendererAllocator);
+	for (const Mesh& mesh : SceneMeshes)
+	{
+		for (const Primitive& primitive : mesh.Primitives)
+		{
+			primitiveData.Add(HLSL::Primitive
+			{
+				.TextureCoordinateOffset = static_cast<uint32>(primitive.TextureCoordinateOffset),
+				.TextureCoordinateStride = static_cast<uint32>(primitive.TextureCoordinateStride),
+				.IndexOffset = static_cast<uint32>(primitive.IndexOffset),
+				.IndexStride = static_cast<uint32>(primitive.IndexStride),
+				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
+			});
+		}
+	}
+	ScenePrimitiveBuffer = CreateBasicBuffer(&Device,
+											 primitiveData.GetDataSize(),
+											 primitiveData.GetElementSize(),
+											 ResourceFlags::None,
+											 ViewType::ShaderResource,
+											 primitiveData.GetData(),
+											 "Scene Primitive Buffer"_view);
+
 	Array<Resource> transientResources(RendererAllocator);
 
 	Graphics.Begin();
 
+	usize globalPrimitiveIndex = 0;
 	for (usize meshIndex = 0; meshIndex < scene.Meshes.GetLength(); ++meshIndex)
 	{
 		const GLTF::Mesh& gltfMesh = scene.Meshes[meshIndex];
@@ -509,21 +561,25 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::AccessorView positionView = GLTF::GetAccessorView(scene, gltfPrimitive.Attributes[GLTF::AttributeType::Position]);
 			const GLTF::AccessorView indexView = GLTF::GetAccessorView(scene, gltfPrimitive.Indices);
 
-			const SubBuffer vertices = SubBuffer
+			const AccelerationStructureGeometry geometry = AccelerationStructureGeometry
 			{
-				.Resource = SceneVertexBuffer.Resource,
-				.Size = positionView.Size,
-				.Stride = positionView.Stride,
-				.Offset = positionView.Offset,
+				.VertexBuffer = SubBuffer
+				{
+					.Resource = SceneVertexBuffer.Resource,
+					.Size = positionView.Size,
+					.Stride = positionView.Stride,
+					.Offset = positionView.Offset,
+				},
+				.IndexBuffer = SubBuffer
+				{
+					.Resource = SceneVertexBuffer.Resource,
+					.Size = indexView.Size,
+					.Stride = indexView.Stride,
+					.Offset = indexView.Offset,
+				},
+				.Translucent = scene.Materials[gltfPrimitive.Material].AlphaMode != GLTF::AlphaMode::Opaque,
 			};
-			const SubBuffer indices = SubBuffer
-			{
-				.Resource = SceneVertexBuffer.Resource,
-				.Size = indexView.Size,
-				.Stride = indexView.Stride,
-				.Offset = indexView.Offset,
-			};
-			const AccelerationStructureSize size = Device.GetAccelerationStructureSize(vertices, indices);
+			const AccelerationStructureSize size = Device.GetAccelerationStructureSize(geometry);
 
 			Resource scratchResource = Device.Create(
 			{
@@ -534,6 +590,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Size = size.ScratchSize,
 				.Name = "Scratch Primitive Acceleration Structure"_view,
 			});
+			transientResources.Add(scratchResource);
 			const Resource resultResource = Device.Create(
 			{
 				.Type = ResourceType::Buffer,
@@ -543,31 +600,33 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Size = size.ResultSize,
 				.Name = "Primitive Acceleration Structure"_view,
 			});
-			Graphics.BuildAccelerationStructure(vertices, indices, scratchResource, resultResource);
+			Graphics.BuildAccelerationStructure(geometry, scratchResource, resultResource);
 
 			Primitive& primitive = SceneMeshes[meshIndex].Primitives[primitiveIndex];
 			primitive.AccelerationStructureResource = resultResource;
+			primitive.GlobalIndex = globalPrimitiveIndex;
 
-			transientResources.Add(scratchResource);
+			++globalPrimitiveIndex;
 		}
 	}
 
 	Array<AccelerationStructureInstance> instances(RendererAllocator);
-	for (usize i = 0; i < scene.Nodes.GetLength(); ++i)
+	for (usize nodeIndex = 0; nodeIndex < scene.Nodes.GetLength(); ++nodeIndex)
 	{
-		const GLTF::Node& node = scene.Nodes[i];
+		const GLTF::Node& node = scene.Nodes[nodeIndex];
 		if (node.Mesh == INDEX_NONE)
 		{
 			continue;
 		}
 
-		const Matrix transform = GLTF::CalculateGlobalTransform(scene, i);
+		const Matrix transform = GLTF::CalculateGlobalTransform(scene, nodeIndex);
 
 		const Mesh& mesh = SceneMeshes[node.Mesh];
 		for (const Primitive& primitive : mesh.Primitives)
 		{
 			instances.Add(AccelerationStructureInstance
 			{
+				.ID = static_cast<uint32>(primitive.GlobalIndex),
 				.Transform = transform,
 				.AccelerationStructureResource = primitive.AccelerationStructureResource,
 			});
@@ -591,7 +650,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	});
 	Device.Write(&instancesResource, instances.GetData());
 
-	const SubBuffer instancesBuffer = SubBuffer
+	const Buffer instancesBuffer = Buffer
 	{
 		.Resource = instancesResource,
 		.Size = instancesResource.Size,
@@ -637,21 +696,21 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	for (const GLTF::Material& gltfMaterial : scene.Materials)
 	{
-		const auto convertTexture = [this](const GLTF::Scene& scene, usize textureIndex, StringView textureName) -> Texture
+		const auto convertTexture = [this](const GLTF::Scene& scene, usize textureIndex, StringView textureName) -> BasicTexture
 		{
 			if (textureIndex == INDEX_NONE)
-				return Texture { Resource::Invalid(), TextureView::Invalid() };
+				return BasicTexture { Resource::Invalid(), TextureView::Invalid() };
 
 			const GLTF::Texture& gltfTexture = scene.Textures[textureIndex];
 			const GLTF::Image& gltfImage = scene.Images[gltfTexture.Image];
 
 			DDS::Image image = DDS::LoadImage(gltfImage.Path.AsView());
-			const Texture texture = CreateTexture(&Device,
-												  { image.Width, image.Height },
-												  image.MipMapCount,
-												  image.Format,
-												  image.Data,
-												  textureName);
+			const BasicTexture texture = CreateBasicTexture(&Device,
+															{ image.Width, image.Height },
+															image.MipMapCount,
+															image.Format,
+															image.Data,
+															textureName);
 			DDS::UnloadImage(&image);
 
 			return texture;
@@ -693,17 +752,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		SceneMaterials.Add(material);
 	}
 
-	for (Buffer& sceneBuffer : SceneBuffers)
-	{
-		sceneBuffer = CreateBuffer(&Device,
-								   sizeof(HLSL::Scene),
-								   0,
-								   ResourceFlags::Upload,
-								   ViewType::ConstantBuffer,
-								   nullptr,
-								   "Scene Buffer"_view);
-	}
-
 	Array<HLSL::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
 	for (const Node& node : SceneNodes)
 	{
@@ -712,18 +760,18 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.Transform = node.Transform,
 		});
 	}
-	SceneNodeBuffer = CreateBuffer(&Device,
-								   SceneNodes.GetLength() * sizeof(HLSL::Node),
-								   sizeof(HLSL::Node),
-								   ResourceFlags::None,
-								   ViewType::ShaderResource,
-								   nodeData.GetData(),
-								   "Scene Node Buffer"_view);
+	SceneNodeBuffer = CreateBasicBuffer(&Device,
+										SceneNodes.GetLength() * sizeof(HLSL::Node),
+										sizeof(HLSL::Node),
+										ResourceFlags::None,
+										ViewType::ShaderResource,
+										nodeData.GetData(),
+										"Scene Node Buffer"_view);
 
 	Array<HLSL::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
 	for (const Material& material : SceneMaterials)
 	{
-		Texture baseColorOrDiffuseTexture = WhiteTexture;
+		BasicTexture baseColorOrDiffuseTexture = WhiteTexture;
 		if (material.IsSpecularGlossiness && material.SpecularGlossiness.DiffuseTexture.Resource.IsValid())
 		{
 			baseColorOrDiffuseTexture = material.SpecularGlossiness.DiffuseTexture;
@@ -733,7 +781,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			baseColorOrDiffuseTexture = material.MetallicRoughness.BaseColorTexture;
 		}
 
-		Texture metallicRoughnessOrSpecularGlossinessTexture = WhiteTexture;
+		BasicTexture metallicRoughnessOrSpecularGlossinessTexture = WhiteTexture;
 		if (material.IsSpecularGlossiness && material.SpecularGlossiness.SpecularGlossinessTexture.Resource.IsValid())
 		{
 			metallicRoughnessOrSpecularGlossinessTexture = material.SpecularGlossiness.SpecularGlossinessTexture;
@@ -761,13 +809,13 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
-	SceneMaterialBuffer = CreateBuffer(&Device,
-									   SceneMaterials.GetLength() * sizeof(HLSL::Material),
-									   sizeof(HLSL::Material),
-									   ResourceFlags::None,
-									   ViewType::ShaderResource,
-									   materialData.GetData(),
-									   "Scene Material Buffer"_view);
+	SceneMaterialBuffer = CreateBasicBuffer(&Device,
+											SceneMaterials.GetLength() * sizeof(HLSL::Material),
+											sizeof(HLSL::Material),
+											ResourceFlags::None,
+											ViewType::ShaderResource,
+											materialData.GetData(),
+											"Scene Material Buffer"_view);
 
 	bool hasDirectionalLight = false;
 	HLSL::DirectionalLight directionalLight;
@@ -814,34 +862,36 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		};
 	}
 
-	SceneDirectionalLightBuffer = CreateBuffer(&Device,
-											   sizeof(directionalLight),
-											   0,
-											   ResourceFlags::None,
-											   ViewType::ConstantBuffer,
-											   &directionalLight,
-											   "Scene Directional Light Buffer"_view);
+	SceneDirectionalLightBuffer = CreateBasicBuffer(&Device,
+													sizeof(directionalLight),
+													0,
+													ResourceFlags::None,
+													ViewType::ConstantBuffer,
+													&directionalLight,
+													"Scene Directional Light Buffer"_view);
 	if (!pointLights.IsEmpty())
 	{
-		ScenePointLightsBuffer = CreateBuffer(&Device,
-											  pointLights.GetDataSize(),
-											  pointLights.GetElementSize(),
-											  ResourceFlags::None,
-											  ViewType::ShaderResource,
-											  pointLights.GetData(),
-											  "Scene Point Lights Buffer"_view);
+		ScenePointLightsBuffer = CreateBasicBuffer(&Device,
+												   pointLights.GetDataSize(),
+												   pointLights.GetElementSize(),
+												   ResourceFlags::None,
+												   ViewType::ShaderResource,
+												   pointLights.GetData(),
+												   "Scene Point Lights Buffer"_view);
 	}
 }
 
 void Renderer::UnloadScene()
 {
-	for (Buffer& sceneBuffer : SceneBuffers)
+	for (BasicBuffer& sceneBuffer : SceneBuffers)
 	{
 		Device.Destroy(&sceneBuffer.Resource);
 		Device.Destroy(&sceneBuffer.View);
 	}
 	Device.Destroy(&SceneVertexBuffer.Resource);
 	Device.Destroy(&SceneVertexBuffer.View);
+	Device.Destroy(&ScenePrimitiveBuffer.Resource);
+	Device.Destroy(&ScenePrimitiveBuffer.View);
 	Device.Destroy(&SceneNodeBuffer.Resource);
 	Device.Destroy(&SceneNodeBuffer.View);
 	Device.Destroy(&SceneMaterialBuffer.Resource);
@@ -1040,7 +1090,7 @@ void Renderer::DestroyScreenTextures()
 	Device.Destroy(&HdrTexture);
 	Device.Destroy(&DepthTexture.View);
 	Device.Destroy(&DepthTexture.Resource);
-	for (Texture& swapChainTexture : SwapChainTextures)
+	for (BasicTexture& swapChainTexture : SwapChainTextures)
 	{
 		Device.Destroy(&swapChainTexture.Resource);
 		Device.Destroy(&swapChainTexture.View);
