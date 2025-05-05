@@ -7,13 +7,13 @@
 
 static constexpr RHI::ResourceFormat HdrFormat = RHI::ResourceFormat::Rgba32Float;
 
-struct Buffer
+struct BasicBuffer
 {
 	RHI::Resource Resource;
 	RHI::BufferView View;
 };
 
-struct Texture
+struct BasicTexture
 {
 	RHI::Resource Resource;
 	RHI::TextureView View;
@@ -29,6 +29,8 @@ enum class ViewMode : uint32
 
 struct Primitive
 {
+	usize GlobalIndex;
+
 	usize PositionOffset;
 	usize PositionStride;
 	usize PositionSize;
@@ -67,27 +69,27 @@ struct Node
 
 struct SpecularGlossiness
 {
-	Texture DiffuseTexture;
+	BasicTexture DiffuseTexture;
 	Float4 DiffuseFactor;
 
-	Texture SpecularGlossinessTexture;
+	BasicTexture SpecularGlossinessTexture;
 	Float3 SpecularFactor;
 	float GlossinessFactor;
 };
 
 struct MetallicRoughness
 {
-	Texture BaseColorTexture;
+	BasicTexture BaseColorTexture;
 	Float4 BaseColorFactor;
 
-	Texture MetallicRoughnessTexture;
+	BasicTexture MetallicRoughnessTexture;
 	float MetallicFactor;
 	float RoughnessFactor;
 };
 
 struct Material
 {
-	Texture NormalMapTexture;
+	BasicTexture NormalMapTexture;
 
 	union
 	{
@@ -143,6 +145,8 @@ struct Scene
 	Float3 ViewPosition;
 
 	uint32 DefaultSamplerIndex;
+	uint32 VertexBufferIndex;
+	uint32 PrimitiveBufferIndex;
 	uint32 NodeBufferIndex;
 	uint32 MaterialBufferIndex;
 	uint32 DirectionalLightBufferIndex;
@@ -151,7 +155,18 @@ struct Scene
 
 	uint32 PointLightsCount;
 
-	PAD(152);
+	PAD(144);
+};
+
+struct Primitive
+{
+	uint32 TextureCoordinateOffset;
+	uint32 TextureCoordinateStride;
+
+	uint32 IndexOffset;
+	uint32 IndexStride;
+
+	uint32 MaterialIndex;
 };
 
 struct Node
