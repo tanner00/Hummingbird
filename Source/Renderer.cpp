@@ -76,6 +76,7 @@ static BasicBuffer CreateBasicBuffer(Device* device,
 Renderer::Renderer(const Platform::Window* window)
 	: Device(window)
 	, Graphics(Device.Create(GraphicsContextDescription {}))
+	, ViewMode(ViewMode::Lit)
 #if !RELEASE
 	, AverageCpuTime(0.0)
 	, AverageGpuTime(0.0)
@@ -137,23 +138,22 @@ void Renderer::Update(const CameraController& cameraController)
 	const double startCpuTime = Platform::GetTime();
 #endif
 
-	static ViewMode viewMode = ViewMode::Lit;
 #if !RELEASE
 	if (IsKeyPressedOnce(Key::L))
 	{
-		viewMode = ViewMode::Lit;
+		ViewMode = ViewMode::Lit;
 	}
 	if (IsKeyPressedOnce(Key::U))
 	{
-		viewMode = ViewMode::Unlit;
+		ViewMode = ViewMode::Unlit;
 	}
 	if (IsKeyPressedOnce(Key::G))
 	{
-		viewMode = ViewMode::Geometry;
+		ViewMode = ViewMode::Geometry;
 	}
 	if (IsKeyPressedOnce(Key::N))
 	{
-		viewMode = ViewMode::Normal;
+		ViewMode = ViewMode::Normal;
 	}
 
 	if (IsKeyPressedOnce(Key::R))
@@ -163,31 +163,6 @@ void Renderer::Update(const CameraController& cameraController)
 		CreatePipelines();
 	}
 #endif
-
-	const Matrix view = cameraController.GetTransform().GetInverse();
-	const Matrix projection = Matrix::Perspective
-	(
-		cameraController.GetFieldOfViewYRadians(),
-		cameraController.GetAspectRatio(),
-		cameraController.GetNearZ(),
-		cameraController.GetFarZ()
-	);
-	const Vector viewPosition = cameraController.GetPosition();
-	const HLSL::Scene sceneData =
-	{
-		.ViewProjection = projection * view,
-		.ViewPosition = Float3 { viewPosition.X, viewPosition.Y, viewPosition.Z },
-		.DefaultSamplerIndex = Device.Get(DefaultSampler),
-		.VertexBufferIndex = Device.Get(SceneVertexBuffer.View),
-		.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
-		.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
-		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer.View),
-		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
-		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
-		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
-		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
-	};
-	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
 
 	Graphics.Begin();
 
@@ -204,81 +179,37 @@ void Renderer::Update(const CameraController& cameraController)
 	Graphics.ClearRenderTarget(HdrTextureRenderTargetView, { 0.0f, 0.0f, 0.0f, 1.0f });
 	Graphics.ClearDepthStencil(DepthTexture.View);
 
-	Graphics.SetRenderTarget(HdrTextureRenderTargetView, DepthTexture.View);
-
-	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetLength(); ++nodeIndex)
 	{
-		const Node& node = SceneNodes[nodeIndex];
-		const Mesh& mesh = SceneMeshes[node.MeshIndex];
-
-		const Matrix normalTransform = node.Transform.GetInverse().GetTranspose();
-
-		for (const Primitive& primitive : mesh.Primitives)
+		const Matrix view = cameraController.GetTransform().GetInverse();
+		const Matrix projection = Matrix::Perspective
+		(
+			cameraController.GetFieldOfViewYRadians(),
+			cameraController.GetAspectRatio(),
+			cameraController.GetNearZ(),
+			cameraController.GetFarZ()
+		);
+		const Vector viewPosition = cameraController.GetPosition();
+		const HLSL::Scene sceneData =
 		{
-			const HLSL::SceneRootConstants rootConstants =
-			{
-				.NodeIndex = static_cast<uint32>(nodeIndex),
-				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
-				.ViewMode = viewMode,
-				.NormalTransform = normalTransform,
-			};
+			.ViewProjection = projection * view,
+			.ViewPosition = Float3 { viewPosition.X, viewPosition.Y, viewPosition.Z },
+			.DefaultSamplerIndex = Device.Get(DefaultSampler),
+			.VertexBufferIndex = Device.Get(SceneVertexBuffer.View),
+			.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
+			.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
+			.MaterialBufferIndex = Device.Get(SceneMaterialBuffer.View),
+			.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
+			.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
+			.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
+			.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
+		};
+		Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
 
-			const bool requiresBlend = (primitive.MaterialIndex != INDEX_NONE) ? SceneMaterials[primitive.MaterialIndex].RequiresBlend : false;
-			if (requiresBlend)
-			{
-				Graphics.SetPipeline(SceneBlendPipeline);
-			}
-			else
-			{
-				Graphics.SetPipeline(SceneOpaquePipeline);
-			}
+		Graphics.SetRenderTarget(DepthTexture.View);
+		UpdateScene(SceneDepthPrePassPipeline, GraphicsPipeline::Invalid());
 
-			Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
-
-			Graphics.SetRootConstants(&rootConstants);
-
-			Graphics.SetVertexBuffer(0,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.PositionSize,
-										 .Stride = primitive.PositionStride,
-										 .Offset = primitive.PositionOffset,
-									 });
-			Graphics.SetVertexBuffer(1,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.TextureCoordinateSize,
-										 .Stride = primitive.TextureCoordinateStride,
-										 .Offset = primitive.TextureCoordinateOffset,
-									 });
-			Graphics.SetVertexBuffer(2,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.NormalSize,
-										 .Stride = primitive.NormalStride,
-										 .Offset = primitive.NormalOffset,
-									 });
-			Graphics.SetVertexBuffer(3,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.TangentSize,
-										 .Stride = primitive.TangentStride,
-										 .Offset = primitive.TangentOffset,
-									 });
-			Graphics.SetIndexBuffer(SubBuffer
-									{
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.IndexSize,
-										 .Stride = primitive.IndexStride,
-										 .Offset = primitive.IndexOffset,
-									});
-
-			Graphics.DrawIndexed(primitive.IndexSize / primitive.IndexStride);
-		}
+		Graphics.SetRenderTarget(HdrTextureRenderTargetView, DepthTexture.View);
+		UpdateScene(SceneOpaquePipeline, SceneBlendPipeline);
 	}
 
 	Graphics.TextureBarrier
@@ -348,7 +279,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.HdrTextureIndex = Device.Get(HdrTextureShaderResourceView),
 		.DefaultSamplerIndex = Device.Get(DefaultSampler),
 		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
-		.DebugViewMode = viewMode != ViewMode::Lit,
+		.DebugViewMode = ViewMode != ViewMode::Lit,
 	};
 
 	Graphics.SetPipeline(ToneMapPipeline);
@@ -373,6 +304,90 @@ void Renderer::Update(const CameraController& cameraController)
 
 	Device.Submit(Graphics);
 	Device.Present();
+}
+
+void Renderer::UpdateScene(const GraphicsPipeline& opaquePipeline, const GraphicsPipeline& blendPipeline)
+{
+	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetLength(); ++nodeIndex)
+	{
+		const Node& node = SceneNodes[nodeIndex];
+		const Mesh& mesh = SceneMeshes[node.MeshIndex];
+
+		const Matrix normalTransform = node.Transform.GetInverse().GetTranspose();
+
+		for (const Primitive& primitive : mesh.Primitives)
+		{
+			const HLSL::SceneRootConstants rootConstants =
+			{
+				.NodeIndex = static_cast<uint32>(nodeIndex),
+				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
+				.ViewMode = ViewMode,
+				.NormalTransform = normalTransform,
+			};
+
+			const bool translucent = (primitive.MaterialIndex != INDEX_NONE) ? SceneMaterials[primitive.MaterialIndex].Translucent : false;
+			const bool opaqueOnly = translucent && !blendPipeline.IsValid();
+			if (opaqueOnly)
+			{
+				continue;
+			}
+
+			if (translucent)
+			{
+				Graphics.SetPipeline(blendPipeline);
+			}
+			else
+			{
+				Graphics.SetPipeline(opaquePipeline);
+			}
+
+			Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
+
+			Graphics.SetRootConstants(&rootConstants);
+
+			Graphics.SetVertexBuffer(0,
+									 SubBuffer
+									 {
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.PositionSize,
+										 .Stride = primitive.PositionStride,
+										 .Offset = primitive.PositionOffset,
+									 });
+			Graphics.SetVertexBuffer(1,
+									 SubBuffer
+									 {
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.TextureCoordinateSize,
+										 .Stride = primitive.TextureCoordinateStride,
+										 .Offset = primitive.TextureCoordinateOffset,
+									 });
+			Graphics.SetVertexBuffer(2,
+									 SubBuffer
+									 {
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.NormalSize,
+										 .Stride = primitive.NormalStride,
+										 .Offset = primitive.NormalOffset,
+									 });
+			Graphics.SetVertexBuffer(3,
+									 SubBuffer
+									 {
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.TangentSize,
+										 .Stride = primitive.TangentStride,
+										 .Offset = primitive.TangentOffset,
+									 });
+			Graphics.SetIndexBuffer(SubBuffer
+									{
+										 .Resource = SceneVertexBuffer.Resource,
+										 .Size = primitive.IndexSize,
+										 .Stride = primitive.IndexStride,
+										 .Offset = primitive.IndexOffset,
+									});
+
+			Graphics.DrawIndexed(primitive.IndexSize / primitive.IndexStride);
+		}
+	}
 }
 
 #if !RELEASE
@@ -720,7 +735,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		{
 			.NormalMapTexture = convertTexture(scene, gltfMaterial.NormalMapTexture, "Scene Normal Map Texture"_view),
 			.IsSpecularGlossiness = gltfMaterial.IsSpecularGlossiness,
-			.RequiresBlend = gltfMaterial.AlphaMode == GLTF::AlphaMode::Blend,
+			.Translucent = gltfMaterial.AlphaMode != GLTF::AlphaMode::Opaque,
 			.AlphaCutoff = gltfMaterial.AlphaCutoff,
 		};
 		if (gltfMaterial.IsSpecularGlossiness)
@@ -943,21 +958,28 @@ void Renderer::CreatePipelines()
 											   StringView path,
 											   ResourceFormat format,
 											   bool alphaBlend,
+											   bool pixelShader,
 											   bool depth) -> GraphicsPipeline
 	{
+		ShaderStages stages;
+
 		Shader vertex = Device.Create(
 		{
 			.Stage = ShaderStage::Vertex,
 			.FilePath = path,
 		});
-		Shader pixel = Device.Create(
-		{
-			.Stage = ShaderStage::Pixel,
-			.FilePath = path,
-		});
-		ShaderStages stages;
 		stages.AddStage(vertex);
-		stages.AddStage(pixel);
+
+		Shader pixel;
+		if (pixelShader)
+		{
+			pixel = Device.Create(
+			{
+				.Stage = ShaderStage::Pixel,
+				.FilePath = path,
+			});
+			stages.AddStage(pixel);
+		}
 
 		const GraphicsPipeline pipeline = Device.Create(
 		{
@@ -968,7 +990,10 @@ void Renderer::CreatePipelines()
 			.Name = name,
 		});
 		Device.Destroy(&vertex);
-		Device.Destroy(&pixel);
+		if (pixel.IsValid())
+		{
+			Device.Destroy(&pixel);
+		}
 
 		return pipeline;
 	};
@@ -994,17 +1019,26 @@ void Renderer::CreatePipelines()
 												 "Shaders/Scene.hlsl"_view,
 												 HdrFormat,
 												 false,
+												 true,
 												 true);
 	SceneBlendPipeline = createGraphicsPipeline("Scene Blend Pipeline"_view,
 												"Shaders/Scene.hlsl"_view,
 												HdrFormat,
 												true,
+												true,
 												true);
+	SceneDepthPrePassPipeline = createGraphicsPipeline("Scene Depth Pre-Pass Pipeline"_view,
+													   "Shaders/Scene.hlsl"_view,
+													   ResourceFormat::None,
+													   false,
+													   false,
+													   true);
 
 	ToneMapPipeline = createGraphicsPipeline("Tone Map Pipeline"_view,
 											 "Shaders/ToneMap.hlsl"_view,
 											 ResourceFormat::Rgba8SrgbUnorm,
 											 false,
+											 true,
 											 false);
 
 	LuminanceHistogramPipeline = createComputePipeline("Luminance Histogram Pipeline"_view, "Shaders/LuminanceHistogram.hlsl"_view);
@@ -1020,6 +1054,7 @@ void Renderer::DestroyPipelines()
 
 	Device.Destroy(&SceneOpaquePipeline);
 	Device.Destroy(&SceneBlendPipeline);
+	Device.Destroy(&SceneDepthPrePassPipeline);
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)

@@ -27,6 +27,8 @@ public:
 	}
 
 private:
+	void UpdateScene(const RHI::GraphicsPipeline& opaquePipeline, const RHI::GraphicsPipeline& blendPipeline);
+
 #if !RELEASE
 	void UpdateFrameTimes(double startCpuTime);
 #endif
@@ -68,6 +70,7 @@ private:
 
 	RHI::GraphicsPipeline SceneOpaquePipeline;
 	RHI::GraphicsPipeline SceneBlendPipeline;
+	RHI::GraphicsPipeline SceneDepthPrePassPipeline;
 
 	RHI::ComputePipeline LuminanceHistogramPipeline;
 	RHI::ComputePipeline LuminanceAveragePipeline;
@@ -77,6 +80,8 @@ private:
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;
 	Array<Material> SceneMaterials;
+
+	ViewMode ViewMode;
 
 #if !RELEASE
 	double AverageCpuTime;
