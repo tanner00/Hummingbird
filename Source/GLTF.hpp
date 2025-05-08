@@ -129,9 +129,9 @@ struct Accessor
 
 struct AccessorView
 {
-	usize Offset;
-	usize Stride;
 	usize Size;
+	usize Stride;
+	usize Offset;
 };
 
 struct Image
@@ -288,7 +288,7 @@ inline AccessorView GetAccessorView(const Scene& scene, usize accessorIndex)
 	const usize size = accessor.Count * stride;
 	CHECK(offset + size <= buffer.Size);
 
-	return AccessorView { offset, stride, size };
+	return AccessorView { size, stride, offset };
 }
 
 }

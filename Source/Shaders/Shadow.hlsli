@@ -25,7 +25,9 @@ float CastShadowRay(float3 origin,
 
 	[branch]
 	if (opaqueQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+	{
 		return 0.0f;
+	}
 
 	const RAY_FLAG translucentFlags = RAY_FLAG_CULL_OPAQUE;
 	RayQuery<translucentFlags> translucentQuery;
@@ -78,7 +80,9 @@ float CastShadowRay(float3 origin,
 
 			[branch]
 			if (alpha >= material.AlphaCutoff)
+			{
 				return 0.0f;
+			}
 		}
 	}
 

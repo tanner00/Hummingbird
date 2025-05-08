@@ -68,7 +68,9 @@ static BasicBuffer CreateBasicBuffer(Device* device,
 		},
 	});
 	if (data)
+	{
 		device->Write(&buffer, data);
+	}
 
 	return BasicBuffer { buffer, view };
 }
@@ -76,6 +78,9 @@ static BasicBuffer CreateBasicBuffer(Device* device,
 Renderer::Renderer(const Platform::Window* window)
 	: Device(window)
 	, Graphics(Device.Create(GraphicsContextDescription {}))
+	, SceneMeshes(RendererAllocator)
+	, SceneNodes(RendererAllocator)
+	, SceneMaterials(RendererAllocator)
 	, ViewMode(ViewMode::Lit)
 #if !RELEASE
 	, AverageCpuTime(0.0)
@@ -462,9 +467,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 				tangentView = GLTF::AccessorView
 				{
-					.Offset = vertexBuffer.Size + computedTangentsCount * sizeof(Float4),
-					.Stride = primitiveTangents.GetElementSize(),
 					.Size = primitiveTangents.GetDataSize(),
+					.Stride = primitiveTangents.GetElementSize(),
+					.Offset = vertexBuffer.Size + computedTangentsCount * sizeof(Float4),
 				};
 				computedTangentsCount += tangentsCount;
 
@@ -663,6 +668,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Size = instances.GetLength() * Device.GetAccelerationStructureInstanceSize(),
 		.Name = "Scene Acceleration Structure Instances"_view,
 	});
+	transientResources.Add(instancesResource);
 	Device.Write(&instancesResource, instances.GetData());
 
 	const Buffer instancesBuffer = Buffer
@@ -682,6 +688,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Size = size.ScratchSize,
 		.Name = "Scratch Scene Acceleration Structure"_view,
 	});
+	transientResources.Add(scratchResource);
 	SceneAccelerationStructureResource = Device.Create(
 	{
 		.Type = ResourceType::Buffer,
@@ -702,8 +709,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	Device.Submit(Graphics);
 	Device.WaitForIdle();
 
-	transientResources.Add(scratchResource);
-	transientResources.Add(instancesResource);
 	for (Resource& resource : transientResources)
 	{
 		Device.Destroy(&resource);
@@ -714,7 +719,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		const auto convertTexture = [this](const GLTF::Scene& scene, usize textureIndex, StringView textureName) -> BasicTexture
 		{
 			if (textureIndex == INDEX_NONE)
+			{
 				return BasicTexture { Resource::Invalid(), TextureView::Invalid() };
+			}
 
 			const GLTF::Texture& gltfTexture = scene.Textures[textureIndex];
 			const GLTF::Image& gltfImage = scene.Images[gltfTexture.Image];

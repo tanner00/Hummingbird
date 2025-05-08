@@ -71,7 +71,9 @@ Value::Value(const Value& copy)
 Value& Value::operator=(const Value& copy)
 {
 	if (&copy == this)
+	{
 		return *this;
+	}
 
 	Tag = copy.Tag;
 
@@ -139,7 +141,9 @@ Value::Value(Value&& move) noexcept
 Value& Value::operator=(Value&& move) noexcept
 {
 	if (&move == this)
+	{
 		return *this;
+	}
 
 	this->~Value();
 
