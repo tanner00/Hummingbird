@@ -4,18 +4,13 @@
 
 #include "Luft/Platform.hpp"
 
-static bool NeedsResize = false;
-
 static const StringView scenes[] =
 {
 	"Assets/Scenes/Sponza/Sponza.gltf"_view,
 	"Assets/Scenes/Bistro/Bistro.gltf"_view,
 };
 
-static void ResizeHandler(Platform::Window*)
-{
-	NeedsResize = true;
-}
+static bool NeedsResize = false;
 
 void Start()
 {
@@ -51,7 +46,10 @@ void Start()
 	setScene(0, &renderer, &cameraController);
 
 	Platform::ShowWindow(window);
-	Platform::InstallResizeHandler(ResizeHandler);
+	Platform::InstallResizeHandler([](Platform::Window*) -> void
+	{
+		NeedsResize = true;
+	});
 
 	double timeLast = 0.0;
 

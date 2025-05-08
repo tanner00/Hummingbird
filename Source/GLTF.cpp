@@ -185,7 +185,7 @@ Scene LoadScene(StringView filePath)
 				const JSON::Array& rotationArray = nodeObject["rotation"_view].GetArray();
 				VERIFY(rotationArray.GetLength() == 4, "Invalid GLTF rotation!");
 
-				rotation =
+				rotation = Quaternion
 				{
 					static_cast<float>(rotationArray[0].GetDecimal()),
 					static_cast<float>(rotationArray[1].GetDecimal()),
@@ -200,7 +200,7 @@ Scene LoadScene(StringView filePath)
 				const JSON::Array& scaleArray = nodeObject["scale"_view].GetArray();
 				VERIFY(scaleArray.GetLength() == 3, "Invalid GLTF scale!");
 
-				scale =
+				scale = Vector
 				{
 					static_cast<float>(scaleArray[0].GetDecimal()),
 					static_cast<float>(scaleArray[1].GetDecimal()),
@@ -320,18 +320,26 @@ Scene LoadScene(StringView filePath)
 
 		usize offset = 0;
 		if (bufferViewObject.HasKey("byteOffset"_view))
+		{
 			offset = static_cast<usize>(bufferViewObject["byteOffset"_view].GetDecimal());
+		}
 
 		TargetType targetType;
 		if (bufferViewObject.HasKey("target"_view))
 		{
 			const usize targetTypeNumber = static_cast<usize>(bufferViewObject["target"_view].GetDecimal());
 			if (targetTypeNumber == 34962)
+			{
 				targetType = TargetType::ArrayBuffer;
+			}
 			else if (targetTypeNumber == 34963)
+			{
 				targetType = TargetType::ElementArrayBuffer;
+			}
 			else
+			{
 				VERIFY(false, "Unexpected GLTF target type!");
+			}
 		}
 		else
 			targetType = TargetType::ArrayBuffer;
@@ -352,7 +360,9 @@ Scene LoadScene(StringView filePath)
 			const JSON::Object& primitiveObject = primitiveValue.GetObject();
 
 			if (primitiveObject.HasKey("mode"_view))
+			{
 				VERIFY(static_cast<usize>(primitiveObject["mode"_view].GetDecimal()) == 4, "Unexpected GLTF primitive type!");
+			}
 
 			const usize indices = static_cast<usize>(primitiveObject["indices"_view].GetDecimal());
 			const usize material = static_cast<usize>(primitiveObject["material"_view].GetDecimal());
@@ -361,13 +371,21 @@ Scene LoadScene(StringView filePath)
 			HashTable<AttributeType, usize> attributes { 4, Allocator };
 
 			if (attributesObject.HasKey("POSITION"_view))
+			{
 				attributes.Add(AttributeType::Position, static_cast<usize>(attributesObject["POSITION"_view].GetDecimal()));
+			}
 			if (attributesObject.HasKey("NORMAL"_view))
+			{
 				attributes.Add(AttributeType::Normal, static_cast<usize>(attributesObject["NORMAL"_view].GetDecimal()));
+			}
 			if (attributesObject.HasKey("TANGENT"_view))
+			{
 				attributes.Add(AttributeType::Tangent, static_cast<usize>(attributesObject["TANGENT"_view].GetDecimal()));
+			}
 			if (attributesObject.HasKey("TEXCOORD_0"_view))
+			{
 				attributes.Add(AttributeType::Texcoord0, static_cast<usize>(attributesObject["TEXCOORD_0"_view].GetDecimal()));
+			}
 
 			primitives.Emplace(Move(attributes), indices, material);
 		}
@@ -547,7 +565,9 @@ Scene LoadScene(StringView filePath)
 	const auto toFilter = [](usize filter, bool magnification) -> Filter
 	{
 		if (magnification)
+		{
 			CHECK(filter == 9728 || filter == 9729);
+		}
 
 		switch (filter)
 		{
@@ -625,41 +645,73 @@ Scene LoadScene(StringView filePath)
 
 		usize offset = 0;
 		if (accessorObject.HasKey("byteOffset"_view))
+		{
 			offset = static_cast<usize>(accessorObject["byteOffset"_view].GetDecimal());
+		}
 
 		ComponentType componentType;
 		if (componentTypeNumber == 5120)
+		{
 			componentType = ComponentType::Int8;
+		}
 		else if (componentTypeNumber == 5121)
+		{
 			componentType = ComponentType::Uint8;
+		}
 		else if (componentTypeNumber == 5122)
+		{
 			componentType = ComponentType::Uint16;
+		}
 		else if (componentTypeNumber == 5123)
+		{
 			componentType = ComponentType::Int16;
+		}
 		else if (componentTypeNumber == 5125)
+		{
 			componentType = ComponentType::Uint32;
+		}
 		else if (componentTypeNumber == 5126)
+		{
 			componentType = ComponentType::Float32;
+		}
 		else
+		{
 			VERIFY(false, "Unexpected GLTF component type!");
+		}
 
 		AccessorType accessorType;
 		if (accessorTypeString == "SCALAR"_view)
+		{
 			accessorType = AccessorType::Scalar;
+		}
 		else if (accessorTypeString == "VEC2"_view)
+		{
 			accessorType = AccessorType::Vector2;
+		}
 		else if (accessorTypeString == "VEC3"_view)
+		{
 			accessorType = AccessorType::Vector3;
+		}
 		else if (accessorTypeString == "VEC4"_view)
+		{
 			accessorType = AccessorType::Vector4;
+		}
 		else if (accessorTypeString == "MAT2"_view)
+		{
 			accessorType = AccessorType::Matrix2;
+		}
 		else if (accessorTypeString == "MAT3"_view)
+		{
 			accessorType = AccessorType::Matrix3;
+		}
 		else if (accessorTypeString == "MAT4"_view)
+		{
 			accessorType = AccessorType::Matrix4;
+		}
 		else
+		{
 			VERIFY(false, "Unexpected GLTF accessor type!");
+		}
 
 		accessors.Emplace(bufferView, count, offset, componentType, accessorType);
 	}
