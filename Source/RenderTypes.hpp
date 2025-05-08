@@ -98,7 +98,7 @@ struct Material
 	};
 	bool IsSpecularGlossiness;
 
-	bool RequiresBlend;
+	bool Translucent;
 	float AlphaCutoff;
 };
 
