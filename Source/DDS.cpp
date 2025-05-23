@@ -53,15 +53,19 @@ static RHI::ResourceFormat From(DXGI_FORMAT format)
 	case DXGI_FORMAT_UNKNOWN:
 		return RHI::ResourceFormat::None;
 	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return RHI::ResourceFormat::Rgba8Unorm;
+		return RHI::ResourceFormat::RGBA8UNorm;
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		return RHI::ResourceFormat::Rgba8SrgbUnorm;
-	case DXGI_FORMAT_R32G32B32A32_FLOAT:
-		return RHI::ResourceFormat::Rgba32Float;
+		return RHI::ResourceFormat::RGBA8UNormSRGB;
 	case DXGI_FORMAT_BC7_UNORM:
-		return RHI::ResourceFormat::Bc7Unorm;
+		return RHI::ResourceFormat::BC7UNorm;
 	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return RHI::ResourceFormat::Bc7SrgbUnorm;
+		return RHI::ResourceFormat::BC7UNormSRGB;
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		return RHI::ResourceFormat::RGBA16Float;
+	case DXGI_FORMAT_R32G32B32A32_FLOAT:
+		return RHI::ResourceFormat::RGBA32Float;
+	case DXGI_FORMAT_R32G32_UINT:
+		return RHI::ResourceFormat::RG32UInt;
 	case DXGI_FORMAT_D24_UNORM_S8_UINT:
 		return RHI::ResourceFormat::Depth24Stencil8;
 	case DXGI_FORMAT_D32_FLOAT:
