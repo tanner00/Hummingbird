@@ -10,8 +10,8 @@ struct PixelInput
 
 struct RootConstants
 {
-	uint HdrTextureIndex;
-	uint DefaultSamplerIndex;
+	uint HDRTextureIndex;
+	uint AnisotropicWrapSamplerIndex;
 	uint LuminanceBufferIndex;
 
 	bool DebugViewMode;
@@ -58,18 +58,18 @@ float3 ToneMapAcesApproximate(float3 x)
 
 float4 PixelStart(PixelInput input) : SV_TARGET
 {
-	const Texture2D<float3> hdrTexture = ResourceDescriptorHeap[RootConstants.HdrTextureIndex];
-	const SamplerState defaultSampler = ResourceDescriptorHeap[RootConstants.DefaultSamplerIndex];
+	const Texture2D<float3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
+	const SamplerState anisotropicWrapSampler = ResourceDescriptorHeap[RootConstants.AnisotropicWrapSamplerIndex];
 
 	if (RootConstants.DebugViewMode)
 	{
-		const float3 ldrColor = hdrTexture.Sample(defaultSampler, input.Uv);
+		const float3 ldrColor = hdrTexture.Sample(anisotropicWrapSampler, input.Uv);
 		return float4(ldrColor, 1.0f);
 	}
 
 	RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 
-	const float3 hdrColor = hdrTexture.Sample(defaultSampler, input.Uv);
+	const float3 hdrColor = hdrTexture.Sample(anisotropicWrapSampler, input.Uv);
 
 	const float averageLuminance = luminanceBuffer.Load<float>(LuminanceHistogramBinsCount * sizeof(uint));
 

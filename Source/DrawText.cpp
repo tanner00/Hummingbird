@@ -37,10 +37,10 @@ void DrawText::Init(RHI::Device* device)
 		const JSON::Object& glyphObject = glyphValue.GetObject();
 
 		const float advance = static_cast<float>(glyphObject["advance"_view].GetDecimal());
-		Float2 atlasPosition = { 0.0f, 0.0f };
-		Float2 atlasSize = { 0.0f, 0.0f };
-		Float2 planePosition = { 0.0f, 0.0f };
-		Float2 planeSize = { 0.0f, 0.0f };
+		Float2 atlasPosition = { .X = 0.0f, .Y = 0.0f };
+		Float2 atlasSize = { .X = 0.0f, .Y = 0.0f };
+		Float2 planePosition = { .X = 0.0f, .Y = 0.0f };
+		Float2 planeSize = { .X = 0.0f, .Y = 0.0f };
 
 		if (glyphObject.HasKey("atlasBounds"_view))
 		{
@@ -108,13 +108,13 @@ void DrawText::Init(RHI::Device* device)
 
 	RHI::Shader vertex = device->Create(
 	{
-		.Stage = RHI::ShaderStage::Vertex,
 		.FilePath = "Shaders/Text.hlsl"_view,
+		.Stage = RHI::ShaderStage::Vertex,
 	});
 	RHI::Shader pixel = device->Create(
 	{
-		.Stage = RHI::ShaderStage::Pixel,
 		.FilePath = "Shaders/Text.hlsl"_view,
+		.Stage = RHI::ShaderStage::Pixel,
 	});
 
 	RHI::ShaderStages stages;
@@ -123,7 +123,7 @@ void DrawText::Init(RHI::Device* device)
 	Pipeline = device->Create(
 	{
 		.Stages = Move(stages),
-		.RenderTargetFormat = RHI::ResourceFormat::Rgba8SrgbUnorm,
+		.RenderTargetFormats = { RHI::ResourceFormat::RGBA8UNormSRGB },
 		.DepthStencilFormat = RHI::ResourceFormat::None,
 		.AlphaBlend = true,
 		.Name = "Text Pipeline"_view,
@@ -180,7 +180,7 @@ void DrawText::Shutdown(const RHI::Device& device)
 
 void DrawText::Draw(StringView text, Float2 position, Float3 rgb, float scale)
 {
-	Draw(text, position, Float4 { rgb.X, rgb.Y, rgb.Z, 1.0f }, scale);
+	Draw(text, position, { .R = rgb.R, .G = rgb.G, .B = rgb.B, .A = 1.0f }, scale);
 }
 
 void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
@@ -190,7 +190,7 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 		CharacterIndex = 0;
 	}
 
-	Float2 currentPosition = { position.X, position.Y - scale * Ascender };
+	Float2 currentPosition = { .X = position.X, .Y = position.Y - scale * Ascender };
 	for (usize i = 0; i < text.GetLength(); ++i)
 	{
 		const Glyph& glyph = Glyphs[text[i]];

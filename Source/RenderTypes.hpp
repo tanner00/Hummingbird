@@ -5,7 +5,7 @@
 #include "Luft/Array.hpp"
 #include "Luft/Math.hpp"
 
-static constexpr RHI::ResourceFormat HdrFormat = RHI::ResourceFormat::Rgba32Float;
+static constexpr RHI::ResourceFormat HDRFormat = RHI::ResourceFormat::RGBA32Float;
 
 struct BasicBuffer
 {
@@ -17,6 +17,14 @@ struct BasicTexture
 {
 	RHI::Resource Resource;
 	RHI::TextureView View;
+};
+
+struct RenderTarget
+{
+	RHI::Resource Resource;
+	RHI::TextureView RenderTargetView;
+	RHI::TextureView ShaderResourceView;
+	RHI::TextureView UnorderedAccessView;
 };
 
 enum class ViewMode : uint32
@@ -107,20 +115,32 @@ namespace HLSL
 
 struct SceneRootConstants
 {
+	uint32 AnisotropicWrapSamplerIndex;
+
+	uint32 DrawCallIndex;
+	uint32 PrimitiveIndex;
 	uint32 NodeIndex;
-	uint32 MaterialIndex;
 
 	ViewMode ViewMode;
 
-	PAD(4);
+	PAD(12);
 
 	Matrix NormalTransform;
 };
 
+struct DeferredRootConstants
+{
+	uint32 HDRTextureIndex;
+	uint32 AnisotropicWrapSamplerIndex;
+	uint32 VisibilityBufferTextureIndex;
+
+	ViewMode ViewMode;
+};
+
 struct LuminanceHistogramRootConstants
 {
+	uint32 HDRTextureIndex;
 	uint32 LuminanceBufferIndex;
-	uint32 HdrTextureIndex;
 };
 
 struct LuminanceAverageRootConstants
@@ -132,8 +152,8 @@ struct LuminanceAverageRootConstants
 
 struct ToneMapRootConstants
 {
-	uint32 HdrTextureIndex;
-	uint32 DefaultSamplerIndex;
+	uint32 HDRTextureIndex;
+	uint32 AnisotropicWrapSamplerIndex;
 	uint32 LuminanceBufferIndex;
 
 	bool32 DebugViewMode;
@@ -144,11 +164,11 @@ struct Scene
 	Matrix ViewProjection;
 	Float3 ViewPosition;
 
-	uint32 DefaultSamplerIndex;
 	uint32 VertexBufferIndex;
 	uint32 PrimitiveBufferIndex;
 	uint32 NodeBufferIndex;
 	uint32 MaterialBufferIndex;
+	uint32 DrawCallBufferIndex;
 	uint32 DirectionalLightBufferIndex;
 	uint32 PointLightsBufferIndex;
 	uint32 AccelerationStructureIndex;
@@ -160,8 +180,17 @@ struct Scene
 
 struct Primitive
 {
+	uint32 PositionOffset;
+	uint32 PositionStride;
+
 	uint32 TextureCoordinateOffset;
 	uint32 TextureCoordinateStride;
+
+	uint32 NormalOffset;
+	uint32 NormalStride;
+
+	uint32 TangentOffset;
+	uint32 TangentStride;
 
 	uint32 IndexOffset;
 	uint32 IndexStride;
@@ -172,6 +201,13 @@ struct Primitive
 struct Node
 {
 	Matrix Transform;
+	Matrix NormalTransform;
+};
+
+struct DrawCall
+{
+	uint32 NodeIndex;
+	uint32 PrimitiveIndex;
 };
 
 struct Material

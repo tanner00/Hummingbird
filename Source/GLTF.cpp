@@ -37,10 +37,10 @@ static Float4 ToFloat4(const JSON::Array& floatArray)
 	VERIFY(floatArray.GetLength() == 3 || floatArray.GetLength() == 4, "Expected GLTF float array to have 3 or 4 components!");
 	return Float4
 	{
-		static_cast<float>(floatArray[0].GetDecimal()),
-		static_cast<float>(floatArray[1].GetDecimal()),
-		static_cast<float>(floatArray[2].GetDecimal()),
-		(floatArray.GetLength() == 4) ? static_cast<float>(floatArray[3].GetDecimal()) : 0.0f,
+		.X = static_cast<float>(floatArray[0].GetDecimal()),
+		.Y = static_cast<float>(floatArray[1].GetDecimal()),
+		.Z = static_cast<float>(floatArray[2].GetDecimal()),
+		.W = (floatArray.GetLength() == 4) ? static_cast<float>(floatArray[3].GetDecimal()) : 0.0f,
 	};
 }
 
@@ -115,7 +115,7 @@ Scene LoadScene(StringView filePath)
 
 				const Float4 color = lightObject.HasKey("color"_view)
 								   ? ToFloat4(lightObject["color"_view].GetArray())
-								   : Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
+								   : Float4 { .R = 1.0f, .G = 1.0f, .B = 1.0f, .A = 1.0f };
 
 				LightType type = LightType::Directional;
 
@@ -136,7 +136,7 @@ Scene LoadScene(StringView filePath)
 				lightTemplates.Add(Light
 				{
 					.Intensity = intensity,
-					.Color = Float3 { color.X, color.Y, color.Z },
+					.Color = { .R = color.R, .G = color.G, .B = color.B },
 					.Type = type,
 				});
 			}
@@ -448,7 +448,7 @@ Scene LoadScene(StringView filePath)
 			material.IsSpecularGlossiness = false;
 
 			material.MetallicRoughness.BaseColorTexture = INDEX_NONE;
-			material.MetallicRoughness.BaseColorFactor = Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
+			material.MetallicRoughness.BaseColorFactor = { .R = 1.0f, .G = 1.0f, .B = 1.0f, .A = 1.0f };
 
 			material.MetallicRoughness.MetallicRoughnessTexture = INDEX_NONE;
 			material.MetallicRoughness.MetallicFactor = 1.0f;
@@ -491,10 +491,10 @@ Scene LoadScene(StringView filePath)
 				material.IsSpecularGlossiness = true;
 
 				material.SpecularGlossiness.DiffuseTexture = INDEX_NONE;
-				material.SpecularGlossiness.DiffuseFactor = Float4 { 1.0f, 1.0f, 1.0f, 1.0f };
+				material.SpecularGlossiness.DiffuseFactor = { .R = 1.0f, .G = 1.0f, .B = 1.0f, .A = 1.0f };
 
 				material.SpecularGlossiness.SpecularGlossinessTexture = INDEX_NONE;
-				material.SpecularGlossiness.SpecularFactor = Float3 { 1.0f, 1.0f, 1.0f };
+				material.SpecularGlossiness.SpecularFactor = { .R = 1.0f, .G = 1.0f, .B = 1.0f };
 				material.SpecularGlossiness.GlossinessFactor = 1.0f;
 
 				if (pbrSpecularGlossinessObject.HasKey("diffuseTexture"_view))
@@ -517,7 +517,7 @@ Scene LoadScene(StringView filePath)
 				{
 					const JSON::Array& specularFactorArray = pbrSpecularGlossinessObject["specularFactor"_view].GetArray();
 					const Float4 specularFactor = ToFloat4(specularFactorArray);
-					material.SpecularGlossiness.SpecularFactor = Float3 { specularFactor.X, specularFactor.Y, specularFactor.Z };
+					material.SpecularGlossiness.SpecularFactor = { .R = specularFactor.R, .G = specularFactor.G, .B = specularFactor.B };
 				}
 				if (pbrSpecularGlossinessObject.HasKey("roughnessFactor"_view))
 				{

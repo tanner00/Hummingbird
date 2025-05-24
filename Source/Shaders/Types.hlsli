@@ -8,10 +8,49 @@ enum class ViewMode : uint
 	Normal,
 };
 
+struct SceneRootConstants
+{
+	uint AnisotropicWrapSamplerIndex;
+
+	uint DrawCallIndex;
+	uint PrimitiveIndex;
+	uint NodeIndex;
+
+	ViewMode ViewMode;
+
+	matrix NormalTransform;
+};
+
+struct Scene
+{
+	matrix ViewProjection;
+	float3 ViewPosition;
+
+	uint VertexBufferIndex;
+	uint PrimitiveBufferIndex;
+	uint NodeBufferIndex;
+	uint MaterialBufferIndex;
+	uint DrawCallBufferIndex;
+	uint DirectionalLightBufferIndex;
+	uint PointLightsBufferIndex;
+	uint AccelerationStructureIndex;
+
+	uint PointLightsCount;
+};
+
 struct Primitive
 {
+	uint PositionOffset;
+	uint PositionStride;
+
 	uint TextureCoordinateOffset;
 	uint TextureCoordinateStride;
+
+	uint NormalOffset;
+	uint NormalStride;
+
+	uint TangentOffset;
+	uint TangentStride;
 
 	uint IndexOffset;
 	uint IndexStride;
@@ -22,6 +61,13 @@ struct Primitive
 struct Node
 {
 	matrix Transform;
+	matrix NormalTransform;
+};
+
+struct DrawCall
+{
+	uint NodeIndex;
+	uint PrimitiveIndex;
 };
 
 struct Material

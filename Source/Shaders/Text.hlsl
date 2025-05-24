@@ -81,7 +81,7 @@ float4 PixelStart(PixelInput input) : SV_TARGET
 	const float signedDistance = Median(multiChannelSignedDistance);
 	const float screenPixelDistance = DistanceFieldRangeInScreenPixels(input.Uv) * (signedDistance - 0.5f);
 
-	const float insideBlend = clamp(screenPixelDistance + 0.5f, 0.0f, 1.0f);
+	const float insideBlend = saturate(screenPixelDistance + 0.5f);
 
 	return float4(input.Color.rgb, insideBlend * input.Color.a);
 }

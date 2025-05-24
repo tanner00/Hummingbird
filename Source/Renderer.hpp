@@ -47,13 +47,21 @@ private:
 
 	BasicTexture SwapChainTextures[RHI::FramesInFlight];
 	BasicTexture DepthTexture;
+
 	BasicTexture WhiteTexture;
 	BasicTexture DefaultNormalMapTexture;
+
+	RHI::Sampler AnisotropicWrapSampler;
+	RHI::Sampler PointClampSampler;
+
+	RenderTarget HDRRenderTarget;
+	RenderTarget VisibilityBufferRenderTarget;
 
 	BasicBuffer SceneBuffers[RHI::FramesInFlight];
 	BasicBuffer SceneVertexBuffer;
 	BasicBuffer ScenePrimitiveBuffer;
 	BasicBuffer SceneNodeBuffer;
+	BasicBuffer SceneDrawCallBuffer;
 	BasicBuffer SceneMaterialBuffer;
 	BasicBuffer SceneDirectionalLightBuffer;
 	BasicBuffer ScenePointLightsBuffer;
@@ -62,15 +70,13 @@ private:
 	RHI::Resource SceneAccelerationStructureResource;
 	RHI::AccelerationStructure SceneAccelerationStructure;
 
-	RHI::Resource HdrTexture;
-	RHI::TextureView HdrTextureRenderTargetView;
-	RHI::TextureView HdrTextureShaderResourceView;
+	RHI::GraphicsPipeline DepthPrePassPipeline;
 
-	RHI::Sampler DefaultSampler;
+	RHI::GraphicsPipeline ForwardOpaquePipeline;
+	RHI::GraphicsPipeline ForwardBlendPipeline;
 
-	RHI::GraphicsPipeline SceneOpaquePipeline;
-	RHI::GraphicsPipeline SceneBlendPipeline;
-	RHI::GraphicsPipeline SceneDepthPrePassPipeline;
+	RHI::GraphicsPipeline VisibilityBufferPipeline;
+	RHI::ComputePipeline DeferredPipeline;
 
 	RHI::ComputePipeline LuminanceHistogramPipeline;
 	RHI::ComputePipeline LuminanceAveragePipeline;
@@ -80,6 +86,8 @@ private:
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;
 	Array<Material> SceneMaterials;
+
+	bool Deferred;
 
 	ViewMode ViewMode;
 
