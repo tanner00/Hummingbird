@@ -6,8 +6,6 @@ static constexpr float FastMovementSpeed = 10.0f;
 
 static constexpr float RotationSpeedRadians = 8.0f * DegreesToRadians;
 
-static const Vector DefaultCameraDirection = { +0.0f, +0.0f, -1.0f };
-
 CameraController::CameraController()
 	: Position(Vector::Zero)
 	, Orientation(Quaternion::Identity)
@@ -44,9 +42,9 @@ void CameraController::Update(float timeDelta)
 		Orientation = Orientation.GetNormalized();
 	}
 
-	const Vector forward = Orientation.Rotate(DefaultCameraDirection);
+	const Vector forward = Orientation.Rotate(GLTF::DefaultDirection);
 	const Vector up = Orientation.Rotate(Vector { 0.0f, +1.0f, +0.0f });
-	const Vector side = up.Cross(Orientation.Rotate(DefaultCameraDirection));
+	const Vector side = up.Cross(Orientation.Rotate(GLTF::DefaultDirection));
 
 	Vector movement = Vector::Zero;
 	bool moving = false;

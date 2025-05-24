@@ -384,7 +384,7 @@ Scene LoadScene(StringView filePath)
 			}
 			if (attributesObject.HasKey("TEXCOORD_0"_view))
 			{
-				attributes.Add(AttributeType::Texcoord0, static_cast<usize>(attributesObject["TEXCOORD_0"_view].GetDecimal()));
+				attributes.Add(AttributeType::TexCoord0, static_cast<usize>(attributesObject["TEXCOORD_0"_view].GetDecimal()));
 			}
 
 			primitives.Emplace(Move(attributes), indices, material);
@@ -656,11 +656,11 @@ Scene LoadScene(StringView filePath)
 		}
 		else if (componentTypeNumber == 5121)
 		{
-			componentType = ComponentType::Uint8;
+			componentType = ComponentType::UInt8;
 		}
 		else if (componentTypeNumber == 5122)
 		{
-			componentType = ComponentType::Uint16;
+			componentType = ComponentType::UInt16;
 		}
 		else if (componentTypeNumber == 5123)
 		{
@@ -668,7 +668,7 @@ Scene LoadScene(StringView filePath)
 		}
 		else if (componentTypeNumber == 5125)
 		{
-			componentType = ComponentType::Uint32;
+			componentType = ComponentType::UInt32;
 		}
 		else if (componentTypeNumber == 5126)
 		{
