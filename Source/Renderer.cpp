@@ -516,6 +516,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	Array<Array<Float4>> computedTangents(RendererAllocator);
 	usize computedTangentsCount = 0;
 
+	usize globalPrimitiveIndex = 0;
 	for (const GLTF::Mesh& mesh : scene.Meshes)
 	{
 		Array<Primitive> primitives(mesh.Primitives.GetLength(), RendererAllocator);
@@ -523,7 +524,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		for (const GLTF::Primitive& primitive : mesh.Primitives)
 		{
 			const GLTF::AccessorView positionView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Position]);
-			const GLTF::AccessorView textureCoordinateView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Texcoord0]);
+			const GLTF::AccessorView textureCoordinateView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::TexCoord0]);
 			const GLTF::AccessorView normalView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Normal]);
 			const GLTF::AccessorView indexView = GLTF::GetAccessorView(scene, primitive.Indices);
 
@@ -557,7 +558,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 			primitives.Add(Primitive
 			{
-				.GlobalIndex = {},
+				.GlobalIndex = globalPrimitiveIndex,
 				.PositionOffset = positionView.Offset,
 				.PositionStride = positionView.Stride,
 				.PositionSize = positionView.Size,
@@ -576,23 +577,13 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.MaterialIndex = primitive.Material,
 				.AccelerationStructureResource = {},
 			});
+			++globalPrimitiveIndex;
 		}
 
 		SceneMeshes.Add(Mesh
 		{
 			.Primitives = Move(primitives),
 		});
-	}
-
-	for (BasicBuffer& sceneBuffer : SceneBuffers)
-	{
-		sceneBuffer = CreateBasicBuffer(&Device,
-										sizeof(HLSL::Scene),
-										0,
-										ResourceFlags::Upload,
-										ViewType::ConstantBuffer,
-										nullptr,
-										"Scene Buffer"_view);
 	}
 
 	GLTF::Buffer finalVertexBuffer = vertexBuffer;
@@ -654,7 +645,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	Graphics.Begin();
 
-	usize globalPrimitiveIndex = 0;
 	for (Mesh& mesh : SceneMeshes)
 	{
 		for (Primitive& primitive : mesh.Primitives)
@@ -701,9 +691,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			Graphics.BuildAccelerationStructure(geometry, scratchResource, resultResource);
 
 			primitive.AccelerationStructureResource = resultResource;
-			primitive.GlobalIndex = globalPrimitiveIndex;
-
-			++globalPrimitiveIndex;
 		}
 	}
 
@@ -805,6 +792,23 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		Device.Destroy(&resource);
 	}
 
+	Array<HLSL::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
+	for (const Node& node : SceneNodes)
+	{
+		nodeData.Add(HLSL::Node
+		{
+			.Transform = node.Transform,
+			.NormalTransform = node.Transform.GetInverse().GetTranspose(),
+		});
+	}
+	SceneNodeBuffer = CreateBasicBuffer(&Device,
+										nodeData.GetDataSize(),
+										nodeData.GetElementSize(),
+										ResourceFlags::None,
+										ViewType::ShaderResource,
+										nodeData.GetData(),
+										"Scene Node Buffer"_view);
+
 	for (const GLTF::Material& gltfMaterial : scene.Materials)
 	{
 		const auto convertTexture = [this](const GLTF::Scene& scene, usize textureIndex, StringView textureName) -> BasicTexture
@@ -865,23 +869,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		SceneMaterials.Add(material);
 	}
 
-	Array<HLSL::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
-	for (const Node& node : SceneNodes)
-	{
-		nodeData.Add(HLSL::Node
-		{
-			.Transform = node.Transform,
-			.NormalTransform = node.Transform.GetInverse().GetTranspose(),
-		});
-	}
-	SceneNodeBuffer = CreateBasicBuffer(&Device,
-										nodeData.GetDataSize(),
-										nodeData.GetElementSize(),
-										ResourceFlags::None,
-										ViewType::ShaderResource,
-										nodeData.GetData(),
-										"Scene Node Buffer"_view);
-
 	Array<HLSL::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
 	for (const Material& material : SceneMaterials)
 	{
@@ -941,8 +928,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		Quaternion orientation;
 		DecomposeTransform(light.Transform, &translation, &orientation, nullptr);
 
-		static const Vector defaultLightDirection = Vector { +0.0f, +0.0f, -1.0f };
-		const Vector direction = -orientation.Rotate(defaultLightDirection);
+		const Vector direction = -orientation.Rotate(GLTF::DefaultDirection);
 
 		if (light.Type == GLTF::LightType::Directional)
 		{
@@ -992,6 +978,17 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 												   ViewType::ShaderResource,
 												   pointLights.GetData(),
 												   "Scene Point Lights Buffer"_view);
+	}
+
+	for (BasicBuffer& sceneBuffer : SceneBuffers)
+	{
+		sceneBuffer = CreateBasicBuffer(&Device,
+										sizeof(HLSL::Scene),
+										0,
+										ResourceFlags::Upload,
+										ViewType::ConstantBuffer,
+										nullptr,
+										"Scene Buffer"_view);
 	}
 }
 

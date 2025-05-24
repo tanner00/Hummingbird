@@ -1,8 +1,10 @@
 #include "Common.hlsli"
 
+static const float3 DielectricSpecular = 0.04f;
+
 float3 FresnelSchlick(float3 f0, float3 halfwayDirection, float3 viewDirection)
 {
-	return f0 + (1.0f - f0) * pow(clamp(1.0f - abs(dot(viewDirection, halfwayDirection)), 0.0f, 1.0f), 5.0f);
+	return f0 + (1.0f - f0) * pow(saturate(1.0f - abs(dot(viewDirection, halfwayDirection))), 5.0f);
 }
 
 float NdfTrowbridgeReitz(float3 normal, float3 halfwayDirection, float roughness)
@@ -59,7 +61,7 @@ float3 PbrMetallicRoughness(float3 baseColor,
 							float3 lightRadiance)
 {
 	const float3 cDiffuse = lerp(baseColor.rgb, 0.0f, metallic);
-	const float3 f0 = lerp(0.04f, baseColor.rgb, metallic);
+	const float3 f0 = lerp(DielectricSpecular, baseColor.rgb, metallic);
 	return PbrImplementation(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }
 
