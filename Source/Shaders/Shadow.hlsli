@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Geometry.hlsli"
 #include "Types.hlsli"
 
 float CastShadowRay(float3 origin,
@@ -46,28 +47,12 @@ float CastShadowRay(float3 origin,
 			const Material material = materialBuffer[primitive.MaterialIndex];
 
 			const uint triangleIndex = translucentQuery.CommittedPrimitiveIndex();
-			const uint triangleIndexOffset = triangleIndex * primitive.IndexStride * 3;
+			const uint triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 			uint indices[3];
-			[branch]
-			if (primitive.IndexStride == 2)
-			{
-				indices[0] = vertexBuffer.Load<uint16>(primitive.IndexOffset + triangleIndexOffset + primitive.IndexStride * 0);
-				indices[1] = vertexBuffer.Load<uint16>(primitive.IndexOffset + triangleIndexOffset + primitive.IndexStride * 1);
-				indices[2] = vertexBuffer.Load<uint16>(primitive.IndexOffset + triangleIndexOffset + primitive.IndexStride * 2);
-			}
-			else if (primitive.IndexStride == 4)
-			{
-				indices[0] = vertexBuffer.Load<uint>(primitive.IndexOffset + triangleIndexOffset + primitive.IndexStride * 0);
-				indices[1] = vertexBuffer.Load<uint>(primitive.IndexOffset + triangleIndexOffset + primitive.IndexStride * 1);
-				indices[2] = vertexBuffer.Load<uint>(primitive.IndexOffset + triangleIndexOffset + primitive.IndexStride * 2);
-			}
-			const float2 textureCoordinates[3] =
-			{
-				vertexBuffer.Load<float2>(primitive.TextureCoordinateOffset + indices[0] * primitive.TextureCoordinateStride),
-				vertexBuffer.Load<float2>(primitive.TextureCoordinateOffset + indices[1] * primitive.TextureCoordinateStride),
-				vertexBuffer.Load<float2>(primitive.TextureCoordinateOffset + indices[2] * primitive.TextureCoordinateStride),
-			};
+			float2 textureCoordinates[3];
+			LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
+			LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, textureCoordinates);
 
 			const float2 barycentrics = translucentQuery.CommittedTriangleBarycentrics();
 			const float3 weights = float3(1.0f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
@@ -75,7 +60,7 @@ float CastShadowRay(float3 origin,
 										   + textureCoordinates[1] * weights.y
 										   + textureCoordinates[2] * weights.z;
 
-			const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[material.BaseColorOrDiffuseTextureIndex];
+			const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
 			const float alpha = baseColorOrDiffuseTexture.SampleLevel(sampler, textureCoordinate, 0).a * material.BaseColorOrDiffuseFactor.a;
 
 			[branch]

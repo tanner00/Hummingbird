@@ -2,8 +2,8 @@
 
 struct RootConstants
 {
+	uint HDRTextureIndex;
 	uint LuminanceBufferIndex;
-	uint HdrTextureIndex;
 };
 ConstantBuffer<RootConstants> RootConstants : register(b0);
 
@@ -30,7 +30,7 @@ void ComputeStart(uint groupIndex : SV_GroupIndex, uint3 dispatchThreadID : SV_D
 
 	GroupMemoryBarrierWithGroupSync();
 
-	const Texture2D<float3> hdrTexture = ResourceDescriptorHeap[RootConstants.HdrTextureIndex];
+	const Texture2D<float3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
 
 	uint2 hdrTextureDimensions;
 	hdrTexture.GetDimensions(hdrTextureDimensions.x, hdrTextureDimensions.y);
