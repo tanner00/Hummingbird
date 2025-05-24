@@ -9,6 +9,8 @@
 namespace GLTF
 {
 
+inline const Vector DefaultDirection = { +0.0f, +0.0f, -1.0f };
+
 enum class TargetType : uint8
 {
 	ArrayBuffer,
@@ -18,10 +20,10 @@ enum class TargetType : uint8
 enum class ComponentType : uint8
 {
 	Int8,
-	Uint8,
+	UInt8,
 	Int16,
-	Uint16,
-	Uint32,
+	UInt16,
+	UInt32,
 	Float32,
 	Count,
 };
@@ -43,7 +45,7 @@ enum class AttributeType : uint8
 	Position,
 	Normal,
 	Tangent,
-	Texcoord0,
+	TexCoord0,
 };
 
 template<>
