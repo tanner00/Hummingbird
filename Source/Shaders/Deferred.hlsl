@@ -4,16 +4,7 @@
 #include "Geometry.hlsli"
 #include "Shade.hlsli"
 
-struct RootConstants
-{
-	uint HDRTextureIndex;
-	uint AnisotropicWrapSamplerIndex;
-	uint VisibilityBufferTextureIndex;
-
-	ViewMode ViewMode;
-};
-ConstantBuffer<RootConstants> RootConstants : register(b0);
-
+ConstantBuffer<DeferredRootConstants> RootConstants : register(b0);
 ConstantBuffer<Scene> Scene : register(b1);
 
 [numthreads(16, 16, 1)]

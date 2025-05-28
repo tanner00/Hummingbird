@@ -1,11 +1,7 @@
 #include "Luminance.hlsli"
+#include "Types.hlsli"
 
-struct RootConstants
-{
-	uint HDRTextureIndex;
-	uint LuminanceBufferIndex;
-};
-ConstantBuffer<RootConstants> RootConstants : register(b0);
+ConstantBuffer<LuminanceHistogramRootConstants> RootConstants : register(b0);
 
 groupshared uint HistogramShared[LuminanceHistogramBinsCount];
 
