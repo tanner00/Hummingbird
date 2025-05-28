@@ -1,9 +1,11 @@
 #pragma once
 
-#include "Luft/Math.hpp"
-#include "Luft/NoCopy.hpp"
-
 #include "RHI/RHI.hpp"
+
+namespace HLSL
+{
+#include "Shaders/Types.hlsli"
+}
 
 struct Glyph
 {
@@ -13,36 +15,6 @@ struct Glyph
 	Float2 PlaneSize;
 	float Advance;
 };
-
-namespace HLSL
-{
-
-struct TextRootConstants
-{
-	Matrix ViewProjection;
-	Float2 UnitRange;
-
-	uint32 CharacterBufferIndex;
-	uint32 Texture;
-	uint32 Sampler;
-};
-
-struct Character
-{
-	Float4 Color;
-
-	Float2 ScreenPosition;
-
-	Float2 AtlasPosition;
-	Float2 AtlasSize;
-
-	Float2 PlanePosition;
-	Float2 PlaneSize;
-
-	float Scale;
-};
-
-}
 
 class DrawText : public NoCopy
 {
