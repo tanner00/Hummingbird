@@ -89,7 +89,7 @@ private:
 
 	bool Deferred;
 
-	ViewMode ViewMode;
+	HLSL::ViewMode ViewMode;
 
 #if !RELEASE
 	double AverageCpuTime;

@@ -1,3 +1,5 @@
+#include "Types.hlsli"
+
 struct PixelInput
 {
 	float4 Position : SV_POSITION;
@@ -5,31 +7,7 @@ struct PixelInput
 	float4 Color : COLOR0;
 };
 
-struct Character
-{
-	float4 Color;
-
-	float2 ScreenPosition;
-
-	float2 AtlasPosition;
-	float2 AtlasSize;
-
-	float2 PlanePosition;
-	float2 PlaneSize;
-
-	float Scale;
-};
-
-struct RootConstants
-{
-	matrix ViewProjection;
-	float2 UnitRange;
-
-	uint CharacterBufferIndex;
-	uint Texture;
-	uint Sampler;
-};
-ConstantBuffer<RootConstants> RootConstants : register(b0);
+ConstantBuffer<TextRootConstants> RootConstants : register(b0);
 
 PixelInput VertexStart(uint vertexID : SV_VertexID)
 {

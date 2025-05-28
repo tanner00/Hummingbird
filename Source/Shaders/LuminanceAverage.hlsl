@@ -1,12 +1,7 @@
 #include "Luminance.hlsli"
+#include "Types.hlsli"
 
-struct RootConstants
-{
-	uint LuminanceBufferIndex;
-
-	uint PixelCount;
-};
-ConstantBuffer<RootConstants> RootConstants : register(b0);
+ConstantBuffer<LuminanceAverageRootConstants> RootConstants : register(b0);
 
 groupshared uint HistogramShared[LuminanceHistogramBinsCount];
 

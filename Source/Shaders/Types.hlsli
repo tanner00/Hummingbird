@@ -1,5 +1,9 @@
 #pragma once
 
+#define SHARED_ON true
+#include "Shared.hlsli"
+#undef SHARED_ON
+
 enum class ViewMode : uint
 {
 	Lit,
@@ -18,13 +22,46 @@ struct SceneRootConstants
 
 	ViewMode ViewMode;
 
-	matrix NormalTransform;
+	PAD(12);
+
+	Matrix NormalTransform;
+};
+
+struct DeferredRootConstants
+{
+	uint HDRTextureIndex;
+	uint AnisotropicWrapSamplerIndex;
+	uint VisibilityBufferTextureIndex;
+
+	ViewMode ViewMode;
+};
+
+struct LuminanceHistogramRootConstants
+{
+	uint HDRTextureIndex;
+	uint LuminanceBufferIndex;
+};
+
+struct LuminanceAverageRootConstants
+{
+	uint LuminanceBufferIndex;
+
+	uint PixelCount;
+};
+
+struct ToneMapRootConstants
+{
+	uint HDRTextureIndex;
+	uint AnisotropicWrapSamplerIndex;
+	uint LuminanceBufferIndex;
+
+	bool32 DebugViewMode;
 };
 
 struct Scene
 {
-	matrix ViewProjection;
-	float3 ViewPosition;
+	Matrix ViewProjection;
+	Float3 ViewPosition;
 
 	uint VertexBufferIndex;
 	uint PrimitiveBufferIndex;
@@ -36,6 +73,8 @@ struct Scene
 	uint AccelerationStructureIndex;
 
 	uint PointLightsCount;
+
+	PAD(144);
 };
 
 struct Primitive
@@ -60,8 +99,8 @@ struct Primitive
 
 struct Node
 {
-	matrix Transform;
-	matrix NormalTransform;
+	Matrix Transform;
+	Matrix NormalTransform;
 };
 
 struct DrawCall
@@ -73,30 +112,61 @@ struct DrawCall
 struct Material
 {
 	uint BaseColorOrDiffuseTextureIndex;
-	float4 BaseColorOrDiffuseFactor;
+	Float4 BaseColorOrDiffuseFactor;
 
 	uint NormalMapTextureIndex;
 
 	uint MetallicRoughnessOrSpecularGlossinessTextureIndex;
-	float3 MetallicOrSpecularFactor;
+	Float3 MetallicOrSpecularFactor;
 	float RoughnessOrGlossinessFactor;
-	bool IsSpecularGlossiness;
+	bool32 IsSpecularGlossiness;
 
 	float AlphaCutoff;
 };
 
 struct DirectionalLight
 {
-	float3 Color;
+	Float3 Color;
 	float IntensityLux;
 
-	float3 Direction;
+	Float3 Direction;
+
+	PAD(228);
 };
 
 struct PointLight
 {
-	float3 Color;
+	Float3 Color;
 	float IntensityCandela;
 
-	float3 Position;
+	Float3 Position;
 };
+
+struct Character
+{
+	Float4 Color;
+
+	Float2 ScreenPosition;
+
+	Float2 AtlasPosition;
+	Float2 AtlasSize;
+
+	Float2 PlanePosition;
+	Float2 PlaneSize;
+
+	float Scale;
+};
+
+struct TextRootConstants
+{
+	Matrix ViewProjection;
+	Float2 UnitRange;
+
+	uint CharacterBufferIndex;
+	uint Texture;
+	uint Sampler;
+};
+
+#define SHARED_OFF true
+#include "Shared.hlsli"
+#undef SHARED_OFF

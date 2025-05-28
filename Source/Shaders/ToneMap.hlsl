@@ -1,4 +1,5 @@
 #include "Luminance.hlsli"
+#include "Types.hlsli"
 
 static const float SensorSensitivity = 100.0f;
 
@@ -8,15 +9,7 @@ struct PixelInput
 	float2 Uv : TEXCOORD0;
 };
 
-struct RootConstants
-{
-	uint HDRTextureIndex;
-	uint AnisotropicWrapSamplerIndex;
-	uint LuminanceBufferIndex;
-
-	bool DebugViewMode;
-};
-ConstantBuffer<RootConstants> RootConstants : register(b0);
+ConstantBuffer<ToneMapRootConstants> RootConstants : register(b0);
 
 PixelInput VertexStart(uint vertexID : SV_VertexID)
 {

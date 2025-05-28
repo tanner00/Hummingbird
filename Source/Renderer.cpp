@@ -4,7 +4,10 @@
 #include "DrawText.hpp"
 #include "GLTF.hpp"
 
+namespace HLSL
+{
 #include "Shaders/Luminance.hlsli"
+}
 
 using namespace RHI;
 
@@ -82,7 +85,7 @@ Renderer::Renderer(const Platform::Window* window)
 	, SceneNodes(RendererAllocator)
 	, SceneMaterials(RendererAllocator)
 	, Deferred(true)
-	, ViewMode(ViewMode::Lit)
+	, ViewMode(HLSL::ViewMode::Lit)
 #if !RELEASE
 	, AverageCpuTime(0.0)
 	, AverageGpuTime(0.0)
@@ -114,7 +117,7 @@ Renderer::Renderer(const Platform::Window* window)
 	});
 
 	SceneLuminanceBuffer = CreateBasicBuffer(&Device,
-											 LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
+											 HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
 											 0,
 											 ResourceFlags::UnorderedAccess,
 											 ViewType::UnorderedAccess,
@@ -157,19 +160,19 @@ void Renderer::Update(const CameraController& cameraController)
 #if !RELEASE
 	if (IsKeyPressedOnce(Key::L))
 	{
-		ViewMode = ViewMode::Lit;
+		ViewMode = HLSL::ViewMode::Lit;
 	}
 	if (IsKeyPressedOnce(Key::U))
 	{
-		ViewMode = ViewMode::Unlit;
+		ViewMode = HLSL::ViewMode::Unlit;
 	}
 	if (IsKeyPressedOnce(Key::G))
 	{
-		ViewMode = ViewMode::Geometry;
+		ViewMode = HLSL::ViewMode::Geometry;
 	}
 	if (IsKeyPressedOnce(Key::N))
 	{
-		ViewMode = ViewMode::Normal;
+		ViewMode = HLSL::ViewMode::Normal;
 	}
 
 	if (IsKeyPressedOnce(Key::F))
@@ -325,7 +328,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	Graphics.SetPipeline(LuminanceAveragePipeline);
 	Graphics.SetRootConstants(&luminanceAverageRootConstants);
-	Graphics.Dispatch(LuminanceHistogramBinsCount, 1, 1);
+	Graphics.Dispatch(HLSL::LuminanceHistogramBinsCount, 1, 1);
 
 	const BasicTexture& swapChainTexture = SwapChainTextures[Device.GetFrameIndex()];
 
@@ -352,7 +355,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.HDRTextureIndex = Device.Get(HDRRenderTarget.ShaderResourceView),
 		.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
 		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
-		.DebugViewMode = ViewMode != ViewMode::Lit,
+		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
 	};
 
 	Graphics.SetPipeline(ToneMapPipeline);
