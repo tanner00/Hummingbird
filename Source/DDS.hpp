@@ -12,6 +12,7 @@ struct Image
 {
 	uint8* Data;
 	usize DataSize;
+	usize HeaderSize;
 
 	RHI::ResourceFormat Format;
 
