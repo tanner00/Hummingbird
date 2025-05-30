@@ -2,6 +2,8 @@
 
 #include <dxgiformat.h>
 
+#define DDS_FORMAT(a, b, c, d) (((uint32)(d) << 24) | ((uint32)(c) << 16) | ((uint32)(b) << 8) | (uint32)(a))
+
 namespace DDS
 {
 
@@ -44,7 +46,8 @@ struct ExtendedHeader
 };
 
 static constexpr char FormatSignature[] = "DDS ";
-static usize HeadersSize = sizeof(Header) + sizeof(ExtendedHeader) + (sizeof(FormatSignature) - 1);
+static constexpr usize BaseHeaderSize = sizeof(Header) + (sizeof(FormatSignature) - 1);
+static constexpr usize ExtendedHeaderSize = sizeof(ExtendedHeader);
 
 static RHI::ResourceFormat From(DXGI_FORMAT format)
 {
@@ -56,10 +59,6 @@ static RHI::ResourceFormat From(DXGI_FORMAT format)
 		return RHI::ResourceFormat::RGBA8UNorm;
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
 		return RHI::ResourceFormat::RGBA8UNormSRGB;
-	case DXGI_FORMAT_BC7_UNORM:
-		return RHI::ResourceFormat::BC7UNorm;
-	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return RHI::ResourceFormat::BC7UNormSRGB;
 	case DXGI_FORMAT_R16G16B16A16_FLOAT:
 		return RHI::ResourceFormat::RGBA16Float;
 	case DXGI_FORMAT_R32G32B32A32_FLOAT:
@@ -70,6 +69,16 @@ static RHI::ResourceFormat From(DXGI_FORMAT format)
 		return RHI::ResourceFormat::Depth24Stencil8;
 	case DXGI_FORMAT_D32_FLOAT:
 		return RHI::ResourceFormat::Depth32;
+	case DXGI_FORMAT_BC1_UNORM:
+		return RHI::ResourceFormat::BC1UNorm;
+	case DXGI_FORMAT_BC3_UNORM:
+		return RHI::ResourceFormat::BC3UNorm;
+	case DXGI_FORMAT_BC5_UNORM:
+		return RHI::ResourceFormat::BC5UNorm;
+	case DXGI_FORMAT_BC7_UNORM:
+		return RHI::ResourceFormat::BC7UNorm;
+	case DXGI_FORMAT_BC7_UNORM_SRGB:
+		return RHI::ResourceFormat::BC7UNormSRGB;
 	}
 	CHECK(false);
 	return RHI::ResourceFormat::None;
@@ -170,8 +179,6 @@ Image LoadImage(StringView filePath)
 
 	static constexpr uint32 capsTextureFlag = 0x1000;
 
-	static constexpr uint32 pixelFormatExtendedHeader = 808540228;
-
 	VERIFY(header.Size == 124, "Invalid DDS file!");
 	VERIFY(header.Flags & headerCapsFlag, "Invalid DDS file!");
 	VERIFY(header.Flags & headerHeightFlag, "Invalid DDS file!");
@@ -182,30 +189,55 @@ Image LoadImage(StringView filePath)
 
 	VERIFY(header.Format.Size == 32, "Invalid DDS file!");
 	VERIFY(header.Format.Flags & pixelFormatCompressedOrCustomFlag, "Unexpected DDS file type!");
-	VERIFY(header.Format.CompressedOrCustomFormat == pixelFormatExtendedHeader, "Unexpected DDS file type!");
 
-	const ExtendedHeader extendedHeader =
+	RHI::ResourceFormat format = RHI::ResourceFormat::None;
+	usize headerSize = BaseHeaderSize;
+
+	switch (header.Format.CompressedOrCustomFormat)
 	{
-		.DxgiFormat = static_cast<DXGI_FORMAT>(ParseUint32(fileView, &offset)),
-		.ResourceDimension = ParseUint32(fileView, &offset),
-		.MiscFlags1 = ParseUint32(fileView, &offset),
-		.ArraySize = ParseUint32(fileView, &offset),
-		.MiscFlags2 = ParseUint32(fileView, &offset),
-	};
+	case DDS_FORMAT('D', 'X', '1', '0'):
+	{
+		headerSize += ExtendedHeaderSize;
 
-	static constexpr usize extendedHeaderRectangleTexture = 3;
+		const ExtendedHeader extendedHeader =
+		{
+			.DxgiFormat = static_cast<DXGI_FORMAT>(ParseUint32(fileView, &offset)),
+			.ResourceDimension = ParseUint32(fileView, &offset),
+			.MiscFlags1 = ParseUint32(fileView, &offset),
+			.ArraySize = ParseUint32(fileView, &offset),
+			.MiscFlags2 = ParseUint32(fileView, &offset),
+		};
 
-	VERIFY(extendedHeader.ResourceDimension == extendedHeaderRectangleTexture, "Unexpected DDS file type!");
-	VERIFY(extendedHeader.ArraySize == 1, "Unexpected DDS file type!");
+		static constexpr usize extendedHeaderRectangleTexture = 3;
 
-	uint8* imageData = reinterpret_cast<uint8*>(fileData + HeadersSize);
-	const usize imageDataSize = fileSize - HeadersSize;
+		VERIFY(extendedHeader.ResourceDimension == extendedHeaderRectangleTexture, "Unexpected DDS file type!");
+		VERIFY(extendedHeader.ArraySize == 1, "Unexpected DDS file type!");
+
+		format = From(extendedHeader.DxgiFormat);
+		break;
+	}
+	case DDS_FORMAT('D', 'X', 'T', '1'):
+		format = From(DXGI_FORMAT_BC1_UNORM);
+		break;
+	case DDS_FORMAT('D', 'X', 'T', '5'):
+		format = From(DXGI_FORMAT_BC3_UNORM);
+		break;
+	case DDS_FORMAT('A', 'T', 'I', '2'):
+		format = From(DXGI_FORMAT_BC5_UNORM);
+		break;
+	default:
+		VERIFY(false, "Unexpected DDS file type!");
+	}
+
+	uint8* imageData = reinterpret_cast<uint8*>(fileData + headerSize);
+	const usize imageDataSize = fileSize - headerSize;
 
 	return Image
 	{
 		.Data = imageData,
 		.DataSize = imageDataSize,
-		.Format = From(extendedHeader.DxgiFormat),
+		.HeaderSize = headerSize,
+		.Format = format,
 		.Width = static_cast<uint32>(header.Width),
 		.Height = static_cast<uint32>(header.Height),
 		.MipMapCount = static_cast<uint16>(header.MipMapCount),
@@ -214,11 +246,13 @@ Image LoadImage(StringView filePath)
 
 void UnloadImage(Image* image)
 {
-	Allocator->Deallocate(image->Data - HeadersSize, image->DataSize + HeadersSize);
+	Allocator->Deallocate(image->Data - image->HeaderSize, image->DataSize + image->HeaderSize);
 	image->Data = nullptr;
 	image->DataSize = 0;
+	image->HeaderSize = 0;
 	image->Width = 0;
 	image->Height = 0;
+	image->MipMapCount = 0;
 }
 
 }
