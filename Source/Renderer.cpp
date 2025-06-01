@@ -697,6 +697,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		}
 	}
 
+	Graphics.GlobalBarrier
+	(
+		{ BarrierStage::BuildAccelerationStructure, BarrierStage::BuildAccelerationStructure },
+		{ BarrierAccess::AccelerationStructureWrite, BarrierAccess::AccelerationStructureRead }
+	);
+
 	Array<AccelerationStructureInstance> instances(RendererAllocator);
 	Array<HLSL::DrawCall> drawCallData(RendererAllocator);
 	for (usize nodeIndex = 0; nodeIndex < scene.Nodes.GetLength(); ++nodeIndex)
