@@ -508,7 +508,7 @@ Scene LoadScene(StringView filePath)
 					material.MetallicRoughness.BaseColorFactor = ToFloat4(diffuseFactorArray);
 				}
 
-				if (pbrSpecularGlossinessObject.HasKey("metallicRoughnessTexture"_view))
+				if (pbrSpecularGlossinessObject.HasKey("specularGlossinessTexture"_view))
 				{
 					const JSON::Object& specularGlossinessTextureObject = pbrSpecularGlossinessObject["specularGlossinessTexture"_view].GetObject();
 					material.SpecularGlossiness.SpecularGlossinessTexture = static_cast<usize>(specularGlossinessTextureObject["index"_view].GetDecimal());
