@@ -524,6 +524,28 @@ Scene LoadScene(StringView filePath)
 					material.MetallicRoughness.RoughnessFactor = static_cast<float>(pbrSpecularGlossinessObject["roughnessFactor"_view].GetDecimal());
 				}
 			}
+
+			if (extensionsObject.HasKey("KHR_materials_specular"_view))
+			{
+				static bool specularWarningOnce = false;
+				if (!specularWarningOnce)
+				{
+					Platform::LogFormatted("KHR_materials_specular implementation isn't specification compliant!\n");
+					specularWarningOnce = true;
+				}
+
+				CHECK(!materialObject.HasKey("KHR_materials_pbrSpecularGlossiness"_view));
+
+				material.IsSpecularGlossiness = false;
+
+				const JSON::Object& specularObject = extensionsObject["KHR_materials_specular"_view].GetObject();
+
+				if (specularObject.HasKey("specularTexture"_view))
+				{
+					const JSON::Object& specularTextureObject = specularObject["specularTexture"_view].GetObject();
+					material.MetallicRoughness.MetallicRoughnessTexture = static_cast<usize>(specularTextureObject["index"_view].GetDecimal());
+				}
+			}
 		}
 
 		if (materialObject.HasKey("normalTexture"_view))
