@@ -84,6 +84,7 @@ Renderer::Renderer(const Platform::Window* window)
 	, SceneMeshes(RendererAllocator)
 	, SceneNodes(RendererAllocator)
 	, SceneMaterials(RendererAllocator)
+	, SceneTwoChannelNormalMaps(false)
 	, Deferred(true)
 	, ViewMode(HLSL::ViewMode::Lit)
 #if !RELEASE
