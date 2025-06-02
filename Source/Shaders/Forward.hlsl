@@ -7,7 +7,6 @@ struct VertexInput
 	float3 Position : POSITION0;
 	float2 TextureCoordinate : TEXCOORD0;
 	float3 Normal : NORMAL0;
-	float4 Tangent : TANGENT0;
 };
 
 ConstantBuffer<SceneRootConstants> RootConstants : register(b0);
@@ -25,7 +24,6 @@ ScenePixelInput VertexStart(VertexInput input)
 	pixel.WorldSpacePosition = worldPosition.xyz;
 	pixel.TextureCoordinate = input.TextureCoordinate;
 	pixel.Normal = mul((float3x3)RootConstants.NormalTransform, input.Normal);
-	pixel.Tangent = float4(mul((float3x3)RootConstants.NormalTransform, input.Tangent.xyz), input.Tangent.w);
 	return pixel;
 }
 
