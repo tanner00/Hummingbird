@@ -131,7 +131,7 @@ void DrawText::Init(RHI::Device* device)
 	device->Destroy(&vertex);
 	device->Destroy(&pixel);
 
-	Sampler = device->Create(
+	LinearWrapSampler = device->Create(
 	{
 		.MinificationFilter = RHI::SamplerFilter::Linear,
 		.MagnificationFilter = RHI::SamplerFilter::Linear,
@@ -170,7 +170,7 @@ void DrawText::Shutdown(const RHI::Device& device)
 		device.Destroy(&CharacterBufferViews[i]);
 		device.Destroy(&CharacterBuffers[i]);
 	}
-	device.Destroy(&Sampler);
+	device.Destroy(&LinearWrapSampler);
 	device.Destroy(&Pipeline);
 	device.Destroy(&FontTextureView);
 	device.Destroy(&FontTexture);
@@ -218,8 +218,8 @@ void DrawText::Submit(RHI::GraphicsContext* graphics, RHI::Device* device, uint3
 	RootConstants.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
 	RootConstants.CharacterBufferIndex = device->Get(CharacterBufferViews[device->GetFrameIndex()]);
-	RootConstants.Texture = device->Get(FontTextureView);
-	RootConstants.Sampler = device->Get(Sampler);
+	RootConstants.FontTextureIndex = device->Get(FontTextureView);
+	RootConstants.LinearWrapSampler = device->Get(LinearWrapSampler);
 
 	device->Write(&CharacterBuffers[device->GetFrameIndex()], CharacterData.GetData());
 
