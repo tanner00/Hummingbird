@@ -60,9 +60,6 @@ struct ToneMapRootConstants
 
 struct Scene
 {
-	Matrix ViewProjection;
-	Float3 ViewPosition;
-
 	uint VertexBufferIndex;
 	uint PrimitiveBufferIndex;
 	uint NodeBufferIndex;
@@ -72,9 +69,12 @@ struct Scene
 	uint PointLightsBufferIndex;
 	uint AccelerationStructureIndex;
 
-	uint PointLightsCount;
+	Matrix ViewProjection;
+	Float3 ViewPosition;
 
 	bool32 TwoChannelNormalMaps;
+
+	uint PointLightsCount;
 
 	PAD(140);
 };
@@ -111,13 +111,13 @@ struct DrawCall
 struct Material
 {
 	uint BaseColorOrDiffuseTextureIndex;
-	Float4 BaseColorOrDiffuseFactor;
-
 	uint NormalMapTextureIndex;
-
 	uint MetallicRoughnessOrSpecularGlossinessTextureIndex;
+
+	Float4 BaseColorOrDiffuseFactor;
 	Float3 MetallicOrSpecularFactor;
 	float RoughnessOrGlossinessFactor;
+
 	bool32 IsSpecularGlossiness;
 
 	float AlphaCutoff;
@@ -158,12 +158,14 @@ struct Character
 
 struct TextRootConstants
 {
+	uint CharacterBufferIndex;
+	uint FontTextureIndex;
+	uint LinearWrapSampler;
+
+	PAD(4);
+
 	Matrix ViewProjection;
 	Float2 UnitRange;
-
-	uint CharacterBufferIndex;
-	uint Texture;
-	uint Sampler;
 };
 
 #define SHARED_OFF true

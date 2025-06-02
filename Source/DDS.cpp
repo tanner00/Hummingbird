@@ -91,7 +91,7 @@ static int32 Advance(usize* offset, usize count)
 	return 0;
 }
 
-static uint32 ParseUint32(StringView view, usize* offset)
+static uint32 ParseUInt32(StringView view, usize* offset)
 {
 	CHECK(offset);
 	const usize currentOffset = *offset;
@@ -167,7 +167,7 @@ Image LoadImage(StringView filePath)
 	if (header.Height < 0)
 	{
 		header.Height = -header.Height;
-		Platform::Log("LoadDdsImage: Flipped-Y is currently unsupported!\n");
+		Platform::Log("DDS::LoadImage: Flipped-Y is currently unsupported!\n");
 	}
 
 	static constexpr uint32 headerCapsFlag = 0x1;
@@ -201,11 +201,11 @@ Image LoadImage(StringView filePath)
 
 		const ExtendedHeader extendedHeader =
 		{
-			.DxgiFormat = static_cast<DXGI_FORMAT>(ParseUint32(fileView, &offset)),
-			.ResourceDimension = ParseUint32(fileView, &offset),
-			.MiscFlags1 = ParseUint32(fileView, &offset),
-			.ArraySize = ParseUint32(fileView, &offset),
-			.MiscFlags2 = ParseUint32(fileView, &offset),
+			.DxgiFormat = static_cast<DXGI_FORMAT>(ParseUInt32(fileView, &offset)),
+			.ResourceDimension = ParseUInt32(fileView, &offset),
+			.MiscFlags1 = ParseUInt32(fileView, &offset),
+			.ArraySize = ParseUInt32(fileView, &offset),
+			.MiscFlags2 = ParseUInt32(fileView, &offset),
 		};
 
 		static constexpr usize extendedHeaderRectangleTexture = 3;
