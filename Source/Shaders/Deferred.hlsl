@@ -50,12 +50,10 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	float3 positions[3];
 	float2 textureCoordinates[3];
 	float3 normals[3];
-	float4 tangents[3];
 	LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
 	LoadTrianglePositions(vertexBuffer, primitive, indices, positions);
 	LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, textureCoordinates);
 	LoadTriangleNormals(vertexBuffer, primitive, indices, normals);
-	LoadTriangleTangents(vertexBuffer, primitive, indices, tangents);
 
 	const float4 worldSpacePositions[] =
 	{
@@ -78,7 +76,9 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	const float3 worldSpacePosition = LerpBarycentrics(weights, worldSpacePositions[0].xyz, worldSpacePositions[1].xyz, worldSpacePositions[2].xyz);
 	const float2 textureCoordinate = LerpBarycentrics(weights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
 	const float3 normal = LerpBarycentrics(weights, normals[0], normals[1], normals[2]);
-	const float4 tangent = float4(LerpBarycentrics(weights, tangents[0].xyz, tangents[1].xyz, tangents[2].xyz), tangents[0].w);
+
+	const float3 ddxWorldSpacePosition = LerpBarycentrics(ddxWeights, worldSpacePositions[0].xyz, worldSpacePositions[1].xyz, worldSpacePositions[2].xyz);
+	const float3 ddyWorldSpacePosition = LerpBarycentrics(ddyWeights, worldSpacePositions[0].xyz, worldSpacePositions[1].xyz, worldSpacePositions[2].xyz);
 
 	const float2 ddxTextureCoordinate = LerpBarycentrics(ddxWeights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
 	const float2 ddyTextureCoordinate = LerpBarycentrics(ddyWeights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
@@ -88,12 +88,13 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	pixel.WorldSpacePosition = worldSpacePosition;
 	pixel.TextureCoordinate = textureCoordinate;
 	pixel.Normal = mul((float3x3)node.NormalTransform, normal);
-	pixel.Tangent = float4(mul((float3x3)node.NormalTransform, tangent.xyz), tangent.w);
 
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
 											RootConstants.ViewMode,
 											drawCall.PrimitiveIndex,
 											pixel,
+											ddxWorldSpacePosition,
+											ddyWorldSpacePosition,
 											ddxTextureCoordinate,
 											ddyTextureCoordinate,
 											RootConstants.AnisotropicWrapSamplerIndex,

@@ -16,14 +16,13 @@ uint Hash(uint v)
 	return v;
 }
 
-float4 ToColor(uint v)
+float3 ToColor(uint v)
 {
-	return float4
+	return float3
 	(
 		float((v >>  0) & 0xFF) / 255.0f,
 		float((v >>  8) & 0xFF) / 255.0f,
-		float((v >> 16) & 0xFF) / 255.0f,
-		1.0f
+		float((v >> 16) & 0xFF) / 255.0f
 	);
 }
 

@@ -40,10 +40,3 @@ void LoadTriangleNormals(ByteAddressBuffer vertexBuffer, Primitive primitive, ui
 	normals[1] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[1] * primitive.NormalStride);
 	normals[2] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[2] * primitive.NormalStride);
 }
-
-void LoadTriangleTangents(ByteAddressBuffer vertexBuffer, Primitive primitive, uint indices[3], out float4 tangents[3])
-{
-	tangents[0] = vertexBuffer.Load<float4>(primitive.TangentOffset + indices[0] * primitive.TangentStride);
-	tangents[1] = vertexBuffer.Load<float4>(primitive.TangentOffset + indices[1] * primitive.TangentStride);
-	tangents[2] = vertexBuffer.Load<float4>(primitive.TangentOffset + indices[2] * primitive.TangentStride);
-}

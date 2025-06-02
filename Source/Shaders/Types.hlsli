@@ -74,7 +74,9 @@ struct Scene
 
 	uint PointLightsCount;
 
-	PAD(144);
+	bool32 TwoChannelNormalMaps;
+
+	PAD(140);
 };
 
 struct Primitive
@@ -87,9 +89,6 @@ struct Primitive
 
 	uint NormalOffset;
 	uint NormalStride;
-
-	uint TangentOffset;
-	uint TangentStride;
 
 	uint IndexOffset;
 	uint IndexStride;

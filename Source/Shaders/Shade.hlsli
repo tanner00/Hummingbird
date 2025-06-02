@@ -11,22 +11,42 @@ struct ScenePixelInput
 	float3 WorldSpacePosition : POSITION0;
 	float2 TextureCoordinate : TEXCOORD0;
 	float3 Normal : NORMAL0;
-	float4 Tangent : TANGENT0;
 };
+
+void ComputeTangents(float3 normal,
+					 float3 ddxWorldSpacePosition,
+					 float3 ddyWorldSpacePosition,
+					 float2 ddxTextureCoordinate,
+					 float2 ddyTextureCoordinate,
+					 out float3 tangent,
+					 out float3 bitangent)
+{
+	const float3 ddxPositionPerpendicular = -cross(ddxWorldSpacePosition, normal);
+	const float3 ddyPositionPerpendicular = cross(ddyWorldSpacePosition, normal);
+
+	tangent = ddyPositionPerpendicular * ddxTextureCoordinate.x + ddxPositionPerpendicular * ddyTextureCoordinate.x;
+	bitangent = ddyPositionPerpendicular * ddxTextureCoordinate.y + ddxPositionPerpendicular * ddyTextureCoordinate.y;
+
+	const float inverseScale = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
+
+	tangent *= inverseScale;
+	bitangent *= inverseScale;
+}
 
 float4 Shade(Scene scene,
 			 ViewMode viewMode,
 			 uint primitiveIndex,
 			 ScenePixelInput pixel,
 #if DEFERRED
-			 float2 ddx,
-			 float2 ddy,
+			 float3 ddxWorldSpacePosition,
+			 float3 ddyWorldSpacePosition,
+			 float2 ddxTextureCoordinate,
+			 float2 ddyTextureCoordinate,
 #endif
 			 uint anisotropicWrapSamplerIndex,
 			 uint primitiveID)
 {
 	pixel.Normal = normalize(pixel.Normal);
-	pixel.Tangent = normalize(pixel.Tangent);
 
 	const SamplerState anisotropicWrapSampler = ResourceDescriptorHeap[anisotropicWrapSamplerIndex];
 	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[scene.VertexBufferIndex];
@@ -40,28 +60,13 @@ float4 Shade(Scene scene,
 	const Material material = materialBuffer[primitive.MaterialIndex];
 
 	const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
-	const Texture2D<float3> normalMapTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.NormalMapTextureIndex)];
-	const Texture2D<float3> metallicRoughnessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
-	const Texture2D<float4> specularGlossinessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
-
 #if FORWARD
 	const float4 baseColorOrDiffuse = baseColorOrDiffuseTexture.Sample(anisotropicWrapSampler, pixel.TextureCoordinate);
-	const float3 normalMap = normalMapTexture.Sample(anisotropicWrapSampler, pixel.TextureCoordinate).xyz * 2.0f - 1.0f;
-	const float3 metallicRoughness = metallicRoughnessTexture.Sample(anisotropicWrapSampler, pixel.TextureCoordinate);
-	const float4 specularGlossiness = specularGlossinessTexture.Sample(anisotropicWrapSampler, pixel.TextureCoordinate);
-#else
-	const float4 baseColorOrDiffuse = baseColorOrDiffuseTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddx, ddy);
-	const float3 normalMap = normalMapTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddx, ddy).xyz * 2.0f - 1.0f;
-	const float3 metallicRoughness = metallicRoughnessTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddx, ddy);
-	const float4 specularGlossiness = specularGlossinessTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddx, ddy);
+#elif DEFERRED
+	const float4 baseColorOrDiffuse = baseColorOrDiffuseTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddxTextureCoordinate, ddyTextureCoordinate);
 #endif
 
-	const float4 baseColorFactor = material.IsSpecularGlossiness ? 0.0f : material.BaseColorOrDiffuseFactor;
-	const float4 diffuseFactor = material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
-	const float4 baseColor = baseColorFactor * baseColorOrDiffuse;
-	const float4 diffuse = diffuseFactor * baseColorOrDiffuse;
-
-	const float alpha = material.IsSpecularGlossiness ? diffuse.a : baseColor.a;
+	const float alpha = material.BaseColorOrDiffuseFactor.a * baseColorOrDiffuse.a;
 
 #if FORWARD
 	[branch]
@@ -71,10 +76,57 @@ float4 Shade(Scene scene,
 	}
 #endif
 
-	const float3 bitangent = normalize(cross(pixel.Normal, pixel.Tangent.xyz) * pixel.Tangent.w);
-	const float3x3 tbn = transpose(float3x3(pixel.Tangent.xyz, bitangent, pixel.Normal));
+	const float4 baseColorFactor = material.IsSpecularGlossiness ? 0.0f : material.BaseColorOrDiffuseFactor;
+	const float4 diffuseFactor = material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
+	const float4 baseColor = baseColorFactor * baseColorOrDiffuse;
+	const float4 diffuse = diffuseFactor * baseColorOrDiffuse;
 
-	const float3 shadeNormal = normalize(mul(tbn, normalMap));
+	const float3 unlitColor = material.IsSpecularGlossiness ? diffuse.rgb : baseColor.rgb;
+
+	const Texture2D<float3> normalMapTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.NormalMapTextureIndex)];
+#if FORWARD
+	float3 normalMap = normalMapTexture.Sample(anisotropicWrapSampler, pixel.TextureCoordinate).xyz * 2.0f - 1.0f;
+#elif DEFERRED
+	float3 normalMap = normalMapTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddxTextureCoordinate, ddyTextureCoordinate).xyz * 2.0f - 1.0f;
+#endif
+	if (scene.TwoChannelNormalMaps)
+	{
+		normalMap.z = sqrt(1.0f - saturate(dot(normalMap.xy, normalMap.xy)));
+	}
+
+	float3 tangent;
+	float3 bitangent;
+#if FORWARD
+	ComputeTangents(pixel.Normal, ddx(pixel.WorldSpacePosition), ddy(pixel.WorldSpacePosition), ddx(pixel.TextureCoordinate), ddy(pixel.TextureCoordinate), tangent, bitangent);
+#elif DEFERRED
+	ComputeTangents(pixel.Normal, ddxWorldSpacePosition, ddyWorldSpacePosition, ddxTextureCoordinate, ddyTextureCoordinate, tangent, bitangent);
+#endif
+	const float3x3 tbn = transpose(float3x3(tangent, bitangent, pixel.Normal));
+
+	const float3 shadeNormal = all(normalMap <= 0.0001f) ? pixel.Normal : normalize(mul(tbn, normalMap));
+
+	[branch]
+	switch (viewMode)
+	{
+	case ViewMode::Unlit:
+		return float4(unlitColor, alpha);
+	case ViewMode::Geometry:
+		return float4(ToColor(Hash(primitiveID)), alpha);
+	case ViewMode::Normal:
+		return float4(SrgbToLinear(shadeNormal * 0.5f + 0.5f), 1.0f);
+	default:
+		break;
+	}
+
+	const Texture2D<float3> metallicRoughnessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
+	const Texture2D<float4> specularGlossinessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
+#if FORWARD
+	const float3 metallicRoughness = metallicRoughnessTexture.Sample(anisotropicWrapSampler, pixel.TextureCoordinate);
+	const float4 specularGlossiness = specularGlossinessTexture.Sample(anisotropicWrapSampler, pixel.TextureCoordinate);
+#elif DEFERRED
+	const float3 metallicRoughness = metallicRoughnessTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddxTextureCoordinate, ddyTextureCoordinate);
+	const float4 specularGlossiness = specularGlossinessTexture.SampleGrad(anisotropicWrapSampler, pixel.TextureCoordinate, ddxTextureCoordinate, ddyTextureCoordinate);
+#endif
 
 	const float metallicFactor = material.IsSpecularGlossiness ? 0.0f : material.MetallicOrSpecularFactor.x;
 	const float roughnessFactor = material.IsSpecularGlossiness ? 0.0f : material.RoughnessOrGlossinessFactor;
@@ -85,19 +137,6 @@ float4 Shade(Scene scene,
 	const float glossinessFactor = material.IsSpecularGlossiness ? material.RoughnessOrGlossinessFactor : 0.0f;
 	const float3 specular = specularFactor * specularGlossiness.rgb;
 	const float glossiness = glossinessFactor * SrgbToLinear(specularGlossiness.a);
-
-	[branch]
-	switch (viewMode)
-	{
-	case ViewMode::Unlit:
-		return material.IsSpecularGlossiness ? diffuse : baseColor;
-	case ViewMode::Geometry:
-		return ToColor(Hash(primitiveID));
-	case ViewMode::Normal:
-		return float4(SrgbToLinear(shadeNormal * 0.5f + 0.5f), 1.0f);
-	default:
-		break;
-	}
 
 	const float3 viewDirection = normalize(scene.ViewPosition - pixel.WorldSpacePosition);
 
@@ -156,7 +195,7 @@ float4 Shade(Scene scene,
 															   materialBuffer,
 															   anisotropicWrapSampler);
 
-	const float3 ambientLightContribution = 0.05f * directionalLightBuffer.IntensityLux * (material.IsSpecularGlossiness ? diffuse : baseColor).rgb;
+	const float3 ambientLightContribution = 0.05f * directionalLightBuffer.IntensityLux * unlitColor;
 	finalColor += ambientLightContribution;
 
 	return float4(finalColor, alpha);

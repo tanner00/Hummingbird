@@ -86,6 +86,7 @@ private:
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;
 	Array<Material> SceneMaterials;
+	bool SceneTwoChannelNormalMaps;
 
 	bool Deferred;
 

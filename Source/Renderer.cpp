@@ -214,6 +214,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
 		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
+		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
 	};
 	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
 
@@ -448,14 +449,6 @@ void Renderer::UpdateScene(const GraphicsPipeline& opaquePipeline, const Graphic
 										 .Stride = primitive.NormalStride,
 										 .Offset = primitive.NormalOffset,
 									 });
-			Graphics.SetVertexBuffer(3,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.TangentSize,
-										 .Stride = primitive.TangentStride,
-										 .Offset = primitive.TangentOffset,
-									 });
 			Graphics.SetIndexBuffer(SubBuffer
 									{
 										 .Resource = SceneVertexBuffer.Resource,
@@ -513,11 +506,10 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 {
 	UnloadScene();
 
+	SceneTwoChannelNormalMaps = scene.TwoChannelNormalMaps;
+
 	VERIFY(scene.Buffers.GetLength() == 1, "GLTF file contains multiple buffers!");
 	const GLTF::Buffer& vertexBuffer = scene.Buffers[0];
-
-	Array<Array<Float4>> computedTangents(RendererAllocator);
-	usize computedTangentsCount = 0;
 
 	usize globalPrimitiveIndex = 0;
 	for (const GLTF::Mesh& mesh : scene.Meshes)
@@ -531,34 +523,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::AccessorView normalView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Normal]);
 			const GLTF::AccessorView indexView = GLTF::GetAccessorView(scene, primitive.Indices);
 
-			GLTF::AccessorView tangentView;
-			if (primitive.Attributes.Contains(GLTF::AttributeType::Tangent))
-			{
-				tangentView = GLTF::GetAccessorView(scene, primitive.Attributes[GLTF::AttributeType::Tangent]);
-			}
-			else
-			{
-				Platform::LogFormatted("LoadScene: Missing tangents from primitive!\n");
-
-				const usize tangentsCount = normalView.Size / normalView.Stride;
-				Array<Float4> primitiveTangents(tangentsCount, RendererAllocator);
-				for (usize i = 0; i < tangentsCount; ++i)
-				{
-					static constexpr Float4 invalidTangent = { .X = 0.0f, .Y = 0.0f, .Z = 0.0f, .W = 0.0f };
-					primitiveTangents.Add(invalidTangent);
-				}
-
-				tangentView = GLTF::AccessorView
-				{
-					.Size = primitiveTangents.GetDataSize(),
-					.Stride = primitiveTangents.GetElementSize(),
-					.Offset = vertexBuffer.Size + computedTangentsCount * sizeof(Float4),
-				};
-				computedTangentsCount += tangentsCount;
-
-				computedTangents.Add(Move(primitiveTangents));
-			}
-
 			primitives.Add(Primitive
 			{
 				.GlobalIndex = globalPrimitiveIndex,
@@ -571,9 +535,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.NormalOffset = normalView.Offset,
 				.NormalStride = normalView.Stride,
 				.NormalSize = normalView.Size,
-				.TangentOffset = tangentView.Offset,
-				.TangentStride = tangentView.Stride,
-				.TangentSize = tangentView.Size,
 				.IndexOffset = indexView.Offset,
 				.IndexStride = indexView.Stride,
 				.IndexSize = indexView.Size,
@@ -590,19 +551,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	}
 
 	GLTF::Buffer finalVertexBuffer = vertexBuffer;
-	if (!computedTangents.IsEmpty())
-	{
-		finalVertexBuffer.Size += computedTangentsCount * sizeof(Float4);
-		finalVertexBuffer.Data = static_cast<uint8*>(RendererAllocator->Allocate(finalVertexBuffer.Size));
-		Platform::MemoryCopy(finalVertexBuffer.Data, vertexBuffer.Data, vertexBuffer.Size);
-
-		usize tangentsOffset = 0;
-		for (const Array<Float4>& tangents : computedTangents)
-		{
-			Platform::MemoryCopy(finalVertexBuffer.Data + vertexBuffer.Size + tangentsOffset, tangents.GetData(), tangents.GetDataSize());
-			tangentsOffset += tangents.GetDataSize();
-		}
-	}
 	SceneVertexBuffer = CreateBasicBuffer(&Device,
 										  finalVertexBuffer.Size,
 										  0,
@@ -610,10 +558,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 										  ViewType::ShaderResource,
 										  finalVertexBuffer.Data,
 										  "Scene Vertex Buffer"_view);
-	if (!computedTangents.IsEmpty())
-	{
-		RendererAllocator->Deallocate(finalVertexBuffer.Data, finalVertexBuffer.Size);
-	}
 
 	Array<HLSL::Primitive> primitiveData(RendererAllocator);
 	for (const Mesh& mesh : SceneMeshes)
@@ -628,8 +572,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.TextureCoordinateStride = static_cast<uint32>(primitive.TextureCoordinateStride),
 				.NormalOffset = static_cast<uint32>(primitive.NormalOffset),
 				.NormalStride = static_cast<uint32>(primitive.NormalStride),
-				.TangentOffset = static_cast<uint32>(primitive.TangentOffset),
-				.TangentStride = static_cast<uint32>(primitive.TangentStride),
 				.IndexOffset = static_cast<uint32>(primitive.IndexOffset),
 				.IndexStride = static_cast<uint32>(primitive.IndexStride),
 				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
