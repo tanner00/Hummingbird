@@ -50,7 +50,7 @@ private:
 	RHI::Resource FontTexture;
 	RHI::TextureView FontTextureView;
 
-	RHI::Sampler Sampler;
+	RHI::Sampler LinearWrapSampler;
 
 	RHI::Resource CharacterBuffers[RHI::FramesInFlight];
 	RHI::BufferView CharacterBufferViews[RHI::FramesInFlight];

@@ -102,8 +102,8 @@ Scene LoadScene(StringView filePath)
 		const JSON::Object& extensionsObject = rootObject["extensions"_view].GetObject();
 		if (extensionsObject.HasKey("KHR_lights_punctual"_view))
 		{
-			const JSON::Object& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
-			const JSON::Array& lightsArray = khrLightsPunctualObject["lights"_view].GetArray();
+			const JSON::Object& lightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
+			const JSON::Array& lightsArray = lightsPunctualObject["lights"_view].GetArray();
 
 			for (const JSON::Value& light : lightsArray)
 			{
@@ -150,13 +150,13 @@ Scene LoadScene(StringView filePath)
 	Array<Node> nodes(nodeArray.GetLength(), Allocator);
 	for (usize nodeIndex = 0; nodeIndex < nodeArray.GetLength(); ++nodeIndex)
 	{
-		const JSON::Object& nodeObject = nodeArray[nodeIndex].GetObject();
-
 		Matrix transform = Matrix::Identity;
 		Array<usize> childNodes(Allocator);
 		usize mesh = INDEX_NONE;
 		usize camera = INDEX_NONE;
 		usize light = INDEX_NONE;
+
+		const JSON::Object& nodeObject = nodeArray[nodeIndex].GetObject();
 
 		const bool hasTranslation = nodeObject.HasKey("translation"_view);
 		const bool hasRotation = nodeObject.HasKey("rotation"_view);
@@ -432,8 +432,6 @@ Scene LoadScene(StringView filePath)
 	Array<Material> materials(materialArray.GetLength(), Allocator);
 	for (const JSON::Value& materialValue : materialArray)
 	{
-		const JSON::Object& materialObject = materialValue.GetObject();
-
 		Material material =
 		{
 			.NormalMapTexture = INDEX_NONE,
@@ -441,10 +439,10 @@ Scene LoadScene(StringView filePath)
 			.AlphaCutoff = 0.5f,
 		};
 
+		const JSON::Object& materialObject = materialValue.GetObject();
+
 		if (materialObject.HasKey("pbrMetallicRoughness"_view))
 		{
-			const JSON::Object& pbrMetallicRoughnessObject = materialObject["pbrMetallicRoughness"_view].GetObject();
-
 			material.IsSpecularGlossiness = false;
 
 			material.MetallicRoughness.BaseColorTexture = INDEX_NONE;
@@ -453,6 +451,8 @@ Scene LoadScene(StringView filePath)
 			material.MetallicRoughness.MetallicRoughnessTexture = INDEX_NONE;
 			material.MetallicRoughness.MetallicFactor = 1.0f;
 			material.MetallicRoughness.RoughnessFactor = 1.0f;
+
+			const JSON::Object& pbrMetallicRoughnessObject = materialObject["pbrMetallicRoughness"_view].GetObject();
 
 			if (pbrMetallicRoughnessObject.HasKey("baseColorTexture"_view))
 			{

@@ -203,8 +203,6 @@ void Renderer::Update(const CameraController& cameraController)
 	const Vector viewPosition = cameraController.GetPosition();
 	const HLSL::Scene sceneData =
 	{
-		.ViewProjection = projection * view,
-		.ViewPosition = { .X = viewPosition.X, .Y = viewPosition.Y, .Z = viewPosition.Z },
 		.VertexBufferIndex = Device.Get(SceneVertexBuffer.View),
 		.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
 		.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
@@ -213,8 +211,10 @@ void Renderer::Update(const CameraController& cameraController)
 		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
-		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
+		.ViewProjection = projection * view,
+		.ViewPosition = { .X = viewPosition.X, .Y = viewPosition.Y, .Z = viewPosition.Z },
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
+		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
 	};
 	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
 
@@ -846,11 +846,11 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		materialData.Add(HLSL::Material
 		{
 			.BaseColorOrDiffuseTextureIndex = Device.Get(baseColorOrDiffuseTexture.View),
+			.NormalMapTextureIndex = Device.Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
+			.MetallicRoughnessOrSpecularGlossinessTextureIndex = Device.Get(metallicRoughnessOrSpecularGlossinessTexture.View),
 			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness
 									  ? material.SpecularGlossiness.DiffuseFactor
 									  : material.MetallicRoughness.BaseColorFactor,
-			.NormalMapTextureIndex = Device.Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
-			.MetallicRoughnessOrSpecularGlossinessTextureIndex = Device.Get(metallicRoughnessOrSpecularGlossinessTexture.View),
 			.MetallicOrSpecularFactor = material.IsSpecularGlossiness
 									  ? material.SpecularGlossiness.SpecularFactor
 									  : Float3 { .R = material.MetallicRoughness.MetallicFactor, .G = 0.0f, .B = 0.0f },
@@ -1100,8 +1100,10 @@ void Renderer::CreatePipelines()
 											 false,
 											 ResourceFormat::RGBA8UNormSRGB);
 
-	LuminanceHistogramPipeline = createComputePipeline("Luminance Histogram Pipeline"_view, "Shaders/LuminanceHistogram.hlsl"_view);
-	LuminanceAveragePipeline = createComputePipeline("Luminance Average Pipeline"_view, "Shaders/LuminanceAverage.hlsl"_view);
+	LuminanceHistogramPipeline = createComputePipeline("Luminance Histogram Pipeline"_view,
+													   "Shaders/LuminanceHistogram.hlsl"_view);
+	LuminanceAveragePipeline = createComputePipeline("Luminance Average Pipeline"_view,
+													 "Shaders/LuminanceAverage.hlsl"_view);
 }
 
 void Renderer::DestroyPipelines()
