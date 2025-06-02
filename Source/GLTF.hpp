@@ -235,6 +235,8 @@ struct Scene
 
 	Array<Camera> Cameras;
 	Array<Light> Lights;
+
+	bool TwoChannelNormalMaps;
 };
 
 Scene LoadScene(StringView filePath);

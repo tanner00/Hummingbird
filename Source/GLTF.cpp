@@ -716,6 +716,17 @@ Scene LoadScene(StringView filePath)
 		accessors.Emplace(bufferView, count, offset, componentType, accessorType);
 	}
 
+	bool twoChannelNormalMaps = false;
+	if (rootObject.HasKey("extras"_view))
+	{
+		const JSON::Object& extrasObject = rootObject["extras"_view].GetObject();
+
+		if (extrasObject.HasKey("twoChannelNormalMaps"_view))
+		{
+			twoChannelNormalMaps = extrasObject["twoChannelNormalMaps"_view].GetBoolean();
+		}
+	}
+
 	return Scene
 	{
 		.TopLevelNodes = Move(sceneNodes),
@@ -730,6 +741,7 @@ Scene LoadScene(StringView filePath)
 		.Accessors = Move(accessors),
 		.Cameras = Move(cameras),
 		.Lights = Move(lights),
+		.TwoChannelNormalMaps = twoChannelNormalMaps,
 	};
 }
 

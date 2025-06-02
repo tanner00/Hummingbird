@@ -43,10 +43,6 @@ struct Primitive
 	usize NormalStride;
 	usize NormalSize;
 
-	usize TangentOffset;
-	usize TangentStride;
-	usize TangentSize;
-
 	usize IndexOffset;
 	usize IndexStride;
 	usize IndexSize;
