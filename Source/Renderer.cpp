@@ -587,6 +587,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	{
 		for (Primitive& primitive : mesh.Primitives)
 		{
+			const GLTF::AlphaMode alphaMode = primitive.MaterialIndex != INDEX_NONE ? scene.Materials[primitive.MaterialIndex].AlphaMode
+																					: GLTF::AlphaMode::Opaque;
+
 			const AccelerationStructureGeometry geometry = AccelerationStructureGeometry
 			{
 				.VertexBuffer = SubBuffer
@@ -603,7 +606,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 					.Stride = primitive.IndexStride,
 					.Offset = primitive.IndexOffset,
 				},
-				.Translucent = scene.Materials[primitive.MaterialIndex].AlphaMode != GLTF::AlphaMode::Opaque,
+				.Translucent = alphaMode != GLTF::AlphaMode::Opaque,
 			};
 			const AccelerationStructureSize size = Device.GetAccelerationStructureSize(geometry);
 
