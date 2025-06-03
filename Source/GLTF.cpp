@@ -436,7 +436,7 @@ Scene LoadScene(StringView filePath)
 		{
 			.NormalMapTexture = INDEX_NONE,
 			.AlphaMode = AlphaMode::Opaque,
-			.AlphaCutoff = 0.5f,
+			.AlphaCutoff = 0.0f,
 		};
 
 		const JSON::Object& materialObject = materialValue.GetObject();
@@ -568,6 +568,8 @@ Scene LoadScene(StringView filePath)
 			else if (alphaModeString == "MASK"_view)
 			{
 				material.AlphaMode = AlphaMode::Mask;
+
+				material.AlphaCutoff = 0.5f;
 			}
 			else if (alphaModeString == "BLEND"_view)
 			{
