@@ -27,7 +27,7 @@ public:
 	}
 
 private:
-	void UpdateScene(const RHI::GraphicsPipeline& opaquePipeline, const RHI::GraphicsPipeline& blendPipeline);
+	void UpdateScene(const RHI::GraphicsPipeline& pipeline, bool prePass);
 
 #if !RELEASE
 	void UpdateFrameTimes(double startCpuTime);
@@ -72,8 +72,7 @@ private:
 
 	RHI::GraphicsPipeline DepthPrePassPipeline;
 
-	RHI::GraphicsPipeline ForwardOpaquePipeline;
-	RHI::GraphicsPipeline ForwardBlendPipeline;
+	RHI::GraphicsPipeline ForwardPipeline;
 
 	RHI::GraphicsPipeline VisibilityBufferPipeline;
 	RHI::ComputePipeline DeferredPipeline;
