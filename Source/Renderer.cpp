@@ -226,7 +226,7 @@ void Renderer::Update(const CameraController& cameraController)
 		Graphics.ClearRenderTarget(VisibilityBufferRenderTarget.RenderTargetView, { .R = 0, .G = 0 });
 
 		Graphics.SetRenderTarget(VisibilityBufferRenderTarget.RenderTargetView, DepthTexture.View);
-		UpdateScene(VisibilityBufferPipeline, VisibilityBufferPipeline);
+		UpdateScene(VisibilityBufferPipeline, false);
 
 		Graphics.TextureBarrier
 		(
@@ -284,10 +284,10 @@ void Renderer::Update(const CameraController& cameraController)
 		Graphics.ClearRenderTarget(HDRRenderTarget.RenderTargetView, { .R = 0.0f, .G = 0.0f, .B = 0.0f, .A = 0.0f });
 
 		Graphics.SetRenderTarget(DepthTexture.View);
-		UpdateScene(DepthPrePassPipeline, GraphicsPipeline::Invalid());
+		UpdateScene(DepthPrePassPipeline, true);
 
 		Graphics.SetRenderTarget(HDRRenderTarget.RenderTargetView, DepthTexture.View);
-		UpdateScene(ForwardOpaquePipeline, ForwardBlendPipeline);
+		UpdateScene(ForwardPipeline, false);
 
 		Graphics.TextureBarrier
 		(
@@ -384,7 +384,7 @@ void Renderer::Update(const CameraController& cameraController)
 	Device.Present();
 }
 
-void Renderer::UpdateScene(const GraphicsPipeline& opaquePipeline, const GraphicsPipeline& blendPipeline)
+void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prepass)
 {
 	usize drawCallIndex = 0;
 	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetLength(); ++nodeIndex)
@@ -407,20 +407,12 @@ void Renderer::UpdateScene(const GraphicsPipeline& opaquePipeline, const Graphic
 			};
 
 			const bool translucent = (primitive.MaterialIndex != INDEX_NONE) ? SceneMaterials[primitive.MaterialIndex].Translucent : false;
-			const bool opaqueOnly = translucent && !blendPipeline.IsValid();
-			if (opaqueOnly)
+			if (prepass && translucent)
 			{
 				continue;
 			}
 
-			if (translucent)
-			{
-				Graphics.SetPipeline(blendPipeline);
-			}
-			else
-			{
-				Graphics.SetPipeline(opaquePipeline);
-			}
+			Graphics.SetPipeline(pipeline);
 
 			Graphics.SetRootConstants(&rootConstants);
 
@@ -785,6 +777,13 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			return texture;
 		};
 
+		static bool blendWarningOnce = false;
+		if (!blendWarningOnce && gltfMaterial.AlphaMode == GLTF::AlphaMode::Blend)
+		{
+			Platform::LogFormatted("Blend materials are not supported!\n");
+			blendWarningOnce = true;
+		}
+
 		Material material =
 		{
 			.NormalMapTexture = convertTexture(scene, gltfMaterial.NormalMapTexture, "Scene Normal Map Texture"_view),
@@ -1006,7 +1005,6 @@ void Renderer::CreatePipelines()
 {
 	const auto createGraphicsPipeline = [this](StringView name,
 											   StringView path,
-											   bool alphaBlend,
 											   bool pixelShader,
 											   bool depth,
 											   auto... formats) -> GraphicsPipeline
@@ -1036,7 +1034,7 @@ void Renderer::CreatePipelines()
 			.Stages = Move(stages),
 			.RenderTargetFormats = { formats... },
 			.DepthStencilFormat = depth ? ResourceFormat::Depth32 : ResourceFormat::None,
-			.AlphaBlend = alphaBlend,
+			.AlphaBlend = false,
 			.Name = name,
 		});
 		Device.Destroy(&vertex);
@@ -1068,26 +1066,17 @@ void Renderer::CreatePipelines()
 	DepthPrePassPipeline = createGraphicsPipeline("Forward Depth Pre-Pass Pipeline"_view,
 												  "Shaders/Forward.hlsl"_view,
 												  false,
-												  false,
 												  true,
 												  ResourceFormat::None);
 
-	ForwardOpaquePipeline = createGraphicsPipeline("Forward Opaque Pipeline"_view,
-												   "Shaders/Forward.hlsl"_view,
-												   false,
-												   true,
-												   true,
-												   HDRFormat);
-	ForwardBlendPipeline = createGraphicsPipeline("Forward Blend Pipeline"_view,
-												  "Shaders/Forward.hlsl"_view,
-												  true,
-												  true,
-												  true,
-												  HDRFormat);
+	ForwardPipeline = createGraphicsPipeline("Forward Pipeline"_view,
+											 "Shaders/Forward.hlsl"_view,
+											 true,
+											 true,
+											 HDRFormat);
 
 	VisibilityBufferPipeline = createGraphicsPipeline("Visibility Buffer Pipeline"_view,
 													  "Shaders/VisibilityBuffer.hlsl"_view,
-													  false,
 													  true,
 													  true,
 													  ResourceFormat::RG32UInt);
@@ -1096,7 +1085,6 @@ void Renderer::CreatePipelines()
 
 	ToneMapPipeline = createGraphicsPipeline("Tone Map Pipeline"_view,
 											 "Shaders/ToneMap.hlsl"_view,
-											 false,
 											 true,
 											 false,
 											 ResourceFormat::RGBA8UNormSRGB);
@@ -1111,8 +1099,7 @@ void Renderer::DestroyPipelines()
 {
 	Device.Destroy(&DepthPrePassPipeline);
 
-	Device.Destroy(&ForwardOpaquePipeline);
-	Device.Destroy(&ForwardBlendPipeline);
+	Device.Destroy(&ForwardPipeline);
 
 	Device.Destroy(&VisibilityBufferPipeline);
 	Device.Destroy(&DeferredPipeline);
