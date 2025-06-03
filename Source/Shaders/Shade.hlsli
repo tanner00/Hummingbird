@@ -152,7 +152,7 @@ float4 Shade(Scene scene,
 
 		const float attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
 
-		const float3 contribution = Pbr(baseColor.rgb,
+		const float3 contribution = PBR(baseColor.rgb,
 										diffuse.rgb,
 										metallic,
 										specular,
@@ -175,7 +175,7 @@ float4 Shade(Scene scene,
 
 	const float3 directionalLightDirection = normalize(directionalLightBuffer.Direction);
 
-	const float3 directionalLightContribution = Pbr(baseColor.rgb,
+	const float3 directionalLightContribution = PBR(baseColor.rgb,
 													diffuse.rgb,
 													metallic,
 													specular,
