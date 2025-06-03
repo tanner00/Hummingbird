@@ -533,7 +533,7 @@ Scene LoadScene(StringView filePath)
 				static bool specularWarningOnce = false;
 				if (!specularWarningOnce)
 				{
-					Platform::LogFormatted("KHR_materials_specular implementation isn't specification compliant!\n");
+					Platform::Log("GLTF::LoadScene: KHR_materials_specular implementation isn't specification compliant!\n");
 					specularWarningOnce = true;
 				}
 
