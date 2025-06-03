@@ -384,7 +384,7 @@ void Renderer::Update(const CameraController& cameraController)
 	Device.Present();
 }
 
-void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prepass)
+void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prePass)
 {
 	usize drawCallIndex = 0;
 	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetLength(); ++nodeIndex)
@@ -406,8 +406,10 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prepass)
 				.NormalTransform = normalTransform,
 			};
 
+			++drawCallIndex;
+
 			const bool translucent = (primitive.MaterialIndex != INDEX_NONE) ? SceneMaterials[primitive.MaterialIndex].Translucent : false;
-			if (prepass && translucent)
+			if (prePass && translucent)
 			{
 				continue;
 			}
@@ -451,8 +453,6 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prepass)
 									});
 
 			Graphics.DrawIndexed(primitive.IndexSize / primitive.IndexStride);
-
-			++drawCallIndex;
 		}
 	}
 }
