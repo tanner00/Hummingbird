@@ -486,7 +486,8 @@ Scene LoadScene(StringView filePath)
 
 			if (extensionsObject.HasKey("KHR_materials_pbrSpecularGlossiness"_view))
 			{
-				const JSON::Object& pbrSpecularGlossinessObject = extensionsObject["KHR_materials_pbrSpecularGlossiness"_view].GetObject();
+				CHECK(!materialObject.HasKey("pbrMetallicRoughness"_view));
+				CHECK(!materialObject.HasKey("KHR_materials_specular"_view));
 
 				material.IsSpecularGlossiness = true;
 
@@ -496,6 +497,8 @@ Scene LoadScene(StringView filePath)
 				material.SpecularGlossiness.SpecularGlossinessTexture = INDEX_NONE;
 				material.SpecularGlossiness.SpecularFactor = { .R = 1.0f, .G = 1.0f, .B = 1.0f };
 				material.SpecularGlossiness.GlossinessFactor = 1.0f;
+
+				const JSON::Object& pbrSpecularGlossinessObject = extensionsObject["KHR_materials_pbrSpecularGlossiness"_view].GetObject();
 
 				if (pbrSpecularGlossinessObject.HasKey("diffuseTexture"_view))
 				{
