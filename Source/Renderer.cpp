@@ -194,7 +194,7 @@ void Renderer::Update(const CameraController& cameraController)
 	Graphics.SetViewport(HDRRenderTarget.Resource.Dimensions.Width, HDRRenderTarget.Resource.Dimensions.Height);
 
 	const Matrix view = cameraController.GetTransform().GetInverse();
-	const Matrix projection = Matrix::Perspective
+	const Matrix projection = Matrix::ReverseDepth() * Matrix::Perspective
 	(
 		cameraController.GetFieldOfViewYRadians(),
 		cameraController.GetAspectRatio(),
@@ -223,7 +223,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	if (Deferred)
 	{
-		Graphics.ClearRenderTarget(VisibilityBufferRenderTarget.RenderTargetView, { .R = 0, .G = 0 });
+		Graphics.ClearRenderTarget(VisibilityBufferRenderTarget.RenderTargetView);
 
 		Graphics.SetRenderTarget(VisibilityBufferRenderTarget.RenderTargetView, DepthTexture.View);
 		UpdateScene(VisibilityBufferPipeline, false);
@@ -281,7 +281,7 @@ void Renderer::Update(const CameraController& cameraController)
 			HDRRenderTarget.Resource
 		);
 
-		Graphics.ClearRenderTarget(HDRRenderTarget.RenderTargetView, { .R = 0.0f, .G = 0.0f, .B = 0.0f, .A = 0.0f });
+		Graphics.ClearRenderTarget(HDRRenderTarget.RenderTargetView);
 
 		Graphics.SetRenderTarget(DepthTexture.View);
 		UpdateScene(DepthPrePassPipeline, true);
@@ -1038,6 +1038,7 @@ void Renderer::CreatePipelines()
 			.RenderTargetFormats = { formats... },
 			.DepthStencilFormat = depth ? ResourceFormat::Depth32 : ResourceFormat::None,
 			.AlphaBlend = false,
+			.ReverseDepth = true,
 			.Name = name,
 		});
 		Device.Destroy(&vertex);
@@ -1177,6 +1178,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.Flags = ResourceFlags::DepthStencil,
 		.InitialLayout = BarrierLayout::DepthStencilWrite,
 		.Dimensions = { width, height },
+		.DepthClear = 0.0f,
 		.Name = "Depth Texture"_view,
 	});
 	DepthTexture.View = Device.Create(
