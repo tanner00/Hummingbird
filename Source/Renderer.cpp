@@ -780,7 +780,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		static bool blendWarningOnce = false;
 		if (!blendWarningOnce && gltfMaterial.AlphaMode == GLTF::AlphaMode::Blend)
 		{
-			Platform::LogFormatted("Blend materials are not supported!\n");
+			Platform::Log("Renderer::LoadScene: Blend materials are not supported!\n");
 			blendWarningOnce = true;
 		}
 
