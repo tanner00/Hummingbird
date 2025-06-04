@@ -8,6 +8,8 @@ static const StringView scenes[] =
 {
 	"Assets/Scenes/Sponza/Sponza.gltf"_view,
 	"Assets/Scenes/Bistro/Bistro.gltf"_view,
+	"Assets/Scenes/EmeraldSquare/EmeraldSquare_Day.gltf"_view,
+	"Assets/Scenes/SunTemple/SunTemple.gltf"_view,
 };
 
 static bool NeedsResize = false;
