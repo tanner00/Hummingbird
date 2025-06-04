@@ -45,8 +45,7 @@ struct ExtendedHeader
 	uint32 MiscFlags2;
 };
 
-static constexpr char FormatSignature[] = "DDS ";
-static constexpr usize BaseHeaderSize = sizeof(Header) + (sizeof(FormatSignature) - 1);
+static constexpr usize BaseHeaderSize = sizeof(Header) + 4 * sizeof(char);
 static constexpr usize ExtendedHeaderSize = sizeof(ExtendedHeader);
 
 static RHI::ResourceFormat From(DXGI_FORMAT format)
@@ -127,11 +126,12 @@ Image LoadImage(StringView filePath)
 	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &fileSize, *Allocator));
 	const StringView fileView = { fileData, fileSize };
 
-	VERIFY(fileSize >= sizeof(FormatSignature) - 1, "Invalid DDS file!");
-	for (usize i = 0; i < sizeof(FormatSignature) - 1; ++i)
-	{
-		VERIFY(fileView[i] == FormatSignature[i], "Unexpected image file format!");
-	}
+	VERIFY(fileSize >= BaseHeaderSize, "Invalid DDS file!");
+
+	const StringView formatSignature = "DDS "_view;
+	const StringView fileSignature = StringView { fileView.GetData(), formatSignature.GetLength() };
+	VERIFY(fileSignature == formatSignature, "Unexpected image file format!");
+
 	usize offset = 4;
 
 	Header header =
