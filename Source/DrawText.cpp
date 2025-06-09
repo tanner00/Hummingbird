@@ -99,8 +99,6 @@ void DrawText::Init(RHI::Device* device)
 	{
 		.Resource = FontTexture,
 		.Type = RHI::ViewType::ShaderResource,
-		.Format = FontTexture.Format,
-		.MipMapCount = fontImage.MipMapCount,
 	});
 	device->Write(&FontTexture, fontImage.Data);
 
