@@ -2,8 +2,6 @@
 
 #include "RenderTypes.hpp"
 
-#include "Luft/NoCopy.hpp"
-
 class CameraController;
 
 namespace GLTF
@@ -57,7 +55,6 @@ private:
 	RenderTarget HDRRenderTarget;
 	RenderTarget VisibilityBufferRenderTarget;
 
-	BasicBuffer SceneBuffers[RHI::FramesInFlight];
 	BasicBuffer SceneVertexBuffer;
 	BasicBuffer ScenePrimitiveBuffer;
 	BasicBuffer SceneNodeBuffer;
@@ -66,9 +63,15 @@ private:
 	BasicBuffer SceneDirectionalLightBuffer;
 	BasicBuffer ScenePointLightsBuffer;
 	BasicBuffer SceneLuminanceBuffer;
+	BasicBuffer SceneBuffers[RHI::FramesInFlight];
 
 	RHI::Resource SceneAccelerationStructureResource;
 	RHI::AccelerationStructure SceneAccelerationStructure;
+
+	Array<Mesh> SceneMeshes;
+	Array<Node> SceneNodes;
+	Array<Material> SceneMaterials;
+	bool SceneTwoChannelNormalMaps;
 
 	RHI::GraphicsPipeline DepthPrePassPipeline;
 
@@ -81,11 +84,6 @@ private:
 	RHI::ComputePipeline LuminanceAveragePipeline;
 
 	RHI::GraphicsPipeline ToneMapPipeline;
-
-	Array<Mesh> SceneMeshes;
-	Array<Node> SceneNodes;
-	Array<Material> SceneMaterials;
-	bool SceneTwoChannelNormalMaps;
 
 	bool Deferred;
 

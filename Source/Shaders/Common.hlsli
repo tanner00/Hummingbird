@@ -27,7 +27,7 @@ float3 ToColor(uint v)
 }
 
 template<typename T>
-T SrgbToLinear(T x)
+T SRGBToLinear(T x)
 {
 	return select(x < 0.04045f, x / 12.92f, pow((x + 0.055f) / 1.055f, 2.4f));
 }

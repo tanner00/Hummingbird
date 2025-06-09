@@ -114,10 +114,10 @@ Value::Value(Value&& move) noexcept
 		move.ObjectValue = nullptr;
 		break;
 	case Tag::Array:
-		new (&ArrayValue, LuftNewMarker {}) Array { Move(move.ArrayValue) };
+		new (&ArrayValue, LuftNewMarker {}) Array(Move(move.ArrayValue));
 		break;
 	case Tag::String:
-		new (&StringValue, LuftNewMarker {}) String { Move(move.StringValue) };
+		new (&StringValue, LuftNewMarker {}) String(Move(move.StringValue));
 		break;
 	case Tag::Decimal:
 		DecimalValue = move.DecimalValue;
@@ -218,19 +218,19 @@ static char PeekCharacter(StringView buffer, usize index)
 static void ExpectCharacter(StringView buffer, usize* index, char c)
 {
 	CHECK(index);
-	VERIFY(IsInRange(buffer, *index) && buffer[*index] == c, "Failed to parse expected character!");
+	VERIFY(PeekCharacter(buffer, *index) == c, "Failed to parse expected character!");
 	Advance(index, 1);
 }
 
 static void ExpectString(StringView buffer, usize* index, StringView expect)
 {
-	for (usize i = 0; i < expect.GetLength(); ++i)
+	for (usize expectIndex = 0; expectIndex < expect.GetLength(); ++expectIndex)
 	{
-		ExpectCharacter(buffer, index, expect[i]);
+		ExpectCharacter(buffer, index, expect[expectIndex]);
 	}
 }
 
-static uint64 ParseUint64(StringView buffer, usize* index)
+static uint64 ParseUInt64(StringView buffer, usize* index)
 {
 	CHECK(index);
 	usize offset = 0;
@@ -264,7 +264,7 @@ static int64 ParseInt64(StringView buffer, usize* index)
 	{
 		Advance(index, 1);
 	}
-	const int64 value = static_cast<int64>(ParseUint64(buffer, index));
+	const int64 value = static_cast<int64>(ParseUInt64(buffer, index));
 	return isNegative ? -value : value;
 }
 
@@ -283,7 +283,7 @@ static double ParseDoubleNoExponent(StringView buffer, usize* index)
 		if (IsInRange(buffer, *index) && IsDigit(buffer[*index]))
 		{
 			const usize startingIndex = *index;
-			fractional = ParseUint64(buffer, index);
+			fractional = ParseUInt64(buffer, index);
 
 			usize fractionalLength = *index - startingIndex;
 			while (fractionalLength != 0)
@@ -382,49 +382,50 @@ static Value ParseValue(StringView buffer, usize* index)
 
 	SkipWhitespace(buffer, index);
 
-	Value value = {};
+	Value value;
 
 	const char leading = PeekCharacter(buffer, *index);
 	if (leading == '"')
 	{
-		value = Value { ParseString(buffer, index) };
+		value = Value(ParseString(buffer, index));
 	}
 	else if (IsDigit(leading) || leading == '-' || leading == '+')
 	{
-		value = Value { ParseNumber(buffer, index) };
+		value = Value(ParseNumber(buffer, index));
 	}
 	else if (leading == '{')
 	{
 		Object* object = Allocator->Create<Object>(ParseObject(buffer, index));
 
-		value = Value { object };
+		value = Value(object);
 	}
 	else if (leading == '[')
 	{
-		value = Value { ParseArray(buffer, index) };
+		value = Value(ParseArray(buffer, index));
 	}
 	else if (leading == 't')
 	{
 		ExpectString(buffer, index, "true"_view);
 
-		value = Value { true };
+		value = Value(true);
 	}
 	else if (leading == 'f')
 	{
 		ExpectString(buffer, index, "false"_view);
 
-		value = Value { false };
+		value = Value(false);
 	}
 	else if (leading == 'n')
 	{
 		ExpectString(buffer, index, "null"_view);
 
-		value = Value { Tag::Null };
+		value = Value(Tag::Null);
 	}
 	else
 	{
 		VERIFY(false, "Failed to parse JSON value!");
 	}
+
 	SkipWhitespace(buffer, index);
 
 	return value;
@@ -470,7 +471,7 @@ static Object ParseObject(StringView buffer, usize* index)
 	if (PeekCharacter(buffer, *index) == '}')
 	{
 		Advance(index, 1);
-		return Object {};
+		return Object();
 	}
 
 	static constexpr usize objectBucketCount = 8;
@@ -494,14 +495,14 @@ static Object ParseObject(StringView buffer, usize* index)
 	}
 	ExpectCharacter(buffer, index, '}');
 
-	return Object { Move(object) };
+	return Object(Move(object));
 }
 
 Object Load(StringView filePath)
 {
 	usize fileSize;
 	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &fileSize, *Allocator));
-	const StringView fileView = { fileData, fileSize };
+	const StringView fileView(fileData, fileSize);
 
 	usize index = 0;
 	const Object object = ParseObject(fileView, &index);
