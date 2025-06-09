@@ -10,6 +10,8 @@ namespace JSON
 class Object;
 class Value;
 
+inline Allocator* Allocator = &GlobalAllocator::Get();
+
 using Array = Array<Value>;
 
 enum class Tag : uint8
@@ -129,7 +131,7 @@ class Object
 {
 public:
 	Object()
-		: Objects(1)
+		: Objects(1, Allocator)
 	{
 	}
 

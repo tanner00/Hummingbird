@@ -5,8 +5,6 @@
 namespace JSON
 {
 
-static Allocator* Allocator = &GlobalAllocator::Get();
-
 static Array ParseArray(StringView buffer, usize* index);
 static Object ParseObject(StringView buffer, usize* index);
 
@@ -342,7 +340,7 @@ static String ParseString(StringView buffer, usize* index)
 {
 	CHECK(index);
 
-	String result(16);
+	String result(16, Allocator);
 
 	ExpectCharacter(buffer, index, '"');
 	while (PeekCharacter(buffer, *index) != '"')
