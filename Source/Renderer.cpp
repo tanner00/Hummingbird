@@ -36,8 +36,6 @@ static BasicTexture CreateBasicTexture(Device* device,
 	{
 		.Resource = texture,
 		.Type = ViewType::ShaderResource,
-		.Format = texture.Format,
-		.MipMapCount = mipMapCount,
 	});
 	device->Write(&texture, data);
 
@@ -1134,19 +1132,16 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			{
 				.Resource = resource,
 				.Type = ViewType::RenderTarget,
-				.Format = format,
 			}),
 			.ShaderResourceView = Device.Create(
 			{
 				.Resource = resource,
 				.Type = ViewType::ShaderResource,
-				.Format = format,
 			}),
 			.UnorderedAccessView = Device.Create(
 			{
 				.Resource = resource,
 				.Type = ViewType::UnorderedAccess,
-				.Format = format,
 			}),
 		};
 	};
@@ -1167,7 +1162,6 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		{
 			.Resource = SwapChainTextures[i].Resource,
 			.Type = ViewType::RenderTarget,
-			.Format = SwapChainTextures[i].Resource.Format,
 		});
 	}
 
@@ -1185,7 +1179,6 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 	{
 		.Resource = DepthTexture.Resource,
 		.Type = ViewType::DepthStencil,
-		.Format = DepthTexture.Resource.Format,
 	});
 
 	HDRRenderTarget = createRenderTarget(ResourceFormat::RGBA32Float, "HDR Texture"_view);
