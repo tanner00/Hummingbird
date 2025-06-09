@@ -13,7 +13,7 @@ static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 	const usize directoryLength = sceneFilePath.ReverseFind(pathSeparator);
 	VERIFY(directoryLength != INDEX_NONE, "Invalid GLTF file path!");
 
-	String fullPath = String { directoryLength + sizeof(pathSeparator) + filePath.GetLength(), Allocator };
+	String fullPath(directoryLength + sizeof(pathSeparator) + filePath.GetLength(), Allocator);
 	fullPath.Append(sceneFilePath, directoryLength);
 	fullPath.Append(pathSeparator);
 	fullPath.Append(filePath);
@@ -194,7 +194,7 @@ Scene LoadScene(StringView filePath)
 				};
 			}
 
-			Vector scale = Vector { 1.0f, 1.0f, 1.0f };
+			Vector scale = { 1.0f, 1.0f, 1.0f };
 			if (hasScale)
 			{
 				const JSON::Array& scaleArray = nodeObject["scale"_view].GetArray();
@@ -342,7 +342,9 @@ Scene LoadScene(StringView filePath)
 			}
 		}
 		else
+		{
 			targetType = TargetType::ArrayBuffer;
+		}
 
 		bufferViews.Emplace(buffer, size, offset, targetType);
 	}
@@ -368,7 +370,7 @@ Scene LoadScene(StringView filePath)
 			const usize material = static_cast<usize>(primitiveObject["material"_view].GetDecimal());
 
 			const JSON::Object& attributesObject = primitiveObject["attributes"_view].GetObject();
-			HashTable<AttributeType, usize> attributes { 4, Allocator };
+			HashTable<AttributeType, usize> attributes(4, Allocator);
 
 			if (attributesObject.HasKey("POSITION"_view))
 			{

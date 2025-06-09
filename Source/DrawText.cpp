@@ -222,7 +222,6 @@ void DrawText::Submit(RHI::GraphicsContext* graphics, RHI::Device* device, uint3
 	device->Write(&CharacterBuffers[device->GetFrameIndex()], CharacterData.GetData());
 
 	graphics->SetPipeline(Pipeline);
-
 	graphics->SetRootConstants(&RootConstants);
 
 	static constexpr usize verticesPerQuad = 6;

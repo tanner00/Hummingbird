@@ -244,8 +244,8 @@ void Renderer::Update(const CameraController& cameraController)
 		const HLSL::DeferredRootConstants rootConstants =
 		{
 			.HDRTextureIndex = Device.Get(HDRRenderTarget.UnorderedAccessView),
-			.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
 			.VisibilityBufferTextureIndex = Device.Get(VisibilityBufferRenderTarget.ShaderResourceView),
+			.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
 			.ViewMode = ViewMode,
 		};
 
@@ -353,8 +353,8 @@ void Renderer::Update(const CameraController& cameraController)
 	const HLSL::ToneMapRootConstants toneMapRootConstants =
 	{
 		.HDRTextureIndex = Device.Get(HDRRenderTarget.ShaderResourceView),
-		.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
 		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
+		.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
 		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
 	};
 
@@ -413,9 +413,7 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prePass)
 			}
 
 			Graphics.SetPipeline(pipeline);
-
 			Graphics.SetRootConstants(&rootConstants);
-
 			Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
 
 			Graphics.SetVertexBuffer(0,
@@ -588,7 +586,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::AlphaMode alphaMode = primitive.MaterialIndex != INDEX_NONE ? scene.Materials[primitive.MaterialIndex].AlphaMode
 																					: GLTF::AlphaMode::Opaque;
 
-			const AccelerationStructureGeometry geometry = AccelerationStructureGeometry
+			const AccelerationStructureGeometry geometry =
 			{
 				.VertexBuffer = SubBuffer
 				{
@@ -694,7 +692,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	transientResources.Add(instancesResource);
 	Device.Write(&instancesResource, instances.GetData());
 
-	const Buffer instancesBuffer = Buffer
+	const Buffer instancesBuffer =
 	{
 		.Resource = instancesResource,
 		.Size = instancesResource.Size,
@@ -946,25 +944,28 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 void Renderer::UnloadScene()
 {
+	const auto destroyBasicTexture = [this](BasicTexture* texture) -> void
+	{
+		Device.Destroy(&texture->Resource);
+		Device.Destroy(&texture->View);
+	};
+	const auto destroyBasicBuffer = [this](BasicBuffer* buffer) -> void
+	{
+		Device.Destroy(&buffer->Resource);
+		Device.Destroy(&buffer->View);
+	};
+
+	destroyBasicBuffer(&SceneVertexBuffer);
+	destroyBasicBuffer(&ScenePrimitiveBuffer);
+	destroyBasicBuffer(&SceneDrawCallBuffer);
+	destroyBasicBuffer(&SceneNodeBuffer);
+	destroyBasicBuffer(&SceneMaterialBuffer);
+	destroyBasicBuffer(&SceneDirectionalLightBuffer);
+	destroyBasicBuffer(&ScenePointLightsBuffer);
 	for (BasicBuffer& sceneBuffer : SceneBuffers)
 	{
-		Device.Destroy(&sceneBuffer.Resource);
-		Device.Destroy(&sceneBuffer.View);
+		destroyBasicBuffer(&sceneBuffer);
 	}
-	Device.Destroy(&SceneVertexBuffer.Resource);
-	Device.Destroy(&SceneVertexBuffer.View);
-	Device.Destroy(&ScenePrimitiveBuffer.Resource);
-	Device.Destroy(&ScenePrimitiveBuffer.View);
-	Device.Destroy(&SceneNodeBuffer.Resource);
-	Device.Destroy(&SceneNodeBuffer.View);
-	Device.Destroy(&SceneDrawCallBuffer.Resource);
-	Device.Destroy(&SceneDrawCallBuffer.View);
-	Device.Destroy(&SceneMaterialBuffer.Resource);
-	Device.Destroy(&SceneMaterialBuffer.View);
-	Device.Destroy(&SceneDirectionalLightBuffer.Resource);
-	Device.Destroy(&SceneDirectionalLightBuffer.View);
-	Device.Destroy(&ScenePointLightsBuffer.Resource);
-	Device.Destroy(&ScenePointLightsBuffer.View);
 
 	for (Mesh& mesh : SceneMeshes)
 	{
@@ -978,28 +979,22 @@ void Renderer::UnloadScene()
 
 	for (Material& material : SceneMaterials)
 	{
-		Device.Destroy(&material.NormalMapTexture.Resource);
-		Device.Destroy(&material.NormalMapTexture.View);
-
+		destroyBasicTexture(&material.NormalMapTexture);
 		if (material.IsSpecularGlossiness)
 		{
-			Device.Destroy(&material.SpecularGlossiness.DiffuseTexture.Resource);
-			Device.Destroy(&material.SpecularGlossiness.DiffuseTexture.View);
-			Device.Destroy(&material.SpecularGlossiness.SpecularGlossinessTexture.Resource);
-			Device.Destroy(&material.SpecularGlossiness.SpecularGlossinessTexture.View);
+			destroyBasicTexture(&material.SpecularGlossiness.DiffuseTexture);
+			destroyBasicTexture(&material.SpecularGlossiness.SpecularGlossinessTexture);
 		}
 		else
 		{
-			Device.Destroy(&material.MetallicRoughness.BaseColorTexture.Resource);
-			Device.Destroy(&material.MetallicRoughness.BaseColorTexture.View);
-			Device.Destroy(&material.MetallicRoughness.MetallicRoughnessTexture.Resource);
-			Device.Destroy(&material.MetallicRoughness.MetallicRoughnessTexture.View);
+			destroyBasicTexture(&material.MetallicRoughness.BaseColorTexture);
+			destroyBasicTexture(&material.MetallicRoughness.MetallicRoughnessTexture);
 		}
 	}
 
 	SceneMeshes.Clear();
-	SceneMaterials.Clear();
 	SceneNodes.Clear();
+	SceneMaterials.Clear();
 }
 
 void Renderer::CreatePipelines()
@@ -1085,36 +1080,32 @@ void Renderer::CreatePipelines()
 	DeferredPipeline = createComputePipeline("Deferred Pipeline"_view,
 											 "Shaders/Deferred.hlsl"_view);
 
+	LuminanceHistogramPipeline = createComputePipeline("Luminance Histogram Pipeline"_view,
+													   "Shaders/LuminanceHistogram.hlsl"_view);
+	LuminanceAveragePipeline = createComputePipeline("Luminance Average Pipeline"_view,
+													 "Shaders/LuminanceAverage.hlsl"_view);
+
 	ToneMapPipeline = createGraphicsPipeline("Tone Map Pipeline"_view,
 											 "Shaders/ToneMap.hlsl"_view,
 											 true,
 											 false,
 											 ResourceFormat::RGBA8UNormSRGB);
-
-	LuminanceHistogramPipeline = createComputePipeline("Luminance Histogram Pipeline"_view,
-													   "Shaders/LuminanceHistogram.hlsl"_view);
-	LuminanceAveragePipeline = createComputePipeline("Luminance Average Pipeline"_view,
-													 "Shaders/LuminanceAverage.hlsl"_view);
 }
 
 void Renderer::DestroyPipelines()
 {
 	Device.Destroy(&DepthPrePassPipeline);
-
 	Device.Destroy(&ForwardPipeline);
-
 	Device.Destroy(&VisibilityBufferPipeline);
 	Device.Destroy(&DeferredPipeline);
-
-	Device.Destroy(&ToneMapPipeline);
-
 	Device.Destroy(&LuminanceHistogramPipeline);
 	Device.Destroy(&LuminanceAveragePipeline);
+	Device.Destroy(&ToneMapPipeline);
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 {
-	const auto createRenderTarget = [&](ResourceFormat format, StringView textureName)
+	const auto createRenderTarget = [&](ResourceFormat format, StringView textureName) -> RenderTarget
 	{
 		const Resource resource = Device.Create(
 		{
@@ -1187,7 +1178,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 
 void Renderer::DestroyScreenTextures()
 {
-	const auto destroyRenderTarget = [this](RenderTarget* renderTarget)
+	const auto destroyRenderTarget = [this](RenderTarget* renderTarget) -> void
 	{
 		Device.Destroy(&renderTarget->Resource);
 		Device.Destroy(&renderTarget->RenderTargetView);

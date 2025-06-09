@@ -30,8 +30,8 @@ struct SceneRootConstants
 struct DeferredRootConstants
 {
 	uint HDRTextureIndex;
-	uint AnisotropicWrapSamplerIndex;
 	uint VisibilityBufferTextureIndex;
+	uint AnisotropicWrapSamplerIndex;
 
 	ViewMode ViewMode;
 };
@@ -52,8 +52,8 @@ struct LuminanceAverageRootConstants
 struct ToneMapRootConstants
 {
 	uint HDRTextureIndex;
-	uint AnisotropicWrapSamplerIndex;
 	uint LuminanceBufferIndex;
+	uint AnisotropicWrapSamplerIndex;
 
 	bool32 DebugViewMode;
 };

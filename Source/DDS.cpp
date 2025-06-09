@@ -129,7 +129,7 @@ Image LoadImage(StringView filePath)
 	VERIFY(fileSize >= BaseHeaderSize, "Invalid DDS file!");
 
 	const StringView formatSignature = "DDS "_view;
-	const StringView fileSignature = StringView { fileView.GetData(), formatSignature.GetLength() };
+	const StringView fileSignature(fileView.GetData(), formatSignature.GetLength());
 	VERIFY(fileSignature == formatSignature, "Unexpected image file format!");
 
 	usize offset = 4;

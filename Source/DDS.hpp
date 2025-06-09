@@ -2,7 +2,6 @@
 
 #include "RHI/Resource.hpp"
 
-#include "Luft/Base.hpp"
 #include "Luft/String.hpp"
 
 namespace DDS

@@ -113,7 +113,7 @@ float4 Shade(Scene scene,
 	case ViewMode::Geometry:
 		return float4(ToColor(Hash(primitiveID)), alpha);
 	case ViewMode::Normal:
-		return float4(SrgbToLinear(shadeNormal * 0.5f + 0.5f), 1.0f);
+		return float4(SRGBToLinear(shadeNormal * 0.5f + 0.5f), 1.0f);
 	default:
 		break;
 	}
@@ -136,7 +136,7 @@ float4 Shade(Scene scene,
 	const float3 specularFactor = material.IsSpecularGlossiness ? material.MetallicOrSpecularFactor : 0.0f;
 	const float glossinessFactor = material.IsSpecularGlossiness ? material.RoughnessOrGlossinessFactor : 0.0f;
 	const float3 specular = specularFactor * specularGlossiness.rgb;
-	const float glossiness = glossinessFactor * SrgbToLinear(specularGlossiness.a);
+	const float glossiness = glossinessFactor * SRGBToLinear(specularGlossiness.a);
 
 	const float3 viewDirection = normalize(scene.ViewPosition - pixel.WorldSpacePosition);
 
