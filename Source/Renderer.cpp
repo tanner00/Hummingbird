@@ -228,13 +228,6 @@ void Renderer::Update(const CameraController& cameraController)
 
 		Graphics.TextureBarrier
 		(
-			{ BarrierStage::DepthStencil, BarrierStage::ComputeShading },
-			{ BarrierAccess::DepthStencilWrite, BarrierAccess::ShaderResource },
-			{ BarrierLayout::DepthStencilWrite, BarrierLayout::GraphicsQueueShaderResource },
-			DepthTexture.Resource
-		);
-		Graphics.TextureBarrier
-		(
 			{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
 			{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
 			{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
@@ -254,13 +247,6 @@ void Renderer::Update(const CameraController& cameraController)
 		Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
 		Graphics.Dispatch((HDRRenderTarget.Resource.Dimensions.Width + 15) / 16, (HDRRenderTarget.Resource.Dimensions.Height + 15) / 16, 1);
 
-		Graphics.TextureBarrier
-		(
-			{ BarrierStage::PixelShading, BarrierStage::None },
-			{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-			{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::DepthStencilWrite },
-			DepthTexture.Resource
-		);
 		Graphics.TextureBarrier
 		(
 			{ BarrierStage::PixelShading, BarrierStage::None },
