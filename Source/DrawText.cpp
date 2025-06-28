@@ -138,9 +138,9 @@ void DrawText::Init(RHI::Device* device)
 	});
 
 	CharacterData.GrowToLengthUninitialized(MaxCharactersPerFrame);
-	for (usize i = 0; i < RHI::FramesInFlight; ++i)
+	for (usize frameIndex = 0; frameIndex < RHI::FramesInFlight; ++frameIndex)
 	{
-		CharacterBuffers[i] = device->Create(
+		CharacterBuffers[frameIndex] = device->Create(
 		{
 			.Format = RHI::ResourceFormat::None,
 			.Flags = RHI::ResourceFlags::Upload,
@@ -148,13 +148,13 @@ void DrawText::Init(RHI::Device* device)
 			.Size = MaxCharactersPerFrame * sizeof(HLSL::Character),
 			.Name = "Character Buffer"_view,
 		});
-		CharacterBufferViews[i] = device->Create(RHI::BufferViewDescription
+		CharacterBufferViews[frameIndex] = device->Create(RHI::BufferViewDescription
 		{
 			.Type = RHI::ViewType::ShaderResource,
 			.Buffer =
 			{
-				.Resource = CharacterBuffers[i],
-				.Size = CharacterBuffers[i].Size,
+				.Resource = CharacterBuffers[frameIndex],
+				.Size = CharacterBuffers[frameIndex].Size,
 				.Stride = sizeof(HLSL::Character),
 			},
 		});
@@ -163,10 +163,10 @@ void DrawText::Init(RHI::Device* device)
 
 void DrawText::Shutdown(const RHI::Device& device)
 {
-	for (usize i = 0; i < RHI::FramesInFlight; ++i)
+	for (usize frameIndex = 0; frameIndex < RHI::FramesInFlight; ++frameIndex)
 	{
-		device.Destroy(&CharacterBufferViews[i]);
-		device.Destroy(&CharacterBuffers[i]);
+		device.Destroy(&CharacterBufferViews[frameIndex]);
+		device.Destroy(&CharacterBuffers[frameIndex]);
 	}
 	device.Destroy(&LinearWrapSampler);
 	device.Destroy(&Pipeline);
@@ -178,7 +178,7 @@ void DrawText::Shutdown(const RHI::Device& device)
 
 void DrawText::Draw(StringView text, Float2 position, Float3 rgb, float scale)
 {
-	Draw(text, position, { .R = rgb.R, .G = rgb.G, .B = rgb.B, .A = 1.0f }, scale);
+	Draw(text, position, Float4 { .R = rgb.R, .G = rgb.G, .B = rgb.B, .A = 1.0f }, scale);
 }
 
 void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
@@ -188,15 +188,15 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 		CharacterIndex = 0;
 	}
 
-	Float2 currentPosition = { .X = position.X, .Y = position.Y - scale * Ascender };
-	for (usize i = 0; i < text.GetLength(); ++i)
+	Float2 currentPositionScreen = { .X = position.X, .Y = position.Y - scale * Ascender };
+	for (usize textIndex = 0; textIndex < text.GetLength(); ++textIndex)
 	{
-		const Glyph& glyph = Glyphs[text[i]];
+		const Glyph& glyph = Glyphs[text[textIndex]];
 
 		CharacterData[CharacterIndex] = HLSL::Character
 		{
 			.Color = rgba,
-			.ScreenPosition = currentPosition,
+			.PositionScreen = currentPositionScreen,
 			.AtlasPosition = glyph.AtlasPosition,
 			.AtlasSize = glyph.AtlasSize,
 			.PlanePosition = glyph.PlanePosition,
@@ -204,7 +204,7 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 			.Scale = scale,
 		};
 
-		currentPosition.X += glyph.Advance * scale;
+		currentPositionScreen.X += glyph.Advance * scale;
 		++CharacterIndex;
 	}
 }
@@ -213,7 +213,7 @@ void DrawText::Submit(RHI::GraphicsContext* graphics, RHI::Device* device, uint3
 {
 	CHECK(graphics);
 
-	RootConstants.ViewProjection = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
+	RootConstants.ScreenToClip = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
 	RootConstants.CharacterBufferIndex = device->Get(CharacterBufferViews[device->GetFrameIndex()]);
 	RootConstants.FontTextureIndex = device->Get(FontTextureView);

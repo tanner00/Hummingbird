@@ -84,7 +84,7 @@ enum class AlphaMode : uint8
 
 struct Node
 {
-	Matrix Transform;
+	Matrix LocalToWorld;
 
 	usize Parent;
 	Array<usize> ChildNodes;
@@ -192,7 +192,7 @@ struct Sampler
 
 struct Camera
 {
-	Matrix Transform;
+	Matrix LocalToWorld;
 
 	float FieldOfViewYRadians;
 	float AspectRatio;
@@ -209,7 +209,7 @@ enum class LightType : uint8
 
 struct Light
 {
-	Matrix Transform;
+	Matrix LocalToWorld;
 
 	float Intensity;
 	Float3 Color;
@@ -242,7 +242,7 @@ struct Scene
 Scene LoadScene(StringView filePath);
 void UnloadScene(Scene* scene);
 
-Matrix CalculateGlobalTransform(const Scene& scene, usize nodeIndex);
+Matrix CalculateLocalToWorld(const Scene& scene, usize nodeIndex);
 
 inline usize GetAccessorSize(AccessorType accessorType)
 {

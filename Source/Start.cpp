@@ -24,7 +24,7 @@ void Start()
 
 		const GLTF::Camera defaultCamera =
 		{
-			.Transform = Matrix::Identity,
+			.LocalToWorld = Matrix::Identity,
 			.FieldOfViewYRadians = Pi / 3.0f,
 			.AspectRatio = 16.0f / 9.0f,
 			.NearZ = 0.1f,
@@ -41,7 +41,7 @@ void Start()
 		Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
 	};
 
-	Platform::Window* window = Platform::MakeWindow("Hummingbird", 1920, 1080);
+	Platform::Window* window = Platform::CreateWindow("Hummingbird", 1920, 1080);
 
 	Renderer renderer(window);
 	CameraController cameraController;
@@ -88,11 +88,11 @@ void Start()
 			NeedsResize = false;
 		}
 
-		for (usize i = 0; i < ARRAY_COUNT(scenes); ++i)
+		for (usize sceneIndex = 0; sceneIndex < ARRAY_COUNT(scenes); ++sceneIndex)
 		{
-			if (IsKeyPressedOnce(static_cast<Key>(i + static_cast<usize>(Key::One))))
+			if (IsKeyPressedOnce(static_cast<Key>(sceneIndex + static_cast<usize>(Key::One))))
 			{
-				setScene(i, &renderer, &cameraController);
+				setScene(sceneIndex, &renderer, &cameraController);
 			}
 		}
 

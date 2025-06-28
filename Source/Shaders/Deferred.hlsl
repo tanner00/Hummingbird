@@ -19,9 +19,7 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 		return;
 	}
 
-	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
 	const Texture2D<uint2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
-
 	const uint2 visibility = visibilityTexture.Load(uint3(dispatchThreadID.xy, 0));
 
 	[branch]
@@ -42,56 +40,53 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
 	const Primitive primitive = primitiveBuffer[drawCall.PrimitiveIndex];
 
+	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
 	const uint triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 	uint indices[3];
-	float3 positions[3];
+	float3 positionsLocal[3];
 	float2 textureCoordinates[3];
-	float3 normals[3];
+	float3 normalsLocal[3];
 	LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
-	LoadTrianglePositions(vertexBuffer, primitive, indices, positions);
+	LoadTrianglePositions(vertexBuffer, primitive, indices, positionsLocal);
 	LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, textureCoordinates);
-	LoadTriangleNormals(vertexBuffer, primitive, indices, normals);
+	LoadTriangleNormals(vertexBuffer, primitive, indices, normalsLocal);
 
-	const float4 worldSpacePositions[] =
+	const float4 positionsWorld[] =
 	{
-		mul(node.Transform, float4(positions[0], 1.0f)),
-		mul(node.Transform, float4(positions[1], 1.0f)),
-		mul(node.Transform, float4(positions[2], 1.0f)),
+		mul(node.LocalToWorld, float4(positionsLocal[0], 1.0f)),
+		mul(node.LocalToWorld, float4(positionsLocal[1], 1.0f)),
+		mul(node.LocalToWorld, float4(positionsLocal[2], 1.0f)),
 	};
-	const float4 clipSpacePositions[] =
+	const float4 positionsClip[] =
 	{
-		mul(Scene.ViewProjection, worldSpacePositions[0]),
-		mul(Scene.ViewProjection, worldSpacePositions[1]),
-		mul(Scene.ViewProjection, worldSpacePositions[2]),
+		mul(Scene.WorldToClip, positionsWorld[0]),
+		mul(Scene.WorldToClip, positionsWorld[1]),
+		mul(Scene.WorldToClip, positionsWorld[2]),
 	};
 
 	float3 weights;
 	float3 ddxWeights;
 	float3 ddyWeights;
-	CalculateScreenSpaceBarycentrics(clipSpacePositions, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
+	CalculateBarycentrics(positionsClip, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
 
-	const float3 worldSpacePosition = LerpBarycentrics(weights, worldSpacePositions[0].xyz, worldSpacePositions[1].xyz, worldSpacePositions[2].xyz);
+	const float3 positionWorld = LerpBarycentrics(weights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
 	const float2 textureCoordinate = LerpBarycentrics(weights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
-	const float3 normal = LerpBarycentrics(weights, normals[0], normals[1], normals[2]);
+	const float3 normalLocal = LerpBarycentrics(weights, normalsLocal[0], normalsLocal[1], normalsLocal[2]);
 
-	const float3 ddxWorldSpacePosition = LerpBarycentrics(ddxWeights, worldSpacePositions[0].xyz, worldSpacePositions[1].xyz, worldSpacePositions[2].xyz);
-	const float3 ddyWorldSpacePosition = LerpBarycentrics(ddyWeights, worldSpacePositions[0].xyz, worldSpacePositions[1].xyz, worldSpacePositions[2].xyz);
+	const float3 ddxPositionWorld = LerpBarycentrics(ddxWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
+	const float3 ddyPositionWorld = LerpBarycentrics(ddyWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
 
 	const float2 ddxTextureCoordinate = LerpBarycentrics(ddxWeights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
 	const float2 ddyTextureCoordinate = LerpBarycentrics(ddyWeights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
 
-	ScenePixelInput pixel;
-	pixel.ClipSpacePosition = 0.0f;
-	pixel.WorldSpacePosition = worldSpacePosition;
-	pixel.TextureCoordinate = textureCoordinate;
-	pixel.Normal = mul((float3x3)node.NormalTransform, normal);
-
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
-											pixel,
+											positionWorld,
+											textureCoordinate,
+											mul((float3x3)node.NormalLocalToWorld, normalLocal),
 											drawCall.PrimitiveIndex,
-											ddxWorldSpacePosition,
-											ddyWorldSpacePosition,
+											ddxPositionWorld,
+											ddyPositionWorld,
 											ddxTextureCoordinate,
 											ddyTextureCoordinate,
 											RootConstants.ViewMode,

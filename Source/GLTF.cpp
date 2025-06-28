@@ -21,7 +21,7 @@ static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 	return fullPath;
 }
 
-static Matrix InternalCalculateGlobalTransform(const Array<Node>& nodes, usize nodeIndex)
+static Matrix InternalCalculateLocalToWorld(const Array<Node>& nodes, usize nodeIndex)
 {
 	if (nodeIndex == INDEX_NONE)
 	{
@@ -29,7 +29,7 @@ static Matrix InternalCalculateGlobalTransform(const Array<Node>& nodes, usize n
 	}
 
 	const Node& node = nodes[nodeIndex];
-	return InternalCalculateGlobalTransform(nodes, node.Parent) * node.Transform;
+	return InternalCalculateLocalToWorld(nodes, node.Parent) * node.LocalToWorld;
 }
 
 static Float4 ToFloat4(const JSON::Array& floatArray)
@@ -150,7 +150,7 @@ Scene LoadScene(StringView filePath)
 	Array<Node> nodes(nodeArray.GetLength(), Allocator);
 	for (usize nodeIndex = 0; nodeIndex < nodeArray.GetLength(); ++nodeIndex)
 	{
-		Matrix transform = Matrix::Identity;
+		Matrix localToWorld = Matrix::Identity;
 		Array<usize> childNodes(Allocator);
 		usize mesh = INDEX_NONE;
 		usize camera = INDEX_NONE;
@@ -208,9 +208,9 @@ Scene LoadScene(StringView filePath)
 				};
 			}
 
-			transform = Matrix::Translation(translation.X, translation.Y, translation.Z)
-					  * rotation.ToMatrix()
-					  * Matrix::Scale(scale.X, scale.Y, scale.Z);
+			localToWorld = Matrix::Translation(translation.X, translation.Y, translation.Z)
+						 * rotation.ToMatrix()
+						 * Matrix::Scale(scale.X, scale.Y, scale.Z);
 		}
 		if (nodeObject.HasKey("matrix"_view))
 		{
@@ -221,7 +221,7 @@ Scene LoadScene(StringView filePath)
 			const JSON::Array& matrixArray = nodeObject["matrix"_view].GetArray();
 			VERIFY(matrixArray.GetLength() == 16, "Invalid GLTF matrix!");
 
-			float* element = &transform.M00;
+			float* element = &localToWorld.M00;
 			for (const JSON::Value& elementValue : matrixArray)
 			{
 				*element = static_cast<float>(elementValue.GetDecimal());
@@ -258,16 +258,16 @@ Scene LoadScene(StringView filePath)
 			}
 		}
 
-		nodes.Emplace(transform, INDEX_NONE, Move(childNodes), mesh, camera, light);
+		nodes.Emplace(localToWorld, INDEX_NONE, Move(childNodes), mesh, camera, light);
 	}
 
-	for (usize i = 0; i < nodes.GetLength(); ++i)
+	for (usize nodeIndex = 0; nodeIndex < nodes.GetLength(); ++nodeIndex)
 	{
-		const Node& node = nodes[i];
+		const Node& node = nodes[nodeIndex];
 
 		for (const usize childNodeIndex : node.ChildNodes)
 		{
-			nodes[childNodeIndex].Parent = i;
+			nodes[childNodeIndex].Parent = nodeIndex;
 		}
 	}
 
@@ -277,7 +277,7 @@ Scene LoadScene(StringView filePath)
 		const Node& node = nodes[cameraIndex];
 
 		Camera placedCamera = cameraTemplates[node.Camera];
-		placedCamera.Transform = InternalCalculateGlobalTransform(nodes, cameraIndex);
+		placedCamera.LocalToWorld = InternalCalculateLocalToWorld(nodes, cameraIndex);
 		cameras.Add(placedCamera);
 	}
 
@@ -287,7 +287,7 @@ Scene LoadScene(StringView filePath)
 		const Node& node = nodes[lightIndex];
 
 		Light placedLight = lightTemplates[node.Light];
-		placedLight.Transform = InternalCalculateGlobalTransform(nodes, lightIndex);
+		placedLight.LocalToWorld = InternalCalculateLocalToWorld(nodes, lightIndex);
 		lights.Add(placedLight);
 	}
 
@@ -782,9 +782,9 @@ void UnloadScene(Scene* scene)
 	}
 }
 
-Matrix CalculateGlobalTransform(const Scene& scene, usize nodeIndex)
+Matrix CalculateLocalToWorld(const Scene& scene, usize nodeIndex)
 {
-	return InternalCalculateGlobalTransform(scene.Nodes, nodeIndex);
+	return InternalCalculateLocalToWorld(scene.Nodes, nodeIndex);
 }
 
 }

@@ -1,44 +1,44 @@
 #pragma once
 
-void CalculateScreenSpaceBarycentrics(const float4 clipSpacePositions[3],
-									  float2 screenSpacePixel,
-									  float2 screenSize,
-									  out float3 weights,
-									  out float3 ddxWeights,
-									  out float3 ddyWeights)
+void CalculateBarycentrics(const float4 positionsClip[3],
+						   float2 pixelScreen,
+						   float2 screenSize,
+						   out float3 weights,
+						   out float3 ddxWeights,
+						   out float3 ddyWeights)
 {
-	const float3 inverseW = 1.0f / float3(clipSpacePositions[0].w, clipSpacePositions[1].w, clipSpacePositions[2].w);
+	float2 pixelNDC = float2(pixelScreen * 2.0f / screenSize - 1.0f);
+	pixelNDC.y = -pixelNDC.y;
 
-	const float2 ndcSpacePositions[] =
+	const float3 inverseW = 1.0f / float3(positionsClip[0].w, positionsClip[1].w, positionsClip[2].w);
+
+	const float2 positionsNDC[] =
 	{
-		clipSpacePositions[0].xy * inverseW.x,
-		clipSpacePositions[1].xy * inverseW.y,
-		clipSpacePositions[2].xy * inverseW.z,
+		positionsClip[0].xy * inverseW.x,
+		positionsClip[1].xy * inverseW.y,
+		positionsClip[2].xy * inverseW.z,
 	};
 
-	float2 ndcSpacePixel = float2(screenSpacePixel * 2.0f / screenSize - 1.0f);
-	ndcSpacePixel.y = -ndcSpacePixel.y;
-
-	const float inverseDeterminant = 1.0f / determinant(float2x2(ndcSpacePositions[2] - ndcSpacePositions[1],
-																 ndcSpacePositions[0] - ndcSpacePositions[1]));
-	const float3 ddxBarycentrics = float3(ndcSpacePositions[2].y - ndcSpacePositions[1].y,
-										  ndcSpacePositions[0].y - ndcSpacePositions[2].y,
-										  ndcSpacePositions[1].y - ndcSpacePositions[0].y) * inverseDeterminant * inverseW * -1.0f;
-	const float3 ddyBarycentrics = float3(ndcSpacePositions[2].x - ndcSpacePositions[1].x,
-										  ndcSpacePositions[0].x - ndcSpacePositions[2].x,
-										  ndcSpacePositions[1].x - ndcSpacePositions[0].x) * inverseDeterminant * inverseW;
+	const float inverseDeterminant = 1.0f / determinant(float2x2(positionsNDC[2] - positionsNDC[1],
+																 positionsNDC[0] - positionsNDC[1]));
+	const float3 ddxBarycentrics = float3(positionsNDC[2].y - positionsNDC[1].y,
+										  positionsNDC[0].y - positionsNDC[2].y,
+										  positionsNDC[1].y - positionsNDC[0].y) * inverseDeterminant * inverseW * -1.0f;
+	const float3 ddyBarycentrics = float3(positionsNDC[2].x - positionsNDC[1].x,
+										  positionsNDC[0].x - positionsNDC[2].x,
+										  positionsNDC[1].x - positionsNDC[0].x) * inverseDeterminant * inverseW;
 
 	const float ddxBarycentricsSum = ddxBarycentrics.x + ddxBarycentrics.y + ddxBarycentrics.z;
 	const float ddyBarycentricsSum = ddyBarycentrics.x + ddyBarycentrics.y + ddyBarycentrics.z;
 
-	const float2 ndcSpaceOffset = ndcSpacePixel - ndcSpacePositions[0];
+	const float2 offsetNDC = pixelNDC - positionsNDC[0];
 
-	const float interpolatedInverseW = inverseW.x + ndcSpaceOffset.x * ddxBarycentricsSum + ndcSpaceOffset.y * ddyBarycentricsSum;
+	const float interpolatedInverseW = inverseW.x + offsetNDC.x * ddxBarycentricsSum + offsetNDC.y * ddyBarycentricsSum;
 	const float interpolatedW = 1.0f / interpolatedInverseW;
 
-	weights.x = interpolatedW * (inverseW.x + ndcSpaceOffset.x * ddxBarycentrics.x + ndcSpaceOffset.y * ddyBarycentrics.x);
-	weights.y = interpolatedW * (0.0f       + ndcSpaceOffset.x * ddxBarycentrics.y + ndcSpaceOffset.y * ddyBarycentrics.y);
-	weights.z = interpolatedW * (0.0f       + ndcSpaceOffset.x * ddxBarycentrics.z + ndcSpaceOffset.y * ddyBarycentrics.z);
+	weights.x = interpolatedW * (inverseW.x + offsetNDC.x * ddxBarycentrics.x + offsetNDC.y * ddyBarycentrics.x);
+	weights.y = interpolatedW * (0.0f       + offsetNDC.x * ddxBarycentrics.y + offsetNDC.y * ddyBarycentrics.y);
+	weights.z = interpolatedW * (0.0f       + offsetNDC.x * ddxBarycentrics.z + offsetNDC.y * ddyBarycentrics.z);
 
 	const float ddxInterpolatedW = 1.0f / (interpolatedInverseW + ( ddxBarycentricsSum * 2.0f / screenSize.x));
 	const float ddyInterpolatedW = 1.0f / (interpolatedInverseW + (-ddyBarycentricsSum * 2.0f / screenSize.y));

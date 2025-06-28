@@ -7,8 +7,8 @@ static constexpr float FastMovementSpeed = 10.0f;
 static constexpr float RotationSpeedRadians = 8.0f * DegreesToRadians;
 
 CameraController::CameraController()
-	: Position(Vector::Zero)
-	, Orientation(Quaternion::Identity)
+	: PositionWorld(Vector::Zero)
+	, OrientationWorld(Quaternion::Identity)
 	, PitchRadians(0.0f)
 	, FieldOfViewYRadians(0.0f)
 	, AspectRatio(0.0f)
@@ -36,15 +36,15 @@ void CameraController::Update(float timeDelta)
 			PitchRadians = -Pi / 2.0f;
 		}
 
-		Orientation = Quaternion::AxisAngle(Vector { +0.0f, +1.0f, +0.0f }, yawDeltaRadians) * Orientation;
-		Orientation = Orientation.GetNormalized();
-		Orientation = Quaternion::AxisAngle(Orientation.Rotate(Vector { +1.0f, +0.0f, +0.0f }), pitchDeltaRadians) * Orientation;
-		Orientation = Orientation.GetNormalized();
+		OrientationWorld = Quaternion::AxisAngle(Vector { 0.0f, 1.0f, 0.0f }, yawDeltaRadians) * OrientationWorld;
+		OrientationWorld = OrientationWorld.GetNormalized();
+		OrientationWorld = Quaternion::AxisAngle(OrientationWorld.Rotate(Vector { 1.0f, 0.0f, 0.0f }), pitchDeltaRadians) * OrientationWorld;
+		OrientationWorld = OrientationWorld.GetNormalized();
 	}
 
-	const Vector forward = Orientation.Rotate(GLTF::DefaultDirection);
-	const Vector up = Orientation.Rotate(Vector { 0.0f, +1.0f, +0.0f });
-	const Vector side = up.Cross(Orientation.Rotate(GLTF::DefaultDirection));
+	const Vector forward = OrientationWorld.Rotate(GLTF::DefaultDirection);
+	const Vector up = OrientationWorld.Rotate(Vector { 0.0f, 1.0f, 0.0f });
+	const Vector side = up.Cross(OrientationWorld.Rotate(GLTF::DefaultDirection));
 
 	Vector movement = Vector::Zero;
 	bool moving = false;
@@ -74,13 +74,13 @@ void CameraController::Update(float timeDelta)
 	if (moving)
 	{
 		const float movementSpeed = IsKeyPressed(Key::Shift) ? FastMovementSpeed : DefaultMovementSpeed;
-		Position = Position + movement.GetNormalized() * movementSpeed * timeDelta;
+		PositionWorld = PositionWorld + movement.GetNormalized() * movementSpeed * timeDelta;
 	}
 }
 
 void CameraController::SetCamera(const GLTF::Camera& camera)
 {
-	DecomposeTransform(camera.Transform, &Position, &Orientation, nullptr);
+	DecomposeTransform(camera.LocalToWorld, &PositionWorld, &OrientationWorld, nullptr);
 
 	PitchRadians = 0.0f;
 

@@ -43,27 +43,27 @@ private:
 	RHI::Device Device;
 	RHI::GraphicsContext Graphics;
 
-	BasicTexture SwapChainTextures[RHI::FramesInFlight];
-	BasicTexture DepthTexture;
+	ReadTexture SwapChainTextures[RHI::FramesInFlight];
+	ReadTexture DepthTexture;
 
-	BasicTexture WhiteTexture;
-	BasicTexture DefaultNormalMapTexture;
+	ReadTexture WhiteTexture;
+	ReadTexture DefaultNormalMapTexture;
 
-	RHI::Sampler AnisotropicWrapSampler;
 	RHI::Sampler PointClampSampler;
+	RHI::Sampler AnisotropicWrapSampler;
 
 	RenderTarget HDRRenderTarget;
 	RenderTarget VisibilityRenderTarget;
 
-	BasicBuffer SceneVertexBuffer;
-	BasicBuffer ScenePrimitiveBuffer;
-	BasicBuffer SceneNodeBuffer;
-	BasicBuffer SceneDrawCallBuffer;
-	BasicBuffer SceneMaterialBuffer;
-	BasicBuffer SceneDirectionalLightBuffer;
-	BasicBuffer ScenePointLightsBuffer;
-	BasicBuffer SceneLuminanceBuffer;
-	BasicBuffer SceneBuffers[RHI::FramesInFlight];
+	ReadBuffer SceneVertexBuffer;
+	ReadBuffer ScenePrimitiveBuffer;
+	ReadBuffer SceneNodeBuffer;
+	ReadBuffer SceneDrawCallBuffer;
+	ReadBuffer SceneMaterialBuffer;
+	ReadBuffer SceneDirectionalLightBuffer;
+	ReadBuffer ScenePointLightsBuffer;
+	ReadBuffer SceneLuminanceBuffer;
+	ReadBuffer SceneBuffers[RHI::FramesInFlight];
 
 	RHI::Resource SceneAccelerationStructureResource;
 	RHI::AccelerationStructure SceneAccelerationStructure;
