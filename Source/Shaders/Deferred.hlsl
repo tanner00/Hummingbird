@@ -1,5 +1,3 @@
-#define DEFERRED true
-
 #include "Deferred.hlsli"
 #include "Geometry.hlsli"
 #include "Shade.hlsli"
@@ -90,13 +88,13 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	pixel.Normal = mul((float3x3)node.NormalTransform, normal);
 
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
-											RootConstants.ViewMode,
-											drawCall.PrimitiveIndex,
 											pixel,
+											drawCall.PrimitiveIndex,
 											ddxWorldSpacePosition,
 											ddyWorldSpacePosition,
 											ddxTextureCoordinate,
 											ddyTextureCoordinate,
-											RootConstants.AnisotropicWrapSamplerIndex,
-											triangleIndex).rgb;
+											RootConstants.ViewMode,
+											triangleIndex,
+											RootConstants.AnisotropicWrapSamplerIndex).rgb;
 }

@@ -25,7 +25,7 @@ public:
 	}
 
 private:
-	void UpdateScene(const RHI::GraphicsPipeline& pipeline, bool prePass);
+	void UpdateScene(const RHI::GraphicsPipeline& pipeline);
 
 #if !RELEASE
 	void UpdateFrameTimes(double startCpuTime);
@@ -73,10 +73,6 @@ private:
 	Array<Material> SceneMaterials;
 	bool SceneTwoChannelNormalMaps;
 
-	RHI::GraphicsPipeline DepthPrePassPipeline;
-
-	RHI::GraphicsPipeline ForwardPipeline;
-
 	RHI::GraphicsPipeline VisibilityPipeline;
 	RHI::ComputePipeline DeferredPipeline;
 
@@ -84,8 +80,6 @@ private:
 	RHI::ComputePipeline LuminanceAveragePipeline;
 
 	RHI::GraphicsPipeline ToneMapPipeline;
-
-	bool Deferred;
 
 	HLSL::ViewMode ViewMode;
 
