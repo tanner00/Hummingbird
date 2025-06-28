@@ -83,7 +83,6 @@ Renderer::Renderer(const Platform::Window* window)
 	, SceneNodes(RendererAllocator)
 	, SceneMaterials(RendererAllocator)
 	, SceneTwoChannelNormalMaps(false)
-	, Deferred(true)
 	, ViewMode(HLSL::ViewMode::Lit)
 #if !RELEASE
 	, AverageCpuTime(0.0)
@@ -174,11 +173,6 @@ void Renderer::Update(const CameraController& cameraController)
 		ViewMode = HLSL::ViewMode::Normal;
 	}
 
-	if (IsKeyPressedOnce(Key::F))
-	{
-		Deferred = !Deferred;
-	}
-
 	if (IsKeyPressedOnce(Key::R))
 	{
 		Device.WaitForIdle();
@@ -217,70 +211,40 @@ void Renderer::Update(const CameraController& cameraController)
 	};
 	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
 
+	Graphics.ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
 	Graphics.ClearDepthStencil(DepthTexture.View);
 
-	if (Deferred)
+	Graphics.SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTexture.View);
+	UpdateScene(VisibilityPipeline);
+
+	Graphics.TextureBarrier
+	(
+		{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
+		{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
+		{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
+		VisibilityRenderTarget.Resource
+	);
+
+	const HLSL::DeferredRootConstants rootConstants =
 	{
-		Graphics.ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
+		.HDRTextureIndex = Device.Get(HDRRenderTarget.UnorderedAccessView),
+		.VisibilityTextureIndex = Device.Get(VisibilityRenderTarget.ShaderResourceView),
+		.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
+		.ViewMode = ViewMode,
+	};
 
-		Graphics.SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTexture.View);
-		UpdateScene(VisibilityPipeline, false);
+	Graphics.SetPipeline(DeferredPipeline);
+	Graphics.SetRootConstants(&rootConstants);
+	Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
+	Graphics.Dispatch((HDRRenderTarget.Resource.Dimensions.Width + 15) / 16, (HDRRenderTarget.Resource.Dimensions.Height + 15) / 16, 1);
 
-		Graphics.TextureBarrier
-		(
-			{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
-			{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
-			{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
-			VisibilityRenderTarget.Resource
-		);
-
-		const HLSL::DeferredRootConstants rootConstants =
-		{
-			.HDRTextureIndex = Device.Get(HDRRenderTarget.UnorderedAccessView),
-			.VisibilityTextureIndex = Device.Get(VisibilityRenderTarget.ShaderResourceView),
-			.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
-			.ViewMode = ViewMode,
-		};
-
-		Graphics.SetPipeline(DeferredPipeline);
-		Graphics.SetRootConstants(&rootConstants);
-		Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
-		Graphics.Dispatch((HDRRenderTarget.Resource.Dimensions.Width + 15) / 16, (HDRRenderTarget.Resource.Dimensions.Height + 15) / 16, 1);
-
-		Graphics.TextureBarrier
-		(
-			{ BarrierStage::PixelShading, BarrierStage::None },
-			{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-			{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::RenderTarget },
-			VisibilityRenderTarget.Resource
-		);
-	}
-	else
-	{
-		Graphics.TextureBarrier
-		(
-			{ BarrierStage::None, BarrierStage::RenderTarget },
-			{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
-			{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
-			HDRRenderTarget.Resource
-		);
-
-		Graphics.ClearRenderTarget(HDRRenderTarget.RenderTargetView);
-
-		Graphics.SetRenderTarget(DepthTexture.View);
-		UpdateScene(DepthPrePassPipeline, true);
-
-		Graphics.SetRenderTarget(HDRRenderTarget.RenderTargetView, DepthTexture.View);
-		UpdateScene(ForwardPipeline, false);
-
-		Graphics.TextureBarrier
-		(
-			{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
-			{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
-			{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
-			HDRRenderTarget.Resource
-		);
-	}
+	Graphics.TextureBarrier
+	(
+		{ BarrierStage::PixelShading, BarrierStage::None },
+		{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
+		{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::RenderTarget },
+		VisibilityRenderTarget.Resource
+	);
 
 	Graphics.BufferBarrier
 	(
@@ -368,7 +332,7 @@ void Renderer::Update(const CameraController& cameraController)
 	Device.Present();
 }
 
-void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prePass)
+void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 {
 	usize drawCallIndex = 0;
 	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetLength(); ++nodeIndex)
@@ -391,12 +355,6 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline, bool prePass)
 			};
 
 			++drawCallIndex;
-
-			const bool translucent = (primitive.MaterialIndex != INDEX_NONE) ? SceneMaterials[primitive.MaterialIndex].Translucent : false;
-			if (prePass && translucent)
-			{
-				continue;
-			}
 
 			Graphics.SetPipeline(pipeline);
 			Graphics.SetRootConstants(&rootConstants);
@@ -1046,18 +1004,6 @@ void Renderer::CreatePipelines()
 		return pipeline;
 	};
 
-	DepthPrePassPipeline = createGraphicsPipeline("Forward Depth Pre-Pass Pipeline"_view,
-												  "Shaders/Forward.hlsl"_view,
-												  false,
-												  true,
-												  ResourceFormat::None);
-
-	ForwardPipeline = createGraphicsPipeline("Forward Pipeline"_view,
-											 "Shaders/Forward.hlsl"_view,
-											 true,
-											 true,
-											 HDRFormat);
-
 	VisibilityPipeline = createGraphicsPipeline("Visibility Buffer Pipeline"_view,
 												"Shaders/Visibility.hlsl"_view,
 												true,
@@ -1080,8 +1026,6 @@ void Renderer::CreatePipelines()
 
 void Renderer::DestroyPipelines()
 {
-	Device.Destroy(&DepthPrePassPipeline);
-	Device.Destroy(&ForwardPipeline);
 	Device.Destroy(&VisibilityPipeline);
 	Device.Destroy(&DeferredPipeline);
 	Device.Destroy(&LuminanceHistogramPipeline);
