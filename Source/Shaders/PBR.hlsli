@@ -31,19 +31,19 @@ float GeometrySmith(float3 viewDirection, float3 lightDirection, float3 normal, 
 float3 PBRImplementation(float3 cDiffuse,
 						 float3 f0,
 						 float roughness,
-						 float3 normal,
-						 float3 viewDirection,
-						 float3 lightDirection,
+						 float3 normalWorld,
+						 float3 viewDirectionWorld,
+						 float3 lightDirectionWorld,
 						 float3 lightRadiance)
 {
-	const float3 halfwayDirection = normalize(viewDirection + lightDirection);
+	const float3 halfwayDirectionWorld = normalize(viewDirectionWorld + lightDirectionWorld);
 
-	const float nDotL = saturate(dot(normal, lightDirection));
-	const float nDotV = saturate(dot(normal, viewDirection));
+	const float nDotL = saturate(dot(normalWorld, lightDirectionWorld));
+	const float nDotV = saturate(dot(normalWorld, viewDirectionWorld));
 
-	const float d = NDFTrowbridgeReitzGGX(normal, halfwayDirection, roughness);
-	const float3 f = FresnelSchlick(f0, halfwayDirection, viewDirection);
-	const float g = GeometrySmith(viewDirection, lightDirection, normal, roughness);
+	const float d = NDFTrowbridgeReitzGGX(normalWorld, halfwayDirectionWorld, roughness);
+	const float3 f = FresnelSchlick(f0, halfwayDirectionWorld, viewDirectionWorld);
+	const float g = GeometrySmith(viewDirectionWorld, lightDirectionWorld, normalWorld, roughness);
 
 	const float3 brdf = (d * f * g) / max(4.0f * nDotV * nDotL, 0.0001f);
 
@@ -55,28 +55,28 @@ float3 PBRImplementation(float3 cDiffuse,
 float3 PBRMetallicRoughness(float3 baseColor,
 							float metallic,
 							float roughness,
-							float3 normal,
-							float3 viewDirection,
-							float3 lightDirection,
+							float3 normalWorld,
+							float3 viewDirectionWorld,
+							float3 lightDirectionWorld,
 							float3 lightRadiance)
 {
 	const float3 cDiffuse = lerp(baseColor.rgb, 0.0f, metallic);
 	const float3 f0 = lerp(DielectricSpecular, baseColor.rgb, metallic);
-	return PBRImplementation(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
+	return PBRImplementation(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
 }
 
 float3 PBRSpecularGlossiness(float3 diffuse,
 							 float3 specular,
 							 float glossiness,
-							 float3 normal,
-							 float3 viewDirection,
-							 float3 lightDirection,
+							 float3 normalWorld,
+							 float3 viewDirectionWorld,
+							 float3 lightDirectionWorld,
 							 float3 lightRadiance)
 {
 	const float3 cDiffuse = lerp(diffuse, 0.0f, max(specular.r, max(specular.g, specular.b)));
 	const float3 f0 = specular;
 	const float roughness = 1.0f - glossiness;
-	return PBRImplementation(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
+	return PBRImplementation(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
 }
 
 float3 PBR(float3 baseColor,
@@ -85,12 +85,12 @@ float3 PBR(float3 baseColor,
 		   float3 specular,
 		   float roughness,
 		   float glossiness,
-		   float3 normal,
-		   float3 viewDirection,
-		   float3 lightDirection,
+		   float3 normalWorld,
+		   float3 viewDirectionWorld,
+		   float3 lightDirectionWorld,
 		   float3 lightRadiance,
 		   bool isSpecularGlossiness)
 {
-	return isSpecularGlossiness ? PBRSpecularGlossiness(diffuse.rgb, specular, glossiness, normal, viewDirection, lightDirection, lightRadiance)
-								: PBRMetallicRoughness(baseColor.rgb, metallic, roughness, normal, viewDirection, lightDirection, lightRadiance);
+	return isSpecularGlossiness ? PBRSpecularGlossiness(diffuse.rgb, specular, glossiness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance)
+								: PBRMetallicRoughness(baseColor.rgb, metallic, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
 }

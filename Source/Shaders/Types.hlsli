@@ -24,7 +24,7 @@ struct SceneRootConstants
 
 	PAD(12);
 
-	Matrix NormalTransform;
+	Matrix NormalLocalToWorld;
 };
 
 struct DeferredRootConstants
@@ -69,8 +69,8 @@ struct Scene
 	uint PointLightsBufferIndex;
 	uint AccelerationStructureIndex;
 
-	Matrix ViewProjection;
-	Float3 ViewPosition;
+	Matrix WorldToClip;
+	Float3 ViewPositionWorld;
 
 	bool32 TwoChannelNormalMaps;
 
@@ -98,8 +98,8 @@ struct Primitive
 
 struct Node
 {
-	Matrix Transform;
-	Matrix NormalTransform;
+	Matrix LocalToWorld;
+	Matrix NormalLocalToWorld;
 };
 
 struct DrawCall
@@ -128,7 +128,7 @@ struct DirectionalLight
 	Float3 Color;
 	float IntensityLux;
 
-	Float3 Direction;
+	Float3 DirectionWorld;
 
 	PAD(228);
 };
@@ -138,14 +138,14 @@ struct PointLight
 	Float3 Color;
 	float IntensityCandela;
 
-	Float3 Position;
+	Float3 PositionWorld;
 };
 
 struct Character
 {
 	Float4 Color;
 
-	Float2 ScreenPosition;
+	Float2 PositionScreen;
 
 	Float2 AtlasPosition;
 	Float2 AtlasSize;
@@ -164,7 +164,7 @@ struct TextRootConstants
 
 	PAD(4);
 
-	Matrix ViewProjection;
+	Matrix ScreenToClip;
 	Float2 UnitRange;
 };
 

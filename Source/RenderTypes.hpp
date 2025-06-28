@@ -7,13 +7,13 @@
 
 static constexpr RHI::ResourceFormat HDRFormat = RHI::ResourceFormat::RGBA32Float;
 
-struct BasicBuffer
+struct ReadBuffer
 {
 	RHI::Resource Resource;
 	RHI::BufferView View;
 };
 
-struct BasicTexture
+struct ReadTexture
 {
 	RHI::Resource Resource;
 	RHI::TextureView View;
@@ -59,33 +59,33 @@ struct Mesh
 
 struct Node
 {
-	Matrix Transform;
+	Matrix LocalToWorld;
 	usize MeshIndex;
 };
 
 struct SpecularGlossiness
 {
-	BasicTexture DiffuseTexture;
+	ReadTexture DiffuseTexture;
 	Float4 DiffuseFactor;
 
-	BasicTexture SpecularGlossinessTexture;
+	ReadTexture SpecularGlossinessTexture;
 	Float3 SpecularFactor;
 	float GlossinessFactor;
 };
 
 struct MetallicRoughness
 {
-	BasicTexture BaseColorTexture;
+	ReadTexture BaseColorTexture;
 	Float4 BaseColorFactor;
 
-	BasicTexture MetallicRoughnessTexture;
+	ReadTexture MetallicRoughnessTexture;
 	float MetallicFactor;
 	float RoughnessFactor;
 };
 
 struct Material
 {
-	BasicTexture NormalMapTexture;
+	ReadTexture NormalMapTexture;
 
 	union
 	{

@@ -17,7 +17,8 @@ include "RHI/RHI.lua"
 project "Hummingbird"
 	kind "WindowedApp"
 
-	includedirs { "Source", "Luft/Source", "RHI/Source", "RHI/ThirdParty" }
+	includedirs { "Source", "Luft/Source", "RHI/Source" }
+
 	links { "Luft", "RHI" }
 
 	SetConfigurationSettings()

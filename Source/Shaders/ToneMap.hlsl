@@ -1,11 +1,10 @@
+#include "ToneMap.hlsli"
 #include "Luminance.hlsli"
 #include "Types.hlsli"
 
-static const float SensorSensitivity = 100.0f;
-
 struct PixelInput
 {
-	float4 Position : SV_POSITION;
+	float4 PositionClip : SV_POSITION;
 	float2 TextureCoordinate : TEXCOORD0;
 };
 
@@ -17,36 +16,8 @@ PixelInput VertexStart(uint vertexID : SV_VertexID)
 
 	PixelInput result;
 	result.TextureCoordinate = textureCoordinate;
-	result.Position = float4(textureCoordinate * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
+	result.PositionClip = float4(textureCoordinate * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
 	return result;
-}
-
-float ConvertAverageLuminanceToEv100(float averageLuminance)
-{
-	static const float calibrationFactor = 12.5f;
-
-	return log2((averageLuminance * SensorSensitivity) / calibrationFactor);
-}
-
-float ConvertEv100ToExposure(float ev100)
-{
-	static const float middleGrayFactor = 78.0f;
-	static const float lensVignetteAttenuation = 0.65f;
-
-	const float maxLuminance = (middleGrayFactor / (SensorSensitivity * lensVignetteAttenuation)) * exp2(ev100);
-	return 1.0f / maxLuminance;
-}
-
-float3 ToneMapAcesApproximate(float3 x)
-{
-	static const float a = 2.51f;
-	static const float b = 0.03f;
-	static const float c = 2.43f;
-	static const float d = 0.59f;
-	static const float e = 0.14f;
-
-	x *= 0.6f;
-	return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
 }
 
 float4 PixelStart(PixelInput input) : SV_TARGET
