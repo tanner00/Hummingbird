@@ -22,18 +22,18 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	}
 
 	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
-	const Texture2D<uint2> visibilityBufferTexture = ResourceDescriptorHeap[RootConstants.VisibilityBufferTextureIndex];
+	const Texture2D<uint2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
 
-	const uint2 visibilityBuffer = visibilityBufferTexture.Load(uint3(dispatchThreadID.xy, 0));
+	const uint2 visibility = visibilityTexture.Load(uint3(dispatchThreadID.xy, 0));
 
 	[branch]
-	if (all(visibilityBuffer.xy == 0))
+	if (all(visibility.xy == 0))
 	{
 		hdrTexture[dispatchThreadID.xy] = 0.0f;
 		return;
 	}
-	const uint drawCallIndex = visibilityBuffer.x - 1;
-	const uint triangleIndex = visibilityBuffer.y - 1;
+	const uint drawCallIndex = visibility.x - 1;
+	const uint triangleIndex = visibility.y - 1;
 
 	const StructuredBuffer<DrawCall> drawCallBuffer = ResourceDescriptorHeap[Scene.DrawCallBufferIndex];
 	const DrawCall drawCall = drawCallBuffer[drawCallIndex];

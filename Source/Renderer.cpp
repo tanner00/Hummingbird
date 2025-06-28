@@ -221,23 +221,23 @@ void Renderer::Update(const CameraController& cameraController)
 
 	if (Deferred)
 	{
-		Graphics.ClearRenderTarget(VisibilityBufferRenderTarget.RenderTargetView);
+		Graphics.ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
 
-		Graphics.SetRenderTarget(VisibilityBufferRenderTarget.RenderTargetView, DepthTexture.View);
-		UpdateScene(VisibilityBufferPipeline, false);
+		Graphics.SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTexture.View);
+		UpdateScene(VisibilityPipeline, false);
 
 		Graphics.TextureBarrier
 		(
 			{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
 			{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
 			{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
-			VisibilityBufferRenderTarget.Resource
+			VisibilityRenderTarget.Resource
 		);
 
 		const HLSL::DeferredRootConstants rootConstants =
 		{
 			.HDRTextureIndex = Device.Get(HDRRenderTarget.UnorderedAccessView),
-			.VisibilityBufferTextureIndex = Device.Get(VisibilityBufferRenderTarget.ShaderResourceView),
+			.VisibilityTextureIndex = Device.Get(VisibilityRenderTarget.ShaderResourceView),
 			.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
 			.ViewMode = ViewMode,
 		};
@@ -252,7 +252,7 @@ void Renderer::Update(const CameraController& cameraController)
 			{ BarrierStage::PixelShading, BarrierStage::None },
 			{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
 			{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::RenderTarget },
-			VisibilityBufferRenderTarget.Resource
+			VisibilityRenderTarget.Resource
 		);
 	}
 	else
@@ -1058,11 +1058,11 @@ void Renderer::CreatePipelines()
 											 true,
 											 HDRFormat);
 
-	VisibilityBufferPipeline = createGraphicsPipeline("Visibility Buffer Pipeline"_view,
-													  "Shaders/VisibilityBuffer.hlsl"_view,
-													  true,
-													  true,
-													  ResourceFormat::RG32UInt);
+	VisibilityPipeline = createGraphicsPipeline("Visibility Buffer Pipeline"_view,
+												"Shaders/Visibility.hlsl"_view,
+												true,
+												true,
+												ResourceFormat::RG32UInt);
 	DeferredPipeline = createComputePipeline("Deferred Pipeline"_view,
 											 "Shaders/Deferred.hlsl"_view);
 
@@ -1082,7 +1082,7 @@ void Renderer::DestroyPipelines()
 {
 	Device.Destroy(&DepthPrePassPipeline);
 	Device.Destroy(&ForwardPipeline);
-	Device.Destroy(&VisibilityBufferPipeline);
+	Device.Destroy(&VisibilityPipeline);
 	Device.Destroy(&DeferredPipeline);
 	Device.Destroy(&LuminanceHistogramPipeline);
 	Device.Destroy(&LuminanceAveragePipeline);
@@ -1159,7 +1159,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 	});
 
 	HDRRenderTarget = createRenderTarget(ResourceFormat::RGBA32Float, "HDR Texture"_view);
-	VisibilityBufferRenderTarget = createRenderTarget(ResourceFormat::RG32UInt, "Visibility Buffer Texture"_view);
+	VisibilityRenderTarget = createRenderTarget(ResourceFormat::RG32UInt, "Visibility Buffer Texture"_view);
 }
 
 void Renderer::DestroyScreenTextures()
@@ -1181,5 +1181,5 @@ void Renderer::DestroyScreenTextures()
 	Device.Destroy(&DepthTexture.Resource);
 
 	destroyRenderTarget(&HDRRenderTarget);
-	destroyRenderTarget(&VisibilityBufferRenderTarget);
+	destroyRenderTarget(&VisibilityRenderTarget);
 }
