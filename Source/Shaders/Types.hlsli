@@ -30,7 +30,7 @@ struct SceneRootConstants
 struct DeferredRootConstants
 {
 	uint HDRTextureIndex;
-	uint VisibilityBufferTextureIndex;
+	uint VisibilityTextureIndex;
 	uint AnisotropicWrapSamplerIndex;
 
 	ViewMode ViewMode;

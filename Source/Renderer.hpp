@@ -53,7 +53,7 @@ private:
 	RHI::Sampler PointClampSampler;
 
 	RenderTarget HDRRenderTarget;
-	RenderTarget VisibilityBufferRenderTarget;
+	RenderTarget VisibilityRenderTarget;
 
 	BasicBuffer SceneVertexBuffer;
 	BasicBuffer ScenePrimitiveBuffer;
@@ -77,7 +77,7 @@ private:
 
 	RHI::GraphicsPipeline ForwardPipeline;
 
-	RHI::GraphicsPipeline VisibilityBufferPipeline;
+	RHI::GraphicsPipeline VisibilityPipeline;
 	RHI::ComputePipeline DeferredPipeline;
 
 	RHI::ComputePipeline LuminanceHistogramPipeline;
