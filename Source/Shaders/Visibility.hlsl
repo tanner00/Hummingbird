@@ -3,13 +3,13 @@
 struct VertexInput
 {
 	float3 PositionLocal : POSITION0;
-	float2 TextureCoordinate : TEXCOORD0;
+	float2 UV : TEXCOORD0;
 };
 
 struct PixelInput
 {
 	float4 PositionClip : SV_POSITION;
-	float2 TextureCoordinate : TEXCOORD0;
+	float2 UV : TEXCOORD0;
 };
 
 ConstantBuffer<SceneRootConstants> RootConstants : register(b0);
@@ -22,7 +22,7 @@ PixelInput VertexStart(VertexInput input)
 
 	PixelInput result;
 	result.PositionClip = mul(Scene.WorldToClip, mul(node.LocalToWorld, float4(input.PositionLocal, 1.0f)));
-	result.TextureCoordinate = input.TextureCoordinate;
+	result.UV = input.UV;
 	return result;
 }
 
@@ -36,7 +36,7 @@ uint2 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_Targe
 	const Material material = materialBuffer[primitive.MaterialIndex];
 
 	const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
-	const float alpha = baseColorOrDiffuseTexture.Sample(anisotropicWrapSampler, input.TextureCoordinate).a * material.BaseColorOrDiffuseFactor.a;
+	const float alpha = baseColorOrDiffuseTexture.Sample(anisotropicWrapSampler, input.UV).a * material.BaseColorOrDiffuseFactor.a;
 
 	[branch]
 	if (alpha < material.AlphaCutoff && RootConstants.ViewMode != ViewMode::Geometry)

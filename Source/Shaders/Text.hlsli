@@ -3,8 +3,8 @@
 	return max(min(v.x, v.y), min(max(v.x, v.y), v.z));
 }
 
-float CalculateDistanceFieldRangeScreen(float2 textureCoordinate, float2 unitRange)
+float CalculateDistanceFieldRangeScreen(float2 uv, float2 unitRange)
 {
-	const float2 textureScreenSize = 1.0f / fwidth(textureCoordinate);
+	const float2 textureScreenSize = 1.0f / fwidth(uv);
 	return max(0.5f * dot(unitRange, textureScreenSize), 1.0f);
 }

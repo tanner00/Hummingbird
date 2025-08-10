@@ -45,11 +45,11 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 
 	uint indices[3];
 	float3 positionsLocal[3];
-	float2 textureCoordinates[3];
+	float2 uvs[3];
 	float3 normalsLocal[3];
 	LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
 	LoadTrianglePositions(vertexBuffer, primitive, indices, positionsLocal);
-	LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, textureCoordinates);
+	LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, uvs);
 	LoadTriangleNormals(vertexBuffer, primitive, indices, normalsLocal);
 
 	const float4 positionsWorld[] =
@@ -71,24 +71,24 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	CalculateBarycentrics(positionsClip, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
 
 	const float3 positionWorld = LerpBarycentrics(weights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
-	const float2 textureCoordinate = LerpBarycentrics(weights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
+	const float2 uv = LerpBarycentrics(weights, uvs[0], uvs[1], uvs[2]);
 	const float3 normalLocal = LerpBarycentrics(weights, normalsLocal[0], normalsLocal[1], normalsLocal[2]);
 
 	const float3 ddxPositionWorld = LerpBarycentrics(ddxWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
 	const float3 ddyPositionWorld = LerpBarycentrics(ddyWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
 
-	const float2 ddxTextureCoordinate = LerpBarycentrics(ddxWeights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
-	const float2 ddyTextureCoordinate = LerpBarycentrics(ddyWeights, textureCoordinates[0], textureCoordinates[1], textureCoordinates[2]);
+	const float2 ddxUV = LerpBarycentrics(ddxWeights, uvs[0], uvs[1], uvs[2]);
+	const float2 ddyUV = LerpBarycentrics(ddyWeights, uvs[0], uvs[1], uvs[2]);
 
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
 											positionWorld,
-											textureCoordinate,
+											uv,
 											mul((float3x3)node.NormalLocalToWorld, normalLocal),
 											drawCall.PrimitiveIndex,
 											ddxPositionWorld,
 											ddyPositionWorld,
-											ddxTextureCoordinate,
-											ddyTextureCoordinate,
+											ddxUV,
+											ddyUV,
 											RootConstants.ViewMode,
 											triangleIndex,
 											RootConstants.AnisotropicWrapSamplerIndex).rgb;

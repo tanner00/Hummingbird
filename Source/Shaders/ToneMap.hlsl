@@ -5,18 +5,18 @@
 struct PixelInput
 {
 	float4 PositionClip : SV_POSITION;
-	float2 TextureCoordinate : TEXCOORD0;
+	float2 UV : TEXCOORD0;
 };
 
 ConstantBuffer<ToneMapRootConstants> RootConstants : register(b0);
 
 PixelInput VertexStart(uint vertexID : SV_VertexID)
 {
-	const float2 textureCoordinate = float2(((2 - vertexID) << 1) & 2, (2 - vertexID) & 2);
+	const float2 uv = float2(((2 - vertexID) << 1) & 2, (2 - vertexID) & 2);
 
 	PixelInput result;
-	result.TextureCoordinate = textureCoordinate;
-	result.PositionClip = float4(textureCoordinate * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
+	result.UV = uv;
+	result.PositionClip = float4(uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
 	return result;
 }
 
@@ -27,13 +27,13 @@ float4 PixelStart(PixelInput input) : SV_TARGET
 
 	if (RootConstants.DebugViewMode)
 	{
-		const float3 ldrColor = hdrTexture.Sample(anisotropicWrapSampler, input.TextureCoordinate);
+		const float3 ldrColor = hdrTexture.Sample(anisotropicWrapSampler, input.UV);
 		return float4(ldrColor, 1.0f);
 	}
 
 	RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 
-	const float3 hdrColor = hdrTexture.Sample(anisotropicWrapSampler, input.TextureCoordinate);
+	const float3 hdrColor = hdrTexture.Sample(anisotropicWrapSampler, input.UV);
 
 	const float averageLuminance = luminanceBuffer.Load<float>(LuminanceHistogramBinsCount * sizeof(uint));
 

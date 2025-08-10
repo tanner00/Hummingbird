@@ -45,18 +45,18 @@ float CastShadowRay(float3 origin,
 		const uint triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 		uint indices[3];
-		float2 textureCoordinates[3];
+		float2 uvs[3];
 		LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
-		LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, textureCoordinates);
+		LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, uvs);
 
 		const float2 barycentrics = translucentQuery.CandidateTriangleBarycentrics();
 		const float3 weights = float3(1.0f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
-		const float2 textureCoordinate = textureCoordinates[0] * weights.x
-									   + textureCoordinates[1] * weights.y
-									   + textureCoordinates[2] * weights.z;
+		const float2 uv = uvs[0] * weights.x
+						+ uvs[1] * weights.y
+						+ uvs[2] * weights.z;
 
 		const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
-		const float alpha = baseColorOrDiffuseTexture.SampleLevel(sampler, textureCoordinate, 0).a * material.BaseColorOrDiffuseFactor.a;
+		const float alpha = baseColorOrDiffuseTexture.SampleLevel(sampler, uv, 0).a * material.BaseColorOrDiffuseFactor.a;
 
 		[branch]
 		if (alpha >= material.AlphaCutoff)
