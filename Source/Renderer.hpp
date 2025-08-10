@@ -40,6 +40,8 @@ private:
 	void CreateScreenTextures(uint32 width, uint32 height);
 	void DestroyScreenTextures();
 
+	bool ShouldAntiAlias() const { return TemporalAntiAliasing && ViewMode == HLSL::ViewMode::Lit; }
+
 	RHI::Device Device;
 	RHI::GraphicsContext Graphics;
 
@@ -52,8 +54,11 @@ private:
 	RHI::Sampler PointClampSampler;
 	RHI::Sampler AnisotropicWrapSampler;
 
-	RenderTarget HDRRenderTarget;
 	RenderTarget VisibilityRenderTarget;
+
+	WriteTexture HDRTexture;
+	WriteTexture AccumulationTexture;
+	WriteTexture PreviousAccumulationTexture;
 
 	ReadBuffer SceneVertexBuffer;
 	ReadBuffer ScenePrimitiveBuffer;
@@ -76,12 +81,17 @@ private:
 	RHI::GraphicsPipeline VisibilityPipeline;
 	RHI::ComputePipeline DeferredPipeline;
 
+	RHI::ComputePipeline ResolvePipeline;
+
 	RHI::ComputePipeline LuminanceHistogramPipeline;
 	RHI::ComputePipeline LuminanceAveragePipeline;
 
 	RHI::GraphicsPipeline ToneMapPipeline;
 
 	HLSL::ViewMode ViewMode;
+	bool TemporalAntiAliasing;
+
+	uint32 FrameCount;
 
 #if !RELEASE
 	double AverageCpuTime;
