@@ -5,7 +5,6 @@
 
 void LoadTriangleIndices(ByteAddressBuffer vertexBuffer, Primitive primitive, uint triangleOffset, out uint indices[3])
 {
-	[branch]
 	if (primitive.IndexStride == 2)
 	{
 		indices[0] = vertexBuffer.Load<uint16>(primitive.IndexOffset + triangleOffset + primitive.IndexStride * 0);

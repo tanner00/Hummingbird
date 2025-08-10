@@ -10,7 +10,6 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	uint2 hdrTextureDimensions;
 	hdrTexture.GetDimensions(hdrTextureDimensions.x, hdrTextureDimensions.y);
 
-	[branch]
 	if (any(dispatchThreadID.xy >= hdrTextureDimensions))
 	{
 		return;

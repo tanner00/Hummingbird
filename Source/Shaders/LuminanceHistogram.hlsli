@@ -4,7 +4,6 @@ uint HDRToHistogramBin(float3 hdrColor)
 {
 	const float luminance = dot(hdrColor, float3(0.2127f, 0.7152f, 0.0722f));
 
-	[branch]
 	if (luminance < 0.005f)
 	{
 		return 0;
