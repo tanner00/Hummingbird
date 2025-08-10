@@ -77,7 +77,6 @@ float4 Shade(Scene scene,
 
 	const float3 shadeNormalWorld = all(normalMap <= 0.0001f) ? normalWorld : normalize(mul(tbn, normalMap));
 
-	[branch]
 	switch (viewMode)
 	{
 	case ViewMode::Unlit:
@@ -109,7 +108,6 @@ float4 Shade(Scene scene,
 
 	float3 finalColor = 0.0f;
 
-	[loop]
 	for (uint pointLightIndex = 0; pointLightIndex < scene.PointLightsCount; ++pointLightIndex)
 	{
 		const PointLight pointLight = pointLightsBuffer[pointLightIndex];

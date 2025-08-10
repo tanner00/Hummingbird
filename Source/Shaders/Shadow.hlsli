@@ -24,7 +24,6 @@ float CastShadowRay(float3 origin,
 
 	opaqueQuery.Proceed();
 
-	[branch]
 	if (opaqueQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
 	{
 		return 0.0f;
@@ -34,7 +33,6 @@ float CastShadowRay(float3 origin,
 	RayQuery<translucentFlags> translucentQuery;
 	translucentQuery.TraceRayInline(accelerationStructure, translucentFlags, 0xFF, ray);
 
-	[loop]
 	while (translucentQuery.Proceed())
 	{
 		const uint primitiveIndex = translucentQuery.CandidateInstanceID();
@@ -58,7 +56,6 @@ float CastShadowRay(float3 origin,
 		const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
 		const float alpha = baseColorOrDiffuseTexture.SampleLevel(sampler, uv, 0).a * material.BaseColorOrDiffuseFactor.a;
 
-		[branch]
 		if (alpha >= material.AlphaCutoff)
 		{
 			return 0.0f;

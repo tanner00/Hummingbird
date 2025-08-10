@@ -17,10 +17,8 @@ void ComputeStart(uint groupIndex : SV_GroupIndex)
 
 	luminanceBuffer.Store(groupIndex * sizeof(uint), 0);
 
-	[unroll]
 	for (uint i = LuminanceHistogramBinsCount >> 1; i > 0; i >>= 1)
 	{
-		[branch]
 		if (groupIndex < i)
 		{
 			HistogramShared[groupIndex] += HistogramShared[groupIndex + i];
@@ -29,7 +27,6 @@ void ComputeStart(uint groupIndex : SV_GroupIndex)
 		GroupMemoryBarrierWithGroupSync();
 	}
 
-	[branch]
 	if (groupIndex == 0)
 	{
 		const float luminanceWeightedLog = HistogramShared[0] / max((float)RootConstants.PixelCount - binCount, 1.0f) - 1.0f;

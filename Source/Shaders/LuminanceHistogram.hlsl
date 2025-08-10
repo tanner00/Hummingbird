@@ -17,7 +17,6 @@ void ComputeStart(uint groupIndex : SV_GroupIndex, uint3 dispatchThreadID : SV_D
 	uint2 hdrTextureDimensions;
 	hdrTexture.GetDimensions(hdrTextureDimensions.x, hdrTextureDimensions.y);
 
-	[branch]
 	if (all(dispatchThreadID.xy < hdrTextureDimensions))
 	{
 		const float3 hdrColor = hdrTexture.Load(uint3(dispatchThreadID.xy, 0));

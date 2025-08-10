@@ -38,7 +38,6 @@ uint2 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_Targe
 	const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
 	const float alpha = baseColorOrDiffuseTexture.Sample(anisotropicWrapSampler, input.UV).a * material.BaseColorOrDiffuseFactor.a;
 
-	[branch]
 	if (alpha < material.AlphaCutoff && RootConstants.ViewMode != ViewMode::Geometry)
 	{
 		discard;

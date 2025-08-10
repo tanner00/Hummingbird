@@ -13,7 +13,6 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	uint2 hdrTextureDimensions;
 	hdrTexture.GetDimensions(hdrTextureDimensions.x, hdrTextureDimensions.y);
 
-	[branch]
 	if (any(dispatchThreadID.xy >= hdrTextureDimensions))
 	{
 		return;
@@ -22,7 +21,6 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	const Texture2D<uint2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
 	const uint2 visibility = visibilityTexture.Load(uint3(dispatchThreadID.xy, 0));
 
-	[branch]
 	if (all(visibility.xy == 0))
 	{
 		hdrTexture[dispatchThreadID.xy] = 0.0f;
