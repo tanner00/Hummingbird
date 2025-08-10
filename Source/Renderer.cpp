@@ -383,7 +383,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.HDRTextureIndex = ShouldAntiAlias() ? Device.Get(AccumulationTexture.ShaderResourceView)
 											 : Device.Get(HDRTexture.ShaderResourceView),
 		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
-		.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
+		.LinearClampSamplerIndex = Device.Get(LinearClampSampler),
 		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
 	};
 
