@@ -36,6 +36,13 @@ struct DeferredRootConstants
 	ViewMode ViewMode;
 };
 
+struct ResolveRootConstants
+{
+	uint HDRTextureIndex;
+	uint AccumulationTextureIndex;
+	uint PreviousAccumulationTextureIndex;
+};
+
 struct LuminanceHistogramRootConstants
 {
 	uint HDRTextureIndex;
