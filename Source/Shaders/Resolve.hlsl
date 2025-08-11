@@ -79,5 +79,19 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	const float3 current = hdrTexture.Load(uint3(dispatchThreadID.xy, 0));
 	const float3 previous = previousAccumulationTexture.Sample(linearClampSampler, reprojectedUV);
 
-	accumulationTexture[dispatchThreadID.xy] = current * 0.1f + previous * 0.9f;
+	float3 minColor = Infinity;
+	float3 maxColor = -Infinity;
+	for (int x = -1; x <= 1; ++x)
+	{
+		for (int y = -1; y <= 1; ++y)
+		{
+			const float3 color = hdrTexture.Load(uint3(dispatchThreadID.xy + uint2(x, y), 0));
+			minColor = min(minColor, color);
+			maxColor = max(maxColor, color);
+		}
+	}
+
+	const float3 previousClamped = clamp(previous, minColor, maxColor);
+
+	accumulationTexture[dispatchThreadID.xy] = current * 0.1f + previousClamped * 0.9f;
 }
