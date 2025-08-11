@@ -52,6 +52,7 @@ private:
 	ReadTexture DefaultNormalMapTexture;
 
 	RHI::Sampler PointClampSampler;
+	RHI::Sampler LinearClampSampler;
 	RHI::Sampler AnisotropicWrapSampler;
 
 	RenderTarget VisibilityRenderTarget;
@@ -90,6 +91,8 @@ private:
 
 	HLSL::ViewMode ViewMode;
 	bool TemporalAntiAliasing;
+
+	Matrix PreviousWorldToClip;
 
 	uint32 FrameCount;
 

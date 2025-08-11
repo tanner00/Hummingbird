@@ -108,6 +108,13 @@ Renderer::Renderer(const Platform::Window* window)
 		.HorizontalAddress = SamplerAddress::Clamp,
 		.VerticalAddress = SamplerAddress::Clamp,
 	});
+	LinearClampSampler = Device.Create(
+	{
+		.MinificationFilter = SamplerFilter::Linear,
+		.MagnificationFilter = SamplerFilter::Linear,
+		.HorizontalAddress = SamplerAddress::Clamp,
+		.VerticalAddress = SamplerAddress::Clamp,
+	});
 	AnisotropicWrapSampler = Device.Create(
 	{
 		.MinificationFilter = SamplerFilter::Anisotropic,
@@ -142,6 +149,7 @@ Renderer::~Renderer()
 	Device.Destroy(&DefaultNormalMapTexture.View);
 
 	Device.Destroy(&PointClampSampler);
+	Device.Destroy(&LinearClampSampler);
 	Device.Destroy(&AnisotropicWrapSampler);
 
 	Device.Destroy(&SceneLuminanceBuffer.Resource);
@@ -198,6 +206,7 @@ void Renderer::Update(const CameraController& cameraController)
 																		   cameraController.GetNearZ(),
 																		   cameraController.GetFarZ());
 	Float2 currentJitterClip = Float2 { .X = 0.0f, .Y = 0.0f };
+	Float2 previousJitterClip = Float2 { .X = 0.0f, .Y = 0.0f };
 	if (ShouldAntiAlias())
 	{
 		static constexpr Float2 halton23Sequence[] =
@@ -222,10 +231,18 @@ void Renderer::Update(const CameraController& cameraController)
 
 		const Float2 currentHalton = halton23Sequence[FrameCount % ARRAY_COUNT(halton23Sequence)];
 
+		const Float2 previousHalton = FrameCount == 0 ? Float2 { .X = 0.0f, .Y = 0.0f } :
+														halton23Sequence[(FrameCount - 1) % ARRAY_COUNT(halton23Sequence)];
+
 		currentJitterClip = Float2
 		{
 			.X = currentHalton.X / static_cast<float>(viewportDimensions.Width),
 			.Y = currentHalton.Y / static_cast<float>(viewportDimensions.Height),
+		};
+		previousJitterClip = Float2
+		{
+			.X = previousHalton.X / static_cast<float>(viewportDimensions.Width),
+			.Y = previousHalton.Y / static_cast<float>(viewportDimensions.Height),
 		};
 	}
 
@@ -293,6 +310,14 @@ void Renderer::Update(const CameraController& cameraController)
 			.HDRTextureIndex = Device.Get(HDRTexture.ShaderResourceView),
 			.AccumulationTextureIndex = Device.Get(AccumulationTexture.UnorderedAccessView),
 			.PreviousAccumulationTextureIndex = Device.Get(PreviousAccumulationTexture.ShaderResourceView),
+			.VisibilityTextureIndex = Device.Get(VisibilityRenderTarget.ShaderResourceView),
+			.VertexBufferIndex = Device.Get(SceneVertexBuffer.View),
+			.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
+			.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
+			.DrawCallBufferIndex = Device.Get(SceneDrawCallBuffer.View),
+			.LinearClampSamplerIndex = Device.Get(LinearClampSampler),
+			.WorldToClip = Matrix::Translation(-currentJitterClip.X, -currentJitterClip.Y, 0.0f) * sceneData.WorldToClip,
+			.PreviousWorldToClip = Matrix::Translation(-previousJitterClip.X, -previousJitterClip.Y, 0.0f) * PreviousWorldToClip,
 		};
 
 		Graphics.SetPipeline(ResolvePipeline);
@@ -422,6 +447,7 @@ void Renderer::Update(const CameraController& cameraController)
 	Device.Present();
 
 	Swap(AccumulationTexture, PreviousAccumulationTexture);
+	PreviousWorldToClip = sceneData.WorldToClip;
 	++FrameCount;
 }
 
@@ -1226,7 +1252,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.Type = ViewType::DepthStencil,
 	});
 
-	VisibilityRenderTarget = createRenderTarget(ResourceFormat::RG32UInt, "Visibility Buffer Texture"_view);
+	VisibilityRenderTarget = createRenderTarget(ResourceFormat::RG32UInt, "Visibility Texture"_view);
 
 	HDRTexture = createWriteTexture(ResourceFormat::RGBA32Float, "HDR Texture"_view);
 	AccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);

@@ -1,4 +1,4 @@
-#include "Deferred.hlsli"
+#include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
 #include "Shade.hlsli"
 
