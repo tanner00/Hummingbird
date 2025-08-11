@@ -41,6 +41,17 @@ struct ResolveRootConstants
 	uint HDRTextureIndex;
 	uint AccumulationTextureIndex;
 	uint PreviousAccumulationTextureIndex;
+	uint VisibilityTextureIndex;
+	uint VertexBufferIndex;
+	uint PrimitiveBufferIndex;
+	uint NodeBufferIndex;
+	uint DrawCallBufferIndex;
+	uint LinearClampSamplerIndex;
+
+	PAD(12);
+
+	Matrix WorldToClip;
+	Matrix PreviousWorldToClip;
 };
 
 struct LuminanceHistogramRootConstants

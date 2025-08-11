@@ -7,8 +7,7 @@ void CalculateBarycentrics(const float4 positionsClip[3],
 						   out float3 ddxWeights,
 						   out float3 ddyWeights)
 {
-	float2 pixelNDC = float2(pixelScreen * 2.0f / screenSize - 1.0f);
-	pixelNDC.y = -pixelNDC.y;
+	const float2 pixelNDC = float2(pixelScreen * 2.0f / screenSize - 1.0f) * float2(1.0f, -1.0f);
 
 	const float3 inverseW = 1.0f / float3(positionsClip[0].w, positionsClip[1].w, positionsClip[2].w);
 
@@ -45,6 +44,16 @@ void CalculateBarycentrics(const float4 positionsClip[3],
 
 	ddxWeights = ddxInterpolatedW * (weights * interpolatedInverseW + ( ddxBarycentrics * 2.0f / screenSize.x)) - weights;
 	ddyWeights = ddyInterpolatedW * (weights * interpolatedInverseW + (-ddyBarycentrics * 2.0f / screenSize.y)) - weights;
+}
+
+void CalculateBarycentrics(const float4 positionsClip[3],
+						   float2 pixelScreen,
+						   float2 screenSize,
+						   out float3 weights)
+{
+	float3 unused1;
+	float3 unused2;
+	CalculateBarycentrics(positionsClip, pixelScreen, screenSize, weights, unused1, unused2);
 }
 
 float LerpBarycentrics(float3 weights, float vX, float vY, float vZ)
