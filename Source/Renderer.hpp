@@ -40,7 +40,7 @@ private:
 	void CreateScreenTextures(uint32 width, uint32 height);
 	void DestroyScreenTextures();
 
-	bool ShouldAntiAlias() const { return TemporalAntiAliasing && ViewMode == HLSL::ViewMode::Lit; }
+	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit; }
 
 	RHI::Device Device;
 	RHI::GraphicsContext Graphics;
@@ -90,11 +90,16 @@ private:
 	RHI::GraphicsPipeline ToneMapPipeline;
 
 	HLSL::ViewMode ViewMode;
-	bool TemporalAntiAliasing;
 
-	Matrix PreviousWorldToClip;
+	struct TemporalAntiAliasing
+	{
+		bool Enabled;
+		bool DiscardPreviousFrame;
 
-	uint32 FrameCount;
+		Matrix PreviousWorldToClip;
+
+		uint32 FrameCount;
+	} TemporalAntiAliasing;
 
 #if !RELEASE
 	double AverageCpuTime;

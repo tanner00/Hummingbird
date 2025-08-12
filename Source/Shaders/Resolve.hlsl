@@ -93,5 +93,8 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float3 previousClamped = clamp(previous, minColor, maxColor);
 
-	accumulationTexture[dispatchThreadID.xy] = current * 0.1f + previousClamped * 0.9f;
+	const float currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : 0.1f;
+	const float previousFactor = RootConstants.DiscardPreviousFrame ? 0.0f : 0.9f;
+
+	accumulationTexture[dispatchThreadID.xy] = current * currentFactor + previousClamped * previousFactor;
 }
