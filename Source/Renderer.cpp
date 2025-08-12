@@ -84,8 +84,7 @@ Renderer::Renderer(const Platform::Window* window)
 	, SceneMaterials(RendererAllocator)
 	, SceneTwoChannelNormalMaps(false)
 	, ViewMode(HLSL::ViewMode::Lit)
-	, TemporalAntiAliasing(true)
-	, FrameCount(0)
+	, TemporalAntiAliasing({ .Enabled = true, .DiscardPreviousFrame = true, .PreviousWorldToClip = Matrix::Identity, .FrameCount = 0 })
 #if !RELEASE
 	, AverageCpuTime(0.0)
 	, AverageGpuTime(0.0)
@@ -184,7 +183,8 @@ void Renderer::Update(const CameraController& cameraController)
 
 	if (IsKeyPressedOnce(Key::T))
 	{
-		TemporalAntiAliasing = !TemporalAntiAliasing;
+		TemporalAntiAliasing.Enabled = !TemporalAntiAliasing.Enabled;
+		TemporalAntiAliasing.DiscardPreviousFrame = true;
 	}
 
 	if (IsKeyPressedOnce(Key::R))
@@ -229,10 +229,10 @@ void Renderer::Update(const CameraController& cameraController)
 			{ .X = 0.031250f, .Y = 0.592593f },
 		};
 
-		const Float2 currentHalton = halton23Sequence[FrameCount % ARRAY_COUNT(halton23Sequence)];
-
-		const Float2 previousHalton = FrameCount == 0 ? Float2 { .X = 0.0f, .Y = 0.0f } :
-														halton23Sequence[(FrameCount - 1) % ARRAY_COUNT(halton23Sequence)];
+		const uint32 frameCount = TemporalAntiAliasing.FrameCount;
+		const Float2 currentHalton = halton23Sequence[frameCount % ARRAY_COUNT(halton23Sequence)];
+		const Float2 previousHalton = frameCount == 0 ? Float2 { .X = 0.0f, .Y = 0.0f }
+													  : halton23Sequence[(frameCount - 1) % ARRAY_COUNT(halton23Sequence)];
 
 		currentJitterClip = Float2
 		{
@@ -316,8 +316,9 @@ void Renderer::Update(const CameraController& cameraController)
 			.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
 			.DrawCallBufferIndex = Device.Get(SceneDrawCallBuffer.View),
 			.LinearClampSamplerIndex = Device.Get(LinearClampSampler),
+			.DiscardPreviousFrame = TemporalAntiAliasing.DiscardPreviousFrame,
 			.WorldToClip = Matrix::Translation(-currentJitterClip.X, -currentJitterClip.Y, 0.0f) * sceneData.WorldToClip,
-			.PreviousWorldToClip = Matrix::Translation(-previousJitterClip.X, -previousJitterClip.Y, 0.0f) * PreviousWorldToClip,
+			.PreviousWorldToClip = Matrix::Translation(-previousJitterClip.X, -previousJitterClip.Y, 0.0f) * TemporalAntiAliasing.PreviousWorldToClip,
 		};
 
 		Graphics.SetPipeline(ResolvePipeline);
@@ -447,8 +448,9 @@ void Renderer::Update(const CameraController& cameraController)
 	Device.Present();
 
 	Swap(AccumulationTexture, PreviousAccumulationTexture);
-	PreviousWorldToClip = sceneData.WorldToClip;
-	++FrameCount;
+	TemporalAntiAliasing.DiscardPreviousFrame = false;
+	TemporalAntiAliasing.PreviousWorldToClip = sceneData.WorldToClip;
+	++TemporalAntiAliasing.FrameCount;
 }
 
 void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
@@ -1003,6 +1005,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 										nullptr,
 										"Scene Buffer"_view);
 	}
+
+	TemporalAntiAliasing.DiscardPreviousFrame = true;
 }
 
 void Renderer::UnloadScene()
@@ -1257,6 +1261,8 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 	HDRTexture = createWriteTexture(ResourceFormat::RGBA32Float, "HDR Texture"_view);
 	AccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);
 	PreviousAccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);
+
+	TemporalAntiAliasing.DiscardPreviousFrame = true;
 }
 
 void Renderer::DestroyScreenTextures()
