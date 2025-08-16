@@ -46,11 +46,10 @@ struct ResolveRootConstants
 	uint PrimitiveBufferIndex;
 	uint NodeBufferIndex;
 	uint DrawCallBufferIndex;
-	uint LinearClampSamplerIndex;
 
 	bool32 DiscardPreviousFrame;
 
-	PAD(8);
+	PAD(12);
 
 	Matrix WorldToClip;
 	Matrix PreviousWorldToClip;
