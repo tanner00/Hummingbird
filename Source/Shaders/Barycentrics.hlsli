@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Transform.hlsli"
+
 void CalculateBarycentrics(const float4 positionsClip[3],
 						   float2 pixelScreen,
 						   float2 screenSize,
@@ -7,7 +9,7 @@ void CalculateBarycentrics(const float4 positionsClip[3],
 						   out float3 ddxWeights,
 						   out float3 ddyWeights)
 {
-	const float2 pixelNDC = float2(pixelScreen * 2.0f / screenSize - 1.0f) * float2(1.0f, -1.0f);
+	const float2 pixelNDC = TransformScreenToNDC(pixelScreen, screenSize);
 
 	const float3 inverseW = 1.0f / float3(positionsClip[0].w, positionsClip[1].w, positionsClip[2].w);
 

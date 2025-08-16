@@ -1,5 +1,6 @@
 #include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
+#include "Transform.hlsli"
 #include "Types.hlsli"
 
 ConstantBuffer<ResolveRootConstants> RootConstants : register(b0);
@@ -49,15 +50,15 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float4 currentPositionsWorld[] =
 	{
-		mul(node.LocalToWorld, float4(positionsLocal[0], 1.0f)),
-		mul(node.LocalToWorld, float4(positionsLocal[1], 1.0f)),
-		mul(node.LocalToWorld, float4(positionsLocal[2], 1.0f)),
+		TransformLocalPositionToWorld(positionsLocal[0], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLocal[1], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLocal[2], node.LocalToWorld),
 	};
 	const float4 currentPositionsClip[] =
 	{
-		mul(RootConstants.WorldToClip, currentPositionsWorld[0]),
-		mul(RootConstants.WorldToClip, currentPositionsWorld[1]),
-		mul(RootConstants.WorldToClip, currentPositionsWorld[2]),
+		TransformWorldToClip(currentPositionsWorld[0], RootConstants.WorldToClip),
+		TransformWorldToClip(currentPositionsWorld[1], RootConstants.WorldToClip),
+		TransformWorldToClip(currentPositionsWorld[2], RootConstants.WorldToClip),
 	};
 
 	float3 currentWeights;
@@ -65,16 +66,15 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float3 currentPositionWorld = LerpBarycentrics(currentWeights, currentPositionsWorld[0].xyz, currentPositionsWorld[1].xyz, currentPositionsWorld[2].xyz);
 
-	const float4 currentPositionClip = mul(RootConstants.WorldToClip, float4(currentPositionWorld, 1.0f));
-	const float4 previousPositionClip = mul(RootConstants.PreviousWorldToClip, float4(currentPositionWorld, 1.0f));
+	const float4 currentPositionClip = TransformWorldToClip(float4(currentPositionWorld, 1.0f), RootConstants.WorldToClip);
+	const float4 previousPositionClip = TransformWorldToClip(float4(currentPositionWorld, 1.0f), RootConstants.PreviousWorldToClip);
 
-	const float2 currentPositionUV = ((currentPositionClip.xy / currentPositionClip.w) + 1.0f) / float2(2.0f, -2.0f);
-	const float2 previousPositionUV = ((previousPositionClip.xy / previousPositionClip.w) + 1.0f) / float2(2.0f, -2.0f);
+	const float2 currentPositionUV = TransformClipToUV(currentPositionClip);
+	const float2 previousPositionUV = TransformClipToUV(previousPositionClip);
 	const float2 velocityUV = previousPositionUV - currentPositionUV;
-	const float2 reprojectedUV = (dispatchThreadID.xy + 0.5f) / hdrTextureDimensions + velocityUV;
+	const float2 reprojectedUV = TransformTexelToUV(dispatchThreadID.xy, hdrTextureDimensions) + velocityUV;
 
 	const Texture2D<float3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
-	const SamplerState linearClampSampler = ResourceDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
 	const float3 current = hdrTexture.Load(uint3(dispatchThreadID.xy, 0));
 	const float3 previous = previousAccumulationTexture.Sample(linearClampSampler, reprojectedUV);
@@ -85,7 +85,7 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	{
 		for (int y = -1; y <= 1; ++y)
 		{
-			const float3 color = hdrTexture.Load(uint3(dispatchThreadID.xy + uint2(x, y), 0));
+			const float3 color = hdrTexture.Load(uint3(dispatchThreadID.xy + int2(x, y), 0));
 			minColor = min(minColor, color);
 			maxColor = max(maxColor, color);
 		}

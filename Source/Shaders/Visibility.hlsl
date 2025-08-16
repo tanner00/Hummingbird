@@ -1,3 +1,4 @@
+#include "Transform.hlsli"
 #include "Types.hlsli"
 
 struct VertexInput
@@ -21,7 +22,7 @@ PixelInput VertexStart(VertexInput input)
 	const Node node = nodeBuffer[RootConstants.NodeIndex];
 
 	PixelInput result;
-	result.PositionClip = mul(Scene.WorldToClip, mul(node.LocalToWorld, float4(input.PositionLocal, 1.0f)));
+	result.PositionClip = TransformWorldToClip(TransformLocalPositionToWorld(input.PositionLocal, node.LocalToWorld), Scene.WorldToClip);
 	result.UV = input.UV;
 	return result;
 }

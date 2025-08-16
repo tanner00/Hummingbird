@@ -1,6 +1,7 @@
 #include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
 #include "Shade.hlsli"
+#include "Transform.hlsli"
 
 ConstantBuffer<DeferredRootConstants> RootConstants : register(b0);
 ConstantBuffer<Scene> Scene : register(b1);
@@ -52,15 +53,15 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float4 positionsWorld[] =
 	{
-		mul(node.LocalToWorld, float4(positionsLocal[0], 1.0f)),
-		mul(node.LocalToWorld, float4(positionsLocal[1], 1.0f)),
-		mul(node.LocalToWorld, float4(positionsLocal[2], 1.0f)),
+		TransformLocalPositionToWorld(positionsLocal[0], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLocal[1], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLocal[2], node.LocalToWorld),
 	};
 	const float4 positionsClip[] =
 	{
-		mul(Scene.WorldToClip, positionsWorld[0]),
-		mul(Scene.WorldToClip, positionsWorld[1]),
-		mul(Scene.WorldToClip, positionsWorld[2]),
+		TransformWorldToClip(positionsWorld[0], Scene.WorldToClip),
+		TransformWorldToClip(positionsWorld[1], Scene.WorldToClip),
+		TransformWorldToClip(positionsWorld[2], Scene.WorldToClip),
 	};
 
 	float3 weights;
@@ -81,7 +82,7 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
 											positionWorld,
 											uv,
-											mul((float3x3)node.NormalLocalToWorld, normalLocal),
+											TransformLocalDirectionToWorld(normalLocal, node.NormalLocalToWorld),
 											drawCall.PrimitiveIndex,
 											ddxPositionWorld,
 											ddyPositionWorld,
