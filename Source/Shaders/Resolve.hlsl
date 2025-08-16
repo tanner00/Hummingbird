@@ -1,3 +1,4 @@
+#include "Resolve.hlsli"
 #include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
 #include "Transform.hlsli"
@@ -76,8 +77,8 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 
 	const Texture2D<float3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
 
-	const float3 current = hdrTexture.Load(uint3(dispatchThreadID.xy, 0));
-	const float3 previous = previousAccumulationTexture.Sample(linearClampSampler, reprojectedUV);
+	const float3 currentColor = hdrTexture.Load(uint3(dispatchThreadID.xy, 0));
+	const float3 previousColor = SampleTextureCatmullRom(previousAccumulationTexture, hdrTextureDimensions, reprojectedUV);
 
 	float3 minColor = Infinity;
 	float3 maxColor = -Infinity;
@@ -91,10 +92,10 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 		}
 	}
 
-	const float3 previousClamped = clamp(previous, minColor, maxColor);
+	const float3 previousClamped = clamp(previousColor, minColor, maxColor);
 
 	const float currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : 0.1f;
 	const float previousFactor = RootConstants.DiscardPreviousFrame ? 0.0f : 0.9f;
 
-	accumulationTexture[dispatchThreadID.xy] = current * currentFactor + previousClamped * previousFactor;
+	accumulationTexture[dispatchThreadID.xy] = currentColor * currentFactor + previousClamped * previousFactor;
 }
