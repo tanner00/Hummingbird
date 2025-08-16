@@ -1,5 +1,6 @@
 #include "ToneMap.hlsli"
 #include "Luminance.hlsli"
+#include "Transform.hlsli"
 #include "Types.hlsli"
 
 struct PixelInput
@@ -12,11 +13,11 @@ ConstantBuffer<ToneMapRootConstants> RootConstants : register(b0);
 
 PixelInput VertexStart(uint vertexID : SV_VertexID)
 {
-	const float2 uv = float2(((2 - vertexID) << 1) & 2, (2 - vertexID) & 2);
+	const float2 uv = TransformVertexIDToUV(vertexID);
 
 	PixelInput result;
 	result.UV = uv;
-	result.PositionClip = float4(uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
+	result.PositionClip = TransformUVToClip(uv);
 	return result;
 }
 

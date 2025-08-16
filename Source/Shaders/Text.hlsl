@@ -1,4 +1,5 @@
 #include "Text.hlsli"
+#include "Transform.hlsli"
 #include "Types.hlsli"
 
 struct PixelInput
@@ -34,7 +35,7 @@ PixelInput VertexStart(uint vertexID : SV_VertexID)
 	const float2 positionScreen = c.PositionScreen + c.Scale * (c.PlanePosition + c.PlaneSize * vertices[vertexIndex]);
 
 	PixelInput result;
-	result.PositionClip = mul(RootConstants.ScreenToClip, float4(positionScreen, 0.0f, 1.0f));
+	result.PositionClip = TransformScreenToClip(positionScreen, RootConstants.ScreenToClip);
 	result.UV = c.AtlasPosition + c.AtlasSize * vertices[vertexIndex];
 	result.Color = c.Color;
 	return result;
