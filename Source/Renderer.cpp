@@ -447,10 +447,13 @@ void Renderer::Update(const CameraController& cameraController)
 	Device.Submit(Graphics);
 	Device.Present();
 
-	Swap(AccumulationTexture, PreviousAccumulationTexture);
-	TemporalAntiAliasing.DiscardPreviousFrame = false;
-	TemporalAntiAliasing.PreviousWorldToClip = sceneData.WorldToClip;
-	++TemporalAntiAliasing.FrameCount;
+	if (ShouldAntiAlias())
+	{
+		Swap(AccumulationTexture, PreviousAccumulationTexture);
+		TemporalAntiAliasing.DiscardPreviousFrame = false;
+		TemporalAntiAliasing.PreviousWorldToClip = sceneData.WorldToClip;
+		++TemporalAntiAliasing.FrameCount;
+	}
 }
 
 void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
