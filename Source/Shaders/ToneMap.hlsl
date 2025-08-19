@@ -38,5 +38,5 @@ float4 PixelStart(PixelInput input) : SV_TARGET
 	const float averageLuminance = luminanceBuffer.Load<float>(LuminanceHistogramBinsCount * sizeof(uint));
 
 	const float3 exposed = hdrColor * ConvertEv100ToExposure(ConvertAverageLuminanceToEv100(averageLuminance));
-	return float4(ToneMapAcesApproximate(exposed), 1.0f);
+	return float4(ToneMapACES(exposed), 1.0f);
 }

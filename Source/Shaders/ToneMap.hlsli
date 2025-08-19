@@ -16,7 +16,7 @@ float ConvertEv100ToExposure(float ev100)
 	return 1.0f / maxLuminance;
 }
 
-float3 ToneMapAcesApproximate(float3 x)
+float3 ToneMapACES(float3 x)
 {
 	static const float a = 2.51f;
 	static const float b = 0.03f;
