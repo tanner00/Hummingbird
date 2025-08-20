@@ -163,15 +163,15 @@ void DrawText::Init(RHI::Device* device)
 
 void DrawText::Shutdown(const RHI::Device& device)
 {
+	device.Destroy(&FontTexture);
+	device.Destroy(&FontTextureView);
+	device.Destroy(&Pipeline);
+	device.Destroy(&LinearWrapSampler);
 	for (usize frameIndex = 0; frameIndex < RHI::FramesInFlight; ++frameIndex)
 	{
 		device.Destroy(&CharacterBufferViews[frameIndex]);
 		device.Destroy(&CharacterBuffers[frameIndex]);
 	}
-	device.Destroy(&LinearWrapSampler);
-	device.Destroy(&Pipeline);
-	device.Destroy(&FontTextureView);
-	device.Destroy(&FontTexture);
 
 	this->~DrawText();
 }
