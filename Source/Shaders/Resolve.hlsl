@@ -92,10 +92,10 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 		}
 	}
 
-	const float3 previousClamped = clamp(previousColor, minColor, maxColor);
+	const float3 previousColorClamped = clamp(previousColor, minColor, maxColor);
 
-	const float currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : 0.1f;
-	const float previousFactor = RootConstants.DiscardPreviousFrame ? 0.0f : 0.9f;
+	const float reprojectedFactor = frac(length(velocityUV * hdrTextureDimensions));
+	const float currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : lerp(0.05f, 0.5f, reprojectedFactor);
 
-	accumulationTexture[dispatchThreadID.xy] = currentColor * currentFactor + previousClamped * previousFactor;
+	accumulationTexture[dispatchThreadID.xy] = lerp(previousColorClamped, currentColor, currentFactor);
 }
