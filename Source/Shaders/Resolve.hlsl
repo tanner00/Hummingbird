@@ -97,5 +97,6 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	const float reprojectedFactor = frac(length(velocityUV * hdrTextureDimensions));
 	const float currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : lerp(0.05f, 0.5f, reprojectedFactor);
 
-	accumulationTexture[dispatchThreadID.xy] = lerp(previousColorClamped, currentColor, currentFactor);
+	const float3 resolvedColor = InverseToneMapReinhard(lerp(ToneMapReinhard(previousColorClamped), ToneMapReinhard(currentColor), currentFactor));
+	accumulationTexture[dispatchThreadID.xy] = resolvedColor;
 }
