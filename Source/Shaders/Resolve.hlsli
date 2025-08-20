@@ -31,3 +31,13 @@ float3 SampleTextureCatmullRom(Texture2D<float3> texture, uint2 textureDimension
 
 	return sample;
 }
+
+float3 ToneMapReinhard(float3 color)
+{
+	return color / (1.0f + color);
+}
+
+float3 InverseToneMapReinhard(float3 color)
+{
+	return color / (1.0f - color);
+}
