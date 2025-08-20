@@ -63,21 +63,33 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 		TransformWorldToClip(positionsWorld[1], Scene.WorldToClip),
 		TransformWorldToClip(positionsWorld[2], Scene.WorldToClip),
 	};
+	const float4 jitterPositionsClip[] =
+	{
+		TransformWorldToClip(positionsWorld[0], Scene.JitterWorldToClip),
+		TransformWorldToClip(positionsWorld[1], Scene.JitterWorldToClip),
+		TransformWorldToClip(positionsWorld[2], Scene.JitterWorldToClip),
+	};
 
 	float3 weights;
 	float3 ddxWeights;
 	float3 ddyWeights;
 	CalculateBarycentrics(positionsClip, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
 
-	const float3 positionWorld = LerpBarycentrics(weights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
 	const float2 uv = LerpBarycentrics(weights, uvs[0], uvs[1], uvs[2]);
-	const float3 normalLocal = LerpBarycentrics(weights, normalsLocal[0], normalsLocal[1], normalsLocal[2]);
-
-	const float3 ddxPositionWorld = LerpBarycentrics(ddxWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
-	const float3 ddyPositionWorld = LerpBarycentrics(ddyWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
 
 	const float2 ddxUV = LerpBarycentrics(ddxWeights, uvs[0], uvs[1], uvs[2]);
 	const float2 ddyUV = LerpBarycentrics(ddyWeights, uvs[0], uvs[1], uvs[2]);
+
+	float3 jitterWeights;
+	float3 ddxJitterWeights;
+	float3 ddyJitterWeights;
+	CalculateBarycentrics(jitterPositionsClip, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, jitterWeights, ddxJitterWeights, ddyJitterWeights);
+
+	const float3 positionWorld = LerpBarycentrics(jitterWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
+	const float3 normalLocal = LerpBarycentrics(jitterWeights, normalsLocal[0], normalsLocal[1], normalsLocal[2]);
+
+	const float3 ddxPositionWorld = LerpBarycentrics(ddxJitterWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
+	const float3 ddyPositionWorld = LerpBarycentrics(ddyJitterWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
 
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
 											positionWorld,

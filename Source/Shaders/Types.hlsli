@@ -89,13 +89,14 @@ struct Scene
 	uint AccelerationStructureIndex;
 
 	Matrix WorldToClip;
+	Matrix JitterWorldToClip;
 	Float3 ViewPositionWorld;
 
 	bool32 TwoChannelNormalMaps;
 
 	uint PointLightsCount;
 
-	PAD(140);
+	PAD(76);
 };
 
 struct Primitive

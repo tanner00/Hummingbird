@@ -200,13 +200,7 @@ void Renderer::Update(const CameraController& cameraController)
 	const ResourceDimensions viewportDimensions = HDRTexture.Resource.Dimensions;
 	Graphics.SetViewport(viewportDimensions.Width, viewportDimensions.Height);
 
-	const Matrix worldToView = cameraController.GetViewToWorld().GetInverse();
-	const Matrix viewToClip = Matrix::ReverseDepth() * Matrix::Perspective(cameraController.GetFieldOfViewYRadians(),
-																		   cameraController.GetAspectRatio(),
-																		   cameraController.GetNearZ(),
-																		   cameraController.GetFarZ());
 	Float2 currentJitterClip = Float2 { .X = 0.0f, .Y = 0.0f };
-	Float2 previousJitterClip = Float2 { .X = 0.0f, .Y = 0.0f };
 	if (ShouldAntiAlias())
 	{
 		static constexpr Float2 halton23Sequence[] =
@@ -231,20 +225,20 @@ void Renderer::Update(const CameraController& cameraController)
 
 		const uint32 frameCount = TemporalAntiAliasing.FrameCount;
 		const Float2 currentHalton = halton23Sequence[frameCount % ARRAY_COUNT(halton23Sequence)];
-		const Float2 previousHalton = frameCount == 0 ? Float2 { .X = 0.0f, .Y = 0.0f }
-													  : halton23Sequence[(frameCount - 1) % ARRAY_COUNT(halton23Sequence)];
 
 		currentJitterClip = Float2
 		{
 			.X = currentHalton.X / static_cast<float>(viewportDimensions.Width),
 			.Y = currentHalton.Y / static_cast<float>(viewportDimensions.Height),
 		};
-		previousJitterClip = Float2
-		{
-			.X = previousHalton.X / static_cast<float>(viewportDimensions.Width),
-			.Y = previousHalton.Y / static_cast<float>(viewportDimensions.Height),
-		};
 	}
+
+	const Matrix worldToView = cameraController.GetViewToWorld().GetInverse();
+	const Matrix viewToClip = Matrix::ReverseDepth() * Matrix::Perspective(cameraController.GetFieldOfViewYRadians(),
+																		   cameraController.GetAspectRatio(),
+																		   cameraController.GetNearZ(),
+																		   cameraController.GetFarZ());
+	const Matrix worldToClip = viewToClip * worldToView;
 
 	const HLSL::Scene sceneData =
 	{
@@ -256,7 +250,8 @@ void Renderer::Update(const CameraController& cameraController)
 		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
-		.WorldToClip = Matrix::Translation(currentJitterClip.X, currentJitterClip.Y, 0.0f) * viewToClip * worldToView,
+		.WorldToClip = worldToClip,
+		.JitterWorldToClip = Matrix::Translation(currentJitterClip.X, currentJitterClip.Y, 0.0f) * worldToClip,
 		.ViewPositionWorld = Float3
 		{
 			.X = cameraController.GetPositionWorld().X,
@@ -315,10 +310,9 @@ void Renderer::Update(const CameraController& cameraController)
 			.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
 			.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
 			.DrawCallBufferIndex = Device.Get(SceneDrawCallBuffer.View),
-			.LinearClampSamplerIndex = Device.Get(LinearClampSampler),
 			.DiscardPreviousFrame = TemporalAntiAliasing.DiscardPreviousFrame,
-			.WorldToClip = Matrix::Translation(-currentJitterClip.X, -currentJitterClip.Y, 0.0f) * sceneData.WorldToClip,
-			.PreviousWorldToClip = Matrix::Translation(-previousJitterClip.X, -previousJitterClip.Y, 0.0f) * TemporalAntiAliasing.PreviousWorldToClip,
+			.WorldToClip = worldToClip,
+			.PreviousWorldToClip = TemporalAntiAliasing.PreviousWorldToClip,
 		};
 
 		Graphics.SetPipeline(ResolvePipeline);
@@ -451,7 +445,7 @@ void Renderer::Update(const CameraController& cameraController)
 	{
 		Swap(AccumulationTexture, PreviousAccumulationTexture);
 		TemporalAntiAliasing.DiscardPreviousFrame = false;
-		TemporalAntiAliasing.PreviousWorldToClip = sceneData.WorldToClip;
+		TemporalAntiAliasing.PreviousWorldToClip = worldToClip;
 		++TemporalAntiAliasing.FrameCount;
 	}
 }
