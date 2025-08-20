@@ -22,7 +22,7 @@ PixelInput VertexStart(VertexInput input)
 	const Node node = nodeBuffer[RootConstants.NodeIndex];
 
 	PixelInput result;
-	result.PositionClip = TransformWorldToClip(TransformLocalPositionToWorld(input.PositionLocal, node.LocalToWorld), Scene.WorldToClip);
+	result.PositionClip = TransformWorldToClip(TransformLocalPositionToWorld(input.PositionLocal, node.LocalToWorld), Scene.JitterWorldToClip);
 	result.UV = input.UV;
 	return result;
 }
