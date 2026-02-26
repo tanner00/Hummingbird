@@ -24,15 +24,15 @@ PixelInput VertexStart(uint vertexID : SV_VertexID)
 float4 PixelStart(PixelInput input) : SV_TARGET
 {
 	const Texture2D<float3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
-	const SamplerState linearClampSampler = ResourceDescriptorHeap[RootConstants.LinearClampSamplerIndex];
+	const SamplerState linearWrapSampler = ResourceDescriptorHeap[RootConstants.LinearWrapSamplerIndex];
 
 	if (RootConstants.DebugViewMode)
 	{
-		const float3 ldrColor = hdrTexture.Sample(linearClampSampler, input.UV);
+		const float3 ldrColor = hdrTexture.Sample(linearWrapSampler, input.UV);
 		return float4(ldrColor, 1.0f);
 	}
 
-	const float3 hdrColor = hdrTexture.Sample(linearClampSampler, input.UV);
+	const float3 hdrColor = hdrTexture.Sample(linearWrapSampler, input.UV);
 
 	RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 	const float averageLuminance = luminanceBuffer.Load<float>(LuminanceHistogramBinsCount * sizeof(uint));

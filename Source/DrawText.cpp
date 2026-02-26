@@ -1,6 +1,7 @@
 #include "DrawText.hpp"
 #include "DDS.hpp"
 #include "JSON.hpp"
+#include "RenderContext.hpp"
 
 static constexpr usize MaxCharactersPerFrame = 2048;
 
@@ -12,7 +13,7 @@ DrawText::DrawText()
 {
 }
 
-void DrawText::Init(RHI::Device* device)
+void DrawText::Init()
 {
 	DDS::Image fontImage = DDS::LoadImage("Assets/Fonts/RobotoMSDF.dds"_view);
 
@@ -85,7 +86,7 @@ void DrawText::Init(RHI::Device* device)
 		});
 	}
 
-	FontTexture = device->Create(
+	FontTexture = GlobalDevice().Create(
 	{
 		.Type = RHI::ResourceType::Texture2D,
 		.Format = fontImage.Format,
@@ -95,21 +96,21 @@ void DrawText::Init(RHI::Device* device)
 		.MipMapCount = fontImage.MipMapCount,
 		.Name = "Font Texture"_view,
 	});
-	FontTextureView = device->Create(
+	FontTextureView = GlobalDevice().Create(
 	{
-		.Resource = FontTexture,
 		.Type = RHI::ViewType::ShaderResource,
+		.Resource = FontTexture,
 	});
-	device->Write(&FontTexture, fontImage.Data);
+	GlobalDevice().Write(&FontTexture, fontImage.Data);
 
 	DDS::UnloadImage(&fontImage);
 
-	RHI::Shader vertex = device->Create(
+	RHI::Shader vertex = GlobalDevice().Create(
 	{
 		.FilePath = "Shaders/Text.hlsl"_view,
 		.Stage = RHI::ShaderStage::Vertex,
 	});
-	RHI::Shader pixel = device->Create(
+	RHI::Shader pixel = GlobalDevice().Create(
 	{
 		.FilePath = "Shaders/Text.hlsl"_view,
 		.Stage = RHI::ShaderStage::Pixel,
@@ -118,7 +119,7 @@ void DrawText::Init(RHI::Device* device)
 	RHI::ShaderStages stages;
 	stages.AddStage(vertex);
 	stages.AddStage(pixel);
-	Pipeline = device->Create(
+	Pipeline = GlobalDevice().Create(
 	{
 		.Stages = Move(stages),
 		.RenderTargetFormats = { RHI::ResourceFormat::RGBA8UNormSRGB },
@@ -126,21 +127,13 @@ void DrawText::Init(RHI::Device* device)
 		.AlphaBlend = true,
 		.Name = "Text Pipeline"_view,
 	});
-	device->Destroy(&vertex);
-	device->Destroy(&pixel);
-
-	LinearWrapSampler = device->Create(
-	{
-		.MinificationFilter = RHI::SamplerFilter::Linear,
-		.MagnificationFilter = RHI::SamplerFilter::Linear,
-		.HorizontalAddress = RHI::SamplerAddress::Wrap,
-		.VerticalAddress = RHI::SamplerAddress::Wrap,
-	});
+	GlobalDevice().Destroy(&vertex);
+	GlobalDevice().Destroy(&pixel);
 
 	CharacterData.GrowToLengthUninitialized(MaxCharactersPerFrame);
 	for (usize frameIndex = 0; frameIndex < RHI::FramesInFlight; ++frameIndex)
 	{
-		CharacterBuffers[frameIndex] = device->Create(
+		CharacterBuffers[frameIndex] = GlobalDevice().Create(
 		{
 			.Format = RHI::ResourceFormat::None,
 			.Flags = RHI::ResourceFlags::Upload,
@@ -148,7 +141,7 @@ void DrawText::Init(RHI::Device* device)
 			.Size = MaxCharactersPerFrame * sizeof(HLSL::Character),
 			.Name = "Character Buffer"_view,
 		});
-		CharacterBufferViews[frameIndex] = device->Create(RHI::BufferViewDescription
+		CharacterBufferViews[frameIndex] = GlobalDevice().Create(RHI::BufferViewDescription
 		{
 			.Type = RHI::ViewType::ShaderResource,
 			.Buffer =
@@ -161,16 +154,15 @@ void DrawText::Init(RHI::Device* device)
 	}
 }
 
-void DrawText::Shutdown(const RHI::Device& device)
+void DrawText::Shutdown()
 {
-	device.Destroy(&FontTexture);
-	device.Destroy(&FontTextureView);
-	device.Destroy(&Pipeline);
-	device.Destroy(&LinearWrapSampler);
+	GlobalDevice().Destroy(&FontTexture);
+	GlobalDevice().Destroy(&FontTextureView);
+	GlobalDevice().Destroy(&Pipeline);
 	for (usize frameIndex = 0; frameIndex < RHI::FramesInFlight; ++frameIndex)
 	{
-		device.Destroy(&CharacterBufferViews[frameIndex]);
-		device.Destroy(&CharacterBuffers[frameIndex]);
+		GlobalDevice().Destroy(&CharacterBufferViews[frameIndex]);
+		GlobalDevice().Destroy(&CharacterBuffers[frameIndex]);
 	}
 
 	this->~DrawText();
@@ -209,23 +201,21 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 	}
 }
 
-void DrawText::Submit(RHI::GraphicsContext* graphics, RHI::Device* device, uint32 width, uint32 height)
+void DrawText::Submit(uint32 width, uint32 height)
 {
-	CHECK(graphics);
-
 	RootConstants.ScreenToClip = Matrix::Orthographic(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), 0.0f, 1.0f);
 
-	RootConstants.CharacterBufferIndex = device->Get(CharacterBufferViews[device->GetFrameIndex()]);
-	RootConstants.FontTextureIndex = device->Get(FontTextureView);
-	RootConstants.LinearWrapSampler = device->Get(LinearWrapSampler);
+	RootConstants.CharacterBufferIndex = GlobalDevice().Get(CharacterBufferViews[GlobalDevice().GetFrameIndex()]);
+	RootConstants.FontTextureIndex = GlobalDevice().Get(FontTextureView);
+	RootConstants.LinearWrapSampler = GlobalDevice().Get(RenderContext.LinearWrapSampler);
 
-	device->Write(&CharacterBuffers[device->GetFrameIndex()], CharacterData.GetData());
+	GlobalDevice().Write(&CharacterBuffers[GlobalDevice().GetFrameIndex()], CharacterData.GetData());
 
-	graphics->SetPipeline(Pipeline);
-	graphics->SetRootConstants(&RootConstants);
+	GlobalGraphics().SetPipeline(Pipeline);
+	GlobalGraphics().SetRootConstants(&RootConstants);
 
 	static constexpr usize verticesPerQuad = 6;
-	graphics->Draw(CharacterIndex * verticesPerQuad);
+	GlobalGraphics().Draw(CharacterIndex * verticesPerQuad);
 
 	CharacterIndex = 0;
 }

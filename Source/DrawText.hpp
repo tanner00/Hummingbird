@@ -21,8 +21,8 @@ class DrawText : public NoCopy
 public:
 	DrawText();
 
-	void Init(RHI::Device* device);
-	void Shutdown(const RHI::Device& device);
+	void Init();
+	void Shutdown();
 
 	static DrawText& Get()
 	{
@@ -33,7 +33,7 @@ public:
 	void Draw(StringView text, Float2 position, Float3 rgb, float scale);
 	void Draw(StringView text, Float2 position, Float4 rgba, float scale);
 
-	void Submit(RHI::GraphicsContext* graphics, RHI::Device* device, uint32 width, uint32 height);
+	void Submit(uint32 width, uint32 height);
 
 private:
 	HashTable<char, Glyph> Glyphs;
@@ -49,8 +49,6 @@ private:
 
 	RHI::Resource FontTexture;
 	RHI::TextureView FontTextureView;
-
-	RHI::Sampler LinearWrapSampler;
 
 	RHI::Resource CharacterBuffers[RHI::FramesInFlight];
 	RHI::BufferView CharacterBufferViews[RHI::FramesInFlight];

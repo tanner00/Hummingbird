@@ -72,7 +72,7 @@ struct ToneMapRootConstants
 {
 	uint HDRTextureIndex;
 	uint LuminanceBufferIndex;
-	uint LinearClampSamplerIndex;
+	uint LinearWrapSamplerIndex;
 
 	bool32 DebugViewMode;
 };
