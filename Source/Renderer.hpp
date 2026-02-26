@@ -42,17 +42,12 @@ private:
 
 	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit; }
 
-	RHI::Device Device;
-	RHI::GraphicsContext Graphics;
-
 	ReadTexture SwapChainTextures[RHI::FramesInFlight];
 	ReadTexture DepthTexture;
 
 	ReadTexture WhiteTexture;
 	ReadTexture DefaultNormalMapTexture;
 
-	RHI::Sampler PointClampSampler;
-	RHI::Sampler LinearClampSampler;
 	RHI::Sampler AnisotropicWrapSampler;
 
 	RenderTarget VisibilityRenderTarget;

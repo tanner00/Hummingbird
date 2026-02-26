@@ -3,6 +3,7 @@
 #include "DDS.hpp"
 #include "DrawText.hpp"
 #include "GLTF.hpp"
+#include "RenderContext.hpp"
 
 namespace HLSL
 {
@@ -13,16 +14,15 @@ using namespace RHI;
 
 static ::Allocator* RendererAllocator = &GlobalAllocator::Get();
 
-static ReadTexture CreateReadTexture(Device* device,
-									   ResourceDimensions dimensions,
-									   uint16 mipMapCount,
-									   ResourceFormat format,
-									   const void* data,
-									   StringView name)
+static ReadTexture CreateReadTexture(ResourceDimensions dimensions,
+									 uint16 mipMapCount,
+									 ResourceFormat format,
+									 const void* data,
+									 StringView name)
 {
 	CHECK(data);
 
-	const Resource texture = device->Create(
+	const Resource texture = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Texture2D,
 		.Format = format,
@@ -32,25 +32,24 @@ static ReadTexture CreateReadTexture(Device* device,
 		.MipMapCount = mipMapCount,
 		.Name = name,
 	});
-	const TextureView view = device->Create(
+	const TextureView view = GlobalDevice().Create(
 	{
-		.Resource = texture,
 		.Type = ViewType::ShaderResource,
+		.Resource = texture,
 	});
-	device->Write(&texture, data);
+	GlobalDevice().Write(&texture, data);
 
 	return ReadTexture { texture, view };
 }
 
-static ReadBuffer CreateReadBuffer(Device* device,
-									 usize size,
-									 usize stride,
-									 ResourceFlags flags,
-									 ViewType type,
-									 const void* data,
-									 StringView name)
+static ReadBuffer CreateReadBuffer(usize size,
+								   usize stride,
+								   ResourceFlags flags,
+								   ViewType type,
+								   const void* data,
+								   StringView name)
 {
-	const Resource buffer = device->Create(
+	const Resource buffer = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Buffer,
 		.Flags = flags,
@@ -58,7 +57,7 @@ static ReadBuffer CreateReadBuffer(Device* device,
 		.Size = size,
 		.Name = name,
 	});
-	const BufferView view = device->Create(BufferViewDescription
+	const BufferView view = GlobalDevice().Create(BufferViewDescription
 	{
 		.Type = type,
 		.Buffer =
@@ -70,16 +69,14 @@ static ReadBuffer CreateReadBuffer(Device* device,
 	});
 	if (data)
 	{
-		device->Write(&buffer, data);
+		GlobalDevice().Write(&buffer, data);
 	}
 
 	return ReadBuffer { buffer, view };
 }
 
 Renderer::Renderer(const Platform::Window* window)
-	: Device(window)
-	, Graphics(Device.Create(GraphicsContextDescription {}))
-	, SceneMeshes(RendererAllocator)
+	: SceneMeshes(RendererAllocator)
 	, SceneNodes(RendererAllocator)
 	, SceneMaterials(RendererAllocator)
 	, SceneTwoChannelNormalMaps(false)
@@ -90,31 +87,19 @@ Renderer::Renderer(const Platform::Window* window)
 	, AverageGpuTime(0.0)
 #endif
 {
+	CreateRenderContext(window);
+
 	CreateScreenTextures(window->DrawWidth, window->DrawHeight);
 
-	DrawText::Get().Init(&Device);
+	DrawText::Get().Init();
 
 	static constexpr uint8 white[] = { 0xFF, 0xFF, 0xFF, 0xFF };
-	WhiteTexture = CreateReadTexture(&Device, { 1, 1 }, 1, ResourceFormat::RGBA8UNorm, white, "White Texture"_view);
+	WhiteTexture = CreateReadTexture({ 1, 1 }, 1, ResourceFormat::RGBA8UNorm, white, "White Texture"_view);
 
 	static constexpr uint8 defaultNormal[] = { 0x7F, 0x7F, 0xFF, 0x00 };
-	DefaultNormalMapTexture = CreateReadTexture(&Device, { 1, 1 }, 1, ResourceFormat::RGBA8UNorm, defaultNormal, "Default Normal Map Texture"_view);
+	DefaultNormalMapTexture = CreateReadTexture({ 1, 1 }, 1, ResourceFormat::RGBA8UNorm, defaultNormal, "Default Normal Map Texture"_view);
 
-	PointClampSampler = Device.Create(
-	{
-		.MinificationFilter = SamplerFilter::Point,
-		.MagnificationFilter = SamplerFilter::Point,
-		.HorizontalAddress = SamplerAddress::Clamp,
-		.VerticalAddress = SamplerAddress::Clamp,
-	});
-	LinearClampSampler = Device.Create(
-	{
-		.MinificationFilter = SamplerFilter::Linear,
-		.MagnificationFilter = SamplerFilter::Linear,
-		.HorizontalAddress = SamplerAddress::Clamp,
-		.VerticalAddress = SamplerAddress::Clamp,
-	});
-	AnisotropicWrapSampler = Device.Create(
+	AnisotropicWrapSampler = GlobalDevice().Create(
 	{
 		.MinificationFilter = SamplerFilter::Anisotropic,
 		.MagnificationFilter = SamplerFilter::Anisotropic,
@@ -122,41 +107,38 @@ Renderer::Renderer(const Platform::Window* window)
 		.VerticalAddress = SamplerAddress::Wrap,
 	});
 
-	SceneLuminanceBuffer = CreateReadBuffer(&Device,
-											 HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
-											 0,
-											 ResourceFlags::UnorderedAccess,
-											 ViewType::UnorderedAccess,
-											 nullptr,
-											 "Scene Luminance Buffer"_view);
+	SceneLuminanceBuffer = CreateReadBuffer(HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
+											0,
+											ResourceFlags::UnorderedAccess,
+											ViewType::UnorderedAccess,
+											nullptr,
+											"Scene Luminance Buffer"_view);
 
 	CreatePipelines();
 }
 
 Renderer::~Renderer()
 {
-	Device.Destroy(&Graphics);
-
 	DestroyScreenTextures();
 
-	DrawText::Get().Shutdown(Device);
+	DrawText::Get().Shutdown();
 
-	Device.Destroy(&WhiteTexture.Resource);
-	Device.Destroy(&WhiteTexture.View);
+	GlobalDevice().Destroy(&WhiteTexture.Resource);
+	GlobalDevice().Destroy(&WhiteTexture.View);
 
-	Device.Destroy(&DefaultNormalMapTexture.Resource);
-	Device.Destroy(&DefaultNormalMapTexture.View);
+	GlobalDevice().Destroy(&DefaultNormalMapTexture.Resource);
+	GlobalDevice().Destroy(&DefaultNormalMapTexture.View);
 
-	Device.Destroy(&PointClampSampler);
-	Device.Destroy(&LinearClampSampler);
-	Device.Destroy(&AnisotropicWrapSampler);
+	GlobalDevice().Destroy(&AnisotropicWrapSampler);
 
-	Device.Destroy(&SceneLuminanceBuffer.Resource);
-	Device.Destroy(&SceneLuminanceBuffer.View);
+	GlobalDevice().Destroy(&SceneLuminanceBuffer.Resource);
+	GlobalDevice().Destroy(&SceneLuminanceBuffer.View);
 
 	DestroyPipelines();
 
 	UnloadScene();
+
+	DestroyRenderContext();
 }
 
 void Renderer::Update(const CameraController& cameraController)
@@ -189,16 +171,16 @@ void Renderer::Update(const CameraController& cameraController)
 
 	if (IsKeyPressedOnce(Key::R))
 	{
-		Device.WaitForIdle();
+		GlobalDevice().WaitForIdle();
 		DestroyPipelines();
 		CreatePipelines();
 	}
 #endif
 
-	Graphics.Begin();
+	GlobalGraphics().Begin();
 
 	const ResourceDimensions viewportDimensions = HDRTexture.Resource.Dimensions;
-	Graphics.SetViewport(viewportDimensions.Width, viewportDimensions.Height);
+	GlobalGraphics().SetViewport(viewportDimensions.Width, viewportDimensions.Height);
 
 	Float2 currentJitterClip = Float2 { .X = 0.0f, .Y = 0.0f };
 	if (ShouldAntiAlias())
@@ -242,14 +224,14 @@ void Renderer::Update(const CameraController& cameraController)
 
 	const HLSL::Scene sceneData =
 	{
-		.VertexBufferIndex = Device.Get(SceneVertexBuffer.View),
-		.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
-		.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
-		.MaterialBufferIndex = Device.Get(SceneMaterialBuffer.View),
-		.DrawCallBufferIndex = Device.Get(SceneDrawCallBuffer.View),
-		.DirectionalLightBufferIndex = Device.Get(SceneDirectionalLightBuffer.View),
-		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? Device.Get(ScenePointLightsBuffer.View) : 0,
-		.AccelerationStructureIndex = Device.Get(SceneAccelerationStructure),
+		.VertexBufferIndex = GlobalDevice().Get(SceneVertexBuffer.View),
+		.PrimitiveBufferIndex = GlobalDevice().Get(ScenePrimitiveBuffer.View),
+		.NodeBufferIndex = GlobalDevice().Get(SceneNodeBuffer.View),
+		.MaterialBufferIndex = GlobalDevice().Get(SceneMaterialBuffer.View),
+		.DrawCallBufferIndex = GlobalDevice().Get(SceneDrawCallBuffer.View),
+		.DirectionalLightBufferIndex = GlobalDevice().Get(SceneDirectionalLightBuffer.View),
+		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? GlobalDevice().Get(ScenePointLightsBuffer.View) : 0,
+		.AccelerationStructureIndex = GlobalDevice().Get(SceneAccelerationStructure),
 		.WorldToClip = worldToClip,
 		.JitterWorldToClip = Matrix::Translation(currentJitterClip.X, currentJitterClip.Y, 0.0f) * worldToClip,
 		.ViewPositionWorld = Float3
@@ -261,15 +243,15 @@ void Renderer::Update(const CameraController& cameraController)
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
 		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
 	};
-	Device.Write(&SceneBuffers[Device.GetFrameIndex()].Resource, &sceneData);
+	GlobalDevice().Write(&SceneBuffers[GlobalDevice().GetFrameIndex()].Resource, &sceneData);
 
-	Graphics.ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
-	Graphics.ClearDepthStencil(DepthTexture.View);
+	GlobalGraphics().ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
+	GlobalGraphics().ClearDepthStencil(DepthTexture.View);
 
-	Graphics.SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTexture.View);
+	GlobalGraphics().SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTexture.View);
 	UpdateScene(VisibilityPipeline);
 
-	Graphics.TextureBarrier
+	GlobalGraphics().TextureBarrier
 	(
 		{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
 		{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
@@ -279,18 +261,18 @@ void Renderer::Update(const CameraController& cameraController)
 
 	const HLSL::DeferredRootConstants rootConstants =
 	{
-		.HDRTextureIndex = Device.Get(HDRTexture.UnorderedAccessView),
-		.VisibilityTextureIndex = Device.Get(VisibilityRenderTarget.ShaderResourceView),
-		.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
+		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
+		.VisibilityTextureIndex = GlobalDevice().Get(VisibilityRenderTarget.ShaderResourceView),
+		.AnisotropicWrapSamplerIndex = GlobalDevice().Get(AnisotropicWrapSampler),
 		.ViewMode = ViewMode,
 	};
 
-	Graphics.SetPipeline(DeferredPipeline);
-	Graphics.SetRootConstants(&rootConstants);
-	Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
-	Graphics.Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
+	GlobalGraphics().SetPipeline(DeferredPipeline);
+	GlobalGraphics().SetRootConstants(&rootConstants);
+	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()].Resource);
+	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
-	Graphics.TextureBarrier
+	GlobalGraphics().TextureBarrier
 	(
 		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 		{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
@@ -302,25 +284,25 @@ void Renderer::Update(const CameraController& cameraController)
 	{
 		const HLSL::ResolveRootConstants resolveRootConstants =
 		{
-			.HDRTextureIndex = Device.Get(HDRTexture.ShaderResourceView),
-			.AccumulationTextureIndex = Device.Get(AccumulationTexture.UnorderedAccessView),
-			.PreviousAccumulationTextureIndex = Device.Get(PreviousAccumulationTexture.ShaderResourceView),
-			.VisibilityTextureIndex = Device.Get(VisibilityRenderTarget.ShaderResourceView),
-			.VertexBufferIndex = Device.Get(SceneVertexBuffer.View),
-			.PrimitiveBufferIndex = Device.Get(ScenePrimitiveBuffer.View),
-			.NodeBufferIndex = Device.Get(SceneNodeBuffer.View),
-			.DrawCallBufferIndex = Device.Get(SceneDrawCallBuffer.View),
+			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
+			.AccumulationTextureIndex = GlobalDevice().Get(AccumulationTexture.UnorderedAccessView),
+			.PreviousAccumulationTextureIndex = GlobalDevice().Get(PreviousAccumulationTexture.ShaderResourceView),
+			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityRenderTarget.ShaderResourceView),
+			.VertexBufferIndex = GlobalDevice().Get(SceneVertexBuffer.View),
+			.PrimitiveBufferIndex = GlobalDevice().Get(ScenePrimitiveBuffer.View),
+			.NodeBufferIndex = GlobalDevice().Get(SceneNodeBuffer.View),
+			.DrawCallBufferIndex = GlobalDevice().Get(SceneDrawCallBuffer.View),
 			.DiscardPreviousFrame = TemporalAntiAliasing.DiscardPreviousFrame,
 			.WorldToClip = worldToClip,
 			.PreviousWorldToClip = TemporalAntiAliasing.PreviousWorldToClip,
 		};
 
-		Graphics.SetPipeline(ResolvePipeline);
-		Graphics.SetRootConstants(&resolveRootConstants);
-		Graphics.Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
+		GlobalGraphics().SetPipeline(ResolvePipeline);
+		GlobalGraphics().SetRootConstants(&resolveRootConstants);
+		GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 	}
 
-	Graphics.TextureBarrier
+	GlobalGraphics().TextureBarrier
 	(
 		{ BarrierStage::PixelShading, BarrierStage::None },
 		{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
@@ -328,7 +310,7 @@ void Renderer::Update(const CameraController& cameraController)
 		VisibilityRenderTarget.Resource
 	);
 
-	Graphics.BufferBarrier
+	GlobalGraphics().BufferBarrier
 	(
 		{ BarrierStage::None, BarrierStage::ComputeShading },
 		{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
@@ -337,22 +319,22 @@ void Renderer::Update(const CameraController& cameraController)
 
 	const HLSL::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
 	{
-		.HDRTextureIndex = Device.Get(HDRTexture.ShaderResourceView),
-		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
+		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
+		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBuffer.View),
 	};
 
-	Graphics.SetPipeline(LuminanceHistogramPipeline);
-	Graphics.SetRootConstants(&luminanceHistogramRootConstants);
-	Graphics.Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
+	GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
+	GlobalGraphics().SetRootConstants(&luminanceHistogramRootConstants);
+	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
-	Graphics.TextureBarrier
+	GlobalGraphics().TextureBarrier
 	(
 		{ BarrierStage::ComputeShading, BarrierStage::None },
 		{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
 		{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
 		HDRTexture.Resource
 	);
-	Graphics.BufferBarrier
+	GlobalGraphics().BufferBarrier
 	(
 		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
@@ -361,24 +343,24 @@ void Renderer::Update(const CameraController& cameraController)
 
 	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
 	{
-		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
+		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBuffer.View),
 		.PixelCount = viewportDimensions.Width * viewportDimensions.Height,
 	};
 
-	Graphics.SetPipeline(LuminanceAveragePipeline);
-	Graphics.SetRootConstants(&luminanceAverageRootConstants);
-	Graphics.Dispatch(HLSL::LuminanceHistogramBinsCount, 1, 1);
+	GlobalGraphics().SetPipeline(LuminanceAveragePipeline);
+	GlobalGraphics().SetRootConstants(&luminanceAverageRootConstants);
+	GlobalGraphics().Dispatch(HLSL::LuminanceHistogramBinsCount, 1, 1);
 
-	Graphics.BufferBarrier
+	GlobalGraphics().BufferBarrier
 	(
 		{ BarrierStage::ComputeShading, BarrierStage::PixelShading },
 		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
 		SceneLuminanceBuffer.Resource
 	);
 
-	const ReadTexture& swapChainTexture = SwapChainTextures[Device.GetFrameIndex()];
+	const ReadTexture& swapChainTexture = SwapChainTextures[GlobalDevice().GetFrameIndex()];
 
-	Graphics.TextureBarrier
+	GlobalGraphics().TextureBarrier
 	(
 		{ BarrierStage::None, BarrierStage::RenderTarget },
 		{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
@@ -387,7 +369,7 @@ void Renderer::Update(const CameraController& cameraController)
 	);
 	if (ShouldAntiAlias())
 	{
-		Graphics.TextureBarrier
+		GlobalGraphics().TextureBarrier
 		(
 			{ BarrierStage::ComputeShading, BarrierStage::PixelShading },
 			{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
@@ -396,24 +378,24 @@ void Renderer::Update(const CameraController& cameraController)
 		);
 	}
 
-	Graphics.SetRenderTarget(swapChainTexture.View);
+	GlobalGraphics().SetRenderTarget(swapChainTexture.View);
 
 	const HLSL::ToneMapRootConstants toneMapRootConstants =
 	{
-		.HDRTextureIndex = ShouldAntiAlias() ? Device.Get(AccumulationTexture.ShaderResourceView)
-											 : Device.Get(HDRTexture.ShaderResourceView),
-		.LuminanceBufferIndex = Device.Get(SceneLuminanceBuffer.View),
-		.LinearClampSamplerIndex = Device.Get(LinearClampSampler),
+		.HDRTextureIndex = ShouldAntiAlias() ? GlobalDevice().Get(AccumulationTexture.ShaderResourceView)
+											 : GlobalDevice().Get(HDRTexture.ShaderResourceView),
+		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBuffer.View),
+		.LinearWrapSamplerIndex = GlobalDevice().Get(RenderContext.LinearWrapSampler),
 		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
 	};
 
-	Graphics.SetPipeline(ToneMapPipeline);
-	Graphics.SetRootConstants(&toneMapRootConstants);
-	Graphics.Draw(3);
+	GlobalGraphics().SetPipeline(ToneMapPipeline);
+	GlobalGraphics().SetRootConstants(&toneMapRootConstants);
+	GlobalGraphics().Draw(3);
 
 	if (ShouldAntiAlias())
 	{
-		Graphics.TextureBarrier
+		GlobalGraphics().TextureBarrier
 		(
 			{ BarrierStage::PixelShading, BarrierStage::None },
 			{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
@@ -426,9 +408,9 @@ void Renderer::Update(const CameraController& cameraController)
 	UpdateFrameTimes(startCpuTime);
 #endif
 
-	DrawText::Get().Submit(&Graphics, &Device, viewportDimensions.Width, viewportDimensions.Height);
+	DrawText::Get().Submit(viewportDimensions.Width, viewportDimensions.Height);
 
-	Graphics.TextureBarrier
+	GlobalGraphics().TextureBarrier
 	(
 		{ BarrierStage::RenderTarget, BarrierStage::None },
 		{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
@@ -436,10 +418,10 @@ void Renderer::Update(const CameraController& cameraController)
 		swapChainTexture.Resource
 	);
 
-	Graphics.End();
+	GlobalGraphics().End();
 
-	Device.Submit(Graphics);
-	Device.Present();
+	GlobalDevice().Submit(GlobalGraphics());
+	GlobalDevice().Present();
 
 	if (ShouldAntiAlias())
 	{
@@ -464,7 +446,7 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 		{
 			const HLSL::SceneRootConstants rootConstants =
 			{
-				.AnisotropicWrapSamplerIndex = Device.Get(AnisotropicWrapSampler),
+				.AnisotropicWrapSamplerIndex = GlobalDevice().Get(AnisotropicWrapSampler),
 				.DrawCallIndex = static_cast<uint32>(drawCallIndex),
 				.PrimitiveIndex = static_cast<uint32>(primitive.GlobalIndex),
 				.NodeIndex = static_cast<uint32>(nodeIndex),
@@ -474,43 +456,43 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 
 			++drawCallIndex;
 
-			Graphics.SetPipeline(pipeline);
-			Graphics.SetRootConstants(&rootConstants);
-			Graphics.SetConstantBuffer("Scene"_view, SceneBuffers[Device.GetFrameIndex()].Resource);
+			GlobalGraphics().SetPipeline(pipeline);
+			GlobalGraphics().SetRootConstants(&rootConstants);
+			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()].Resource);
 
-			Graphics.SetVertexBuffer(0,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.PositionSize,
-										 .Stride = primitive.PositionStride,
-										 .Offset = primitive.PositionOffset,
-									 });
-			Graphics.SetVertexBuffer(1,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.TextureCoordinateSize,
-										 .Stride = primitive.TextureCoordinateStride,
-										 .Offset = primitive.TextureCoordinateOffset,
-									 });
-			Graphics.SetVertexBuffer(2,
-									 SubBuffer
-									 {
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.NormalSize,
-										 .Stride = primitive.NormalStride,
-										 .Offset = primitive.NormalOffset,
-									 });
-			Graphics.SetIndexBuffer(SubBuffer
-									{
-										 .Resource = SceneVertexBuffer.Resource,
-										 .Size = primitive.IndexSize,
-										 .Stride = primitive.IndexStride,
-										 .Offset = primitive.IndexOffset,
-									});
+			GlobalGraphics().SetVertexBuffer(0,
+											 SubBuffer
+											 {
+												 .Resource = SceneVertexBuffer.Resource,
+												 .Size = primitive.PositionSize,
+												 .Stride = primitive.PositionStride,
+												 .Offset = primitive.PositionOffset,
+											 });
+			GlobalGraphics().SetVertexBuffer(1,
+											 SubBuffer
+											 {
+												 .Resource = SceneVertexBuffer.Resource,
+												 .Size = primitive.TextureCoordinateSize,
+												 .Stride = primitive.TextureCoordinateStride,
+												 .Offset = primitive.TextureCoordinateOffset,
+											 });
+			GlobalGraphics().SetVertexBuffer(2,
+											 SubBuffer
+											 {
+												 .Resource = SceneVertexBuffer.Resource,
+												 .Size = primitive.NormalSize,
+												 .Stride = primitive.NormalStride,
+												 .Offset = primitive.NormalOffset,
+											 });
+			GlobalGraphics().SetIndexBuffer(SubBuffer
+											{
+												 .Resource = SceneVertexBuffer.Resource,
+												 .Size = primitive.IndexSize,
+												 .Stride = primitive.IndexStride,
+												 .Offset = primitive.IndexOffset,
+											});
 
-			Graphics.DrawIndexed(primitive.IndexSize / primitive.IndexStride);
+			GlobalGraphics().DrawIndexed(primitive.IndexSize / primitive.IndexStride);
 		}
 	}
 }
@@ -519,7 +501,7 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 void Renderer::UpdateFrameTimes(double startCpuTime)
 {
 	const double cpuTime = Platform::GetTime() - startCpuTime;
-	const double gpuTime = Graphics.GetMostRecentGpuTime();
+	const double gpuTime = GlobalGraphics().GetMostRecentGpuTime();
 
 	AverageCpuTime = AverageCpuTime * 0.95 + cpuTime * 0.05;
 	AverageGpuTime = AverageGpuTime * 0.95 + gpuTime * 0.05;
@@ -542,15 +524,15 @@ void Renderer::UpdateFrameTimes(double startCpuTime)
 
 void Renderer::Resize(uint32 width, uint32 height)
 {
-	Device.WaitForIdle();
+	GlobalDevice().WaitForIdle();
 
 	DestroyScreenTextures();
-	Device.ReleaseAllDestroys();
+	GlobalDevice().ReleaseAllDestroys();
 
-	Device.ResizeSwapChain(width, height);
+	GlobalDevice().ResizeSwapChain(width, height);
 	CreateScreenTextures(width, height);
 
-	Device.WaitForIdle();
+	GlobalDevice().WaitForIdle();
 }
 
 void Renderer::LoadScene(const GLTF::Scene& scene)
@@ -602,13 +584,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	}
 
 	GLTF::Buffer finalVertexBuffer = vertexBuffer;
-	SceneVertexBuffer = CreateReadBuffer(&Device,
-										  finalVertexBuffer.Size,
-										  0,
-										  ResourceFlags::None,
-										  ViewType::ShaderResource,
-										  finalVertexBuffer.Data,
-										  "Scene Vertex Buffer"_view);
+	SceneVertexBuffer = CreateReadBuffer(finalVertexBuffer.Size,
+										 0,
+										 ResourceFlags::None,
+										 ViewType::ShaderResource,
+										 finalVertexBuffer.Data,
+										 "Scene Vertex Buffer"_view);
 
 	Array<HLSL::Primitive> primitiveData(RendererAllocator);
 	for (const Mesh& mesh : SceneMeshes)
@@ -629,17 +610,16 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			});
 		}
 	}
-	ScenePrimitiveBuffer = CreateReadBuffer(&Device,
-											 primitiveData.GetDataSize(),
-											 primitiveData.GetElementSize(),
-											 ResourceFlags::None,
-											 ViewType::ShaderResource,
-											 primitiveData.GetData(),
-											 "Scene Primitive Buffer"_view);
+	ScenePrimitiveBuffer = CreateReadBuffer(primitiveData.GetDataSize(),
+											primitiveData.GetElementSize(),
+											ResourceFlags::None,
+											ViewType::ShaderResource,
+											primitiveData.GetData(),
+											"Scene Primitive Buffer"_view);
 
 	Array<Resource> transientResources(RendererAllocator);
 
-	Graphics.Begin();
+	GlobalGraphics().Begin();
 
 	for (Mesh& mesh : SceneMeshes)
 	{
@@ -666,9 +646,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				},
 				.Translucent = alphaMode != GLTF::AlphaMode::Opaque,
 			};
-			const AccelerationStructureSize size = Device.GetAccelerationStructureSize(geometry);
+			const AccelerationStructureSize size = GlobalDevice().GetAccelerationStructureSize(geometry);
 
-			Resource scratchResource = Device.Create(
+			Resource scratchResource = GlobalDevice().Create(
 			{
 				.Type = ResourceType::Buffer,
 				.Format = ResourceFormat::None,
@@ -678,7 +658,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Name = "Scratch Primitive Acceleration Structure"_view,
 			});
 			transientResources.Add(scratchResource);
-			const Resource resultResource = Device.Create(
+			const Resource resultResource = GlobalDevice().Create(
 			{
 				.Type = ResourceType::Buffer,
 				.Format = ResourceFormat::None,
@@ -687,13 +667,13 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Size = size.ResultSize,
 				.Name = "Primitive Acceleration Structure"_view,
 			});
-			Graphics.BuildAccelerationStructure(geometry, scratchResource, resultResource);
+			GlobalGraphics().BuildAccelerationStructure(geometry, scratchResource, resultResource);
 
 			primitive.AccelerationStructureResource = resultResource;
 		}
 	}
 
-	Graphics.GlobalBarrier
+	GlobalGraphics().GlobalBarrier
 	(
 		{ BarrierStage::BuildAccelerationStructure, BarrierStage::BuildAccelerationStructure },
 		{ BarrierAccess::AccelerationStructureWrite, BarrierAccess::AccelerationStructureRead }
@@ -734,35 +714,34 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.MeshIndex = node.Mesh,
 		});
 	}
-	SceneDrawCallBuffer = CreateReadBuffer(&Device,
-											drawCallData.GetDataSize(),
-											drawCallData.GetElementSize(),
-											ResourceFlags::None,
-											ViewType::ShaderResource,
-											drawCallData.GetData(),
-											"Scene Draw Call Buffer"_view);
+	SceneDrawCallBuffer = CreateReadBuffer(drawCallData.GetDataSize(),
+										   drawCallData.GetElementSize(),
+										   ResourceFlags::None,
+										   ViewType::ShaderResource,
+										   drawCallData.GetData(),
+										   "Scene Draw Call Buffer"_view);
 
-	const Resource instancesResource = Device.Create(
+	const Resource instancesResource = GlobalDevice().Create(
 	{
 		.Type = ResourceType::AccelerationStructureInstances,
 		.Format = ResourceFormat::None,
 		.Flags = ResourceFlags::Upload,
 		.InitialLayout = BarrierLayout::Undefined,
-		.Size = instances.GetLength() * Device.GetAccelerationStructureInstanceSize(),
+		.Size = instances.GetLength() * GlobalDevice().GetAccelerationStructureInstanceSize(),
 		.Name = "Scene Acceleration Structure Instances"_view,
 	});
 	transientResources.Add(instancesResource);
-	Device.Write(&instancesResource, instances.GetData());
+	GlobalDevice().Write(&instancesResource, instances.GetData());
 
 	const Buffer instancesBuffer =
 	{
 		.Resource = instancesResource,
 		.Size = instancesResource.Size,
-		.Stride = Device.GetAccelerationStructureInstanceSize(),
+		.Stride = GlobalDevice().GetAccelerationStructureInstanceSize(),
 	};
-	const AccelerationStructureSize size = Device.GetAccelerationStructureSize(instancesBuffer);
+	const AccelerationStructureSize size = GlobalDevice().GetAccelerationStructureSize(instancesBuffer);
 
-	const Resource scratchResource = Device.Create(
+	const Resource scratchResource = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Buffer,
 		.Format = ResourceFormat::None,
@@ -772,7 +751,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Name = "Scratch Scene Acceleration Structure"_view,
 	});
 	transientResources.Add(scratchResource);
-	SceneAccelerationStructureResource = Device.Create(
+	SceneAccelerationStructureResource = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Buffer,
 		.Format = ResourceFormat::None,
@@ -781,20 +760,20 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Size = size.ResultSize,
 		.Name = "Scene Acceleration Structure"_view,
 	});
-	Graphics.BuildAccelerationStructure(instancesBuffer, scratchResource, SceneAccelerationStructureResource);
+	GlobalGraphics().BuildAccelerationStructure(instancesBuffer, scratchResource, SceneAccelerationStructureResource);
 
-	SceneAccelerationStructure = Device.Create(AccelerationStructureDescription
+	SceneAccelerationStructure = GlobalDevice().Create(AccelerationStructureDescription
 	{
 		.AccelerationStructureResource = SceneAccelerationStructureResource,
 	});
 
-	Graphics.End();
-	Device.Submit(Graphics);
-	Device.WaitForIdle();
+	GlobalGraphics().End();
+	GlobalDevice().Submit(GlobalGraphics());
+	GlobalDevice().WaitForIdle();
 
 	for (Resource& resource : transientResources)
 	{
-		Device.Destroy(&resource);
+		GlobalDevice().Destroy(&resource);
 	}
 
 	Array<HLSL::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
@@ -806,13 +785,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.NormalLocalToWorld = node.LocalToWorld.GetInverse().GetTranspose(),
 		});
 	}
-	SceneNodeBuffer = CreateReadBuffer(&Device,
-										nodeData.GetDataSize(),
-										nodeData.GetElementSize(),
-										ResourceFlags::None,
-										ViewType::ShaderResource,
-										nodeData.GetData(),
-										"Scene Node Buffer"_view);
+	SceneNodeBuffer = CreateReadBuffer(nodeData.GetDataSize(),
+									   nodeData.GetElementSize(),
+									   ResourceFlags::None,
+									   ViewType::ShaderResource,
+									   nodeData.GetData(),
+									   "Scene Node Buffer"_view);
 
 	for (const GLTF::Material& gltfMaterial : scene.Materials)
 	{
@@ -827,12 +805,11 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::Image& gltfImage = scene.Images[gltfTexture.Image];
 
 			DDS::Image image = DDS::LoadImage(gltfImage.Path.AsView());
-			const ReadTexture texture = CreateReadTexture(&Device,
-															{ image.Width, image.Height },
-															image.MipMapCount,
-															image.Format,
-															image.Data,
-															textureName);
+			const ReadTexture texture = CreateReadTexture({ image.Width, image.Height },
+														  image.MipMapCount,
+														  image.Format,
+														  image.Data,
+														  textureName);
 			DDS::UnloadImage(&image);
 
 			return texture;
@@ -906,9 +883,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 		materialData.Add(HLSL::Material
 		{
-			.BaseColorOrDiffuseTextureIndex = Device.Get(baseColorOrDiffuseTexture.View),
-			.NormalMapTextureIndex = Device.Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
-			.MetallicRoughnessOrSpecularGlossinessTextureIndex = Device.Get(metallicRoughnessOrSpecularGlossinessTexture.View),
+			.BaseColorOrDiffuseTextureIndex = GlobalDevice().Get(baseColorOrDiffuseTexture.View),
+			.NormalMapTextureIndex = GlobalDevice().Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
+			.MetallicRoughnessOrSpecularGlossinessTextureIndex = GlobalDevice().Get(metallicRoughnessOrSpecularGlossinessTexture.View),
 			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness
 									  ? material.SpecularGlossiness.DiffuseFactor
 									  : material.MetallicRoughness.BaseColorFactor,
@@ -922,13 +899,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
-	SceneMaterialBuffer = CreateReadBuffer(&Device,
-											materialData.GetDataSize(),
-											materialData.GetElementSize(),
-											ResourceFlags::None,
-											ViewType::ShaderResource,
-											materialData.GetData(),
-											"Scene Material Buffer"_view);
+	SceneMaterialBuffer = CreateReadBuffer(materialData.GetDataSize(),
+										   materialData.GetElementSize(),
+										   ResourceFlags::None,
+										   ViewType::ShaderResource,
+										   materialData.GetData(),
+										   "Scene Material Buffer"_view);
 
 	bool hasDirectionalLight = false;
 	HLSL::DirectionalLight directionalLight;
@@ -974,33 +950,30 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		};
 	}
 
-	SceneDirectionalLightBuffer = CreateReadBuffer(&Device,
-													sizeof(directionalLight),
-													0,
-													ResourceFlags::None,
-													ViewType::ConstantBuffer,
-													&directionalLight,
-													"Scene Directional Light Buffer"_view);
+	SceneDirectionalLightBuffer = CreateReadBuffer(sizeof(directionalLight),
+												   0,
+												   ResourceFlags::None,
+												   ViewType::ConstantBuffer,
+												   &directionalLight,
+												   "Scene Directional Light Buffer"_view);
 	if (!pointLights.IsEmpty())
 	{
-		ScenePointLightsBuffer = CreateReadBuffer(&Device,
-												   pointLights.GetDataSize(),
-												   pointLights.GetElementSize(),
-												   ResourceFlags::None,
-												   ViewType::ShaderResource,
-												   pointLights.GetData(),
-												   "Scene Point Lights Buffer"_view);
+		ScenePointLightsBuffer = CreateReadBuffer(pointLights.GetDataSize(),
+												  pointLights.GetElementSize(),
+												  ResourceFlags::None,
+												  ViewType::ShaderResource,
+												  pointLights.GetData(),
+												  "Scene Point Lights Buffer"_view);
 	}
 
 	for (ReadBuffer& sceneBuffer : SceneBuffers)
 	{
-		sceneBuffer = CreateReadBuffer(&Device,
-										sizeof(HLSL::Scene),
-										0,
-										ResourceFlags::Upload,
-										ViewType::ConstantBuffer,
-										nullptr,
-										"Scene Buffer"_view);
+		sceneBuffer = CreateReadBuffer(sizeof(HLSL::Scene),
+									   0,
+									   ResourceFlags::Upload,
+									   ViewType::ConstantBuffer,
+									   nullptr,
+									   "Scene Buffer"_view);
 	}
 
 	TemporalAntiAliasing.DiscardPreviousFrame = true;
@@ -1010,13 +983,13 @@ void Renderer::UnloadScene()
 {
 	const auto destroyReadTexture = [this](ReadTexture* texture) -> void
 	{
-		Device.Destroy(&texture->Resource);
-		Device.Destroy(&texture->View);
+		GlobalDevice().Destroy(&texture->Resource);
+		GlobalDevice().Destroy(&texture->View);
 	};
 	const auto destroyReadBuffer = [this](ReadBuffer* buffer) -> void
 	{
-		Device.Destroy(&buffer->Resource);
-		Device.Destroy(&buffer->View);
+		GlobalDevice().Destroy(&buffer->Resource);
+		GlobalDevice().Destroy(&buffer->View);
 	};
 
 	destroyReadBuffer(&SceneVertexBuffer);
@@ -1035,11 +1008,11 @@ void Renderer::UnloadScene()
 	{
 		for (Primitive& primitive : mesh.Primitives)
 		{
-			Device.Destroy(&primitive.AccelerationStructureResource);
+			GlobalDevice().Destroy(&primitive.AccelerationStructureResource);
 		}
 	}
-	Device.Destroy(&SceneAccelerationStructureResource);
-	Device.Destroy(&SceneAccelerationStructure);
+	GlobalDevice().Destroy(&SceneAccelerationStructureResource);
+	GlobalDevice().Destroy(&SceneAccelerationStructure);
 
 	for (Material& material : SceneMaterials)
 	{
@@ -1071,7 +1044,7 @@ void Renderer::CreatePipelines()
 	{
 		ShaderStages stages;
 
-		Shader vertex = Device.Create(
+		Shader vertex = GlobalDevice().Create(
 		{
 			.FilePath = path,
 			.Stage = ShaderStage::Vertex,
@@ -1081,7 +1054,7 @@ void Renderer::CreatePipelines()
 		Shader pixel;
 		if (pixelShader)
 		{
-			pixel = Device.Create(
+			pixel = GlobalDevice().Create(
 			{
 				.FilePath = path,
 				.Stage = ShaderStage::Pixel,
@@ -1089,7 +1062,7 @@ void Renderer::CreatePipelines()
 			stages.AddStage(pixel);
 		}
 
-		const GraphicsPipeline pipeline = Device.Create(
+		const GraphicsPipeline pipeline = GlobalDevice().Create(
 		{
 			.Stages = Move(stages),
 			.RenderTargetFormats = { formats... },
@@ -1098,28 +1071,28 @@ void Renderer::CreatePipelines()
 			.ReverseDepth = true,
 			.Name = name,
 		});
-		Device.Destroy(&vertex);
+		GlobalDevice().Destroy(&vertex);
 		if (pixel.IsValid())
 		{
-			Device.Destroy(&pixel);
+			GlobalDevice().Destroy(&pixel);
 		}
 
 		return pipeline;
 	};
 	const auto createComputePipeline = [this](StringView name, StringView path) -> ComputePipeline
 	{
-		Shader compute = Device.Create(
+		Shader compute = GlobalDevice().Create(
 		{
 			.FilePath = path,
 			.Stage = ShaderStage::Compute,
 		});
 
-		const ComputePipeline pipeline = Device.Create(
+		const ComputePipeline pipeline = GlobalDevice().Create(
 		{
 			.Stage = Move(compute),
 			.Name = name,
 		});
-		Device.Destroy(&compute);
+		GlobalDevice().Destroy(&compute);
 
 		return pipeline;
 	};
@@ -1150,19 +1123,19 @@ void Renderer::CreatePipelines()
 
 void Renderer::DestroyPipelines()
 {
-	Device.Destroy(&VisibilityPipeline);
-	Device.Destroy(&DeferredPipeline);
-	Device.Destroy(&ResolvePipeline);
-	Device.Destroy(&LuminanceHistogramPipeline);
-	Device.Destroy(&LuminanceAveragePipeline);
-	Device.Destroy(&ToneMapPipeline);
+	GlobalDevice().Destroy(&VisibilityPipeline);
+	GlobalDevice().Destroy(&DeferredPipeline);
+	GlobalDevice().Destroy(&ResolvePipeline);
+	GlobalDevice().Destroy(&LuminanceHistogramPipeline);
+	GlobalDevice().Destroy(&LuminanceAveragePipeline);
+	GlobalDevice().Destroy(&ToneMapPipeline);
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 {
 	const auto createRenderTarget = [&](ResourceFormat format, StringView textureName) -> RenderTarget
 	{
-		const Resource resource = Device.Create(
+		const Resource resource = GlobalDevice().Create(
 		{
 			.Type = ResourceType::Texture2D,
 			.Format = format,
@@ -1174,26 +1147,26 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		return RenderTarget
 		{
 			.Resource = resource,
-			.RenderTargetView = Device.Create(
+			.RenderTargetView = GlobalDevice().Create(
 			{
-				.Resource = resource,
 				.Type = ViewType::RenderTarget,
-			}),
-			.ShaderResourceView = Device.Create(
-			{
 				.Resource = resource,
+			}),
+			.ShaderResourceView = GlobalDevice().Create(
+			{
 				.Type = ViewType::ShaderResource,
-			}),
-			.UnorderedAccessView = Device.Create(
-			{
 				.Resource = resource,
+			}),
+			.UnorderedAccessView = GlobalDevice().Create(
+			{
 				.Type = ViewType::UnorderedAccess,
+				.Resource = resource,
 			}),
 		};
 	};
 	const auto createWriteTexture = [&](ResourceFormat format, StringView textureName) -> WriteTexture
 	{
-		const Resource resource = Device.Create(
+		const Resource resource = GlobalDevice().Create(
 		{
 			.Type = ResourceType::Texture2D,
 			.Format = format,
@@ -1205,22 +1178,22 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		return WriteTexture
 		{
 			.Resource = resource,
-			.ShaderResourceView = Device.Create(
+			.ShaderResourceView = GlobalDevice().Create(
 			{
-				.Resource = resource,
 				.Type = ViewType::ShaderResource,
-			}),
-			.UnorderedAccessView = Device.Create(
-			{
 				.Resource = resource,
+			}),
+			.UnorderedAccessView = GlobalDevice().Create(
+			{
 				.Type = ViewType::UnorderedAccess,
+				.Resource = resource,
 			}),
 		};
 	};
 
 	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
 	{
-		SwapChainTextures[frameIndex].Resource = Device.Create(
+		SwapChainTextures[frameIndex].Resource = GlobalDevice().Create(
 		{
 			.Type = ResourceType::Texture2D,
 			.Format = ResourceFormat::RGBA8UNormSRGB,
@@ -1230,14 +1203,14 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.SwapChainIndex = static_cast<uint8>(frameIndex),
 			.Name = "SwapChain Texture"_view,
 		});
-		SwapChainTextures[frameIndex].View = Device.Create(
+		SwapChainTextures[frameIndex].View = GlobalDevice().Create(
 		{
-			.Resource = SwapChainTextures[frameIndex].Resource,
 			.Type = ViewType::RenderTarget,
+			.Resource = SwapChainTextures[frameIndex].Resource,
 		});
 	}
 
-	DepthTexture.Resource = Device.Create(
+	DepthTexture.Resource = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Texture2D,
 		.Format = ResourceFormat::Depth32,
@@ -1247,10 +1220,10 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.DepthClear = 0.0f,
 		.Name = "Depth Texture"_view,
 	});
-	DepthTexture.View = Device.Create(
+	DepthTexture.View = GlobalDevice().Create(
 	{
-		.Resource = DepthTexture.Resource,
 		.Type = ViewType::DepthStencil,
+		.Resource = DepthTexture.Resource,
 	});
 
 	VisibilityRenderTarget = createRenderTarget(ResourceFormat::RG32UInt, "Visibility Texture"_view);
@@ -1266,25 +1239,25 @@ void Renderer::DestroyScreenTextures()
 {
 	const auto destroyRenderTarget = [this](RenderTarget* renderTarget) -> void
 	{
-		Device.Destroy(&renderTarget->Resource);
-		Device.Destroy(&renderTarget->RenderTargetView);
-		Device.Destroy(&renderTarget->ShaderResourceView);
-		Device.Destroy(&renderTarget->UnorderedAccessView);
+		GlobalDevice().Destroy(&renderTarget->Resource);
+		GlobalDevice().Destroy(&renderTarget->RenderTargetView);
+		GlobalDevice().Destroy(&renderTarget->ShaderResourceView);
+		GlobalDevice().Destroy(&renderTarget->UnorderedAccessView);
 	};
 	const auto destroyWriteTexture = [this](WriteTexture* writeTexture) -> void
 	{
-		Device.Destroy(&writeTexture->Resource);
-		Device.Destroy(&writeTexture->ShaderResourceView);
-		Device.Destroy(&writeTexture->UnorderedAccessView);
+		GlobalDevice().Destroy(&writeTexture->Resource);
+		GlobalDevice().Destroy(&writeTexture->ShaderResourceView);
+		GlobalDevice().Destroy(&writeTexture->UnorderedAccessView);
 	};
 
 	for (ReadTexture& swapChainTexture : SwapChainTextures)
 	{
-		Device.Destroy(&swapChainTexture.Resource);
-		Device.Destroy(&swapChainTexture.View);
+		GlobalDevice().Destroy(&swapChainTexture.Resource);
+		GlobalDevice().Destroy(&swapChainTexture.View);
 	}
-	Device.Destroy(&DepthTexture.View);
-	Device.Destroy(&DepthTexture.Resource);
+	GlobalDevice().Destroy(&DepthTexture.View);
+	GlobalDevice().Destroy(&DepthTexture.Resource);
 
 	destroyRenderTarget(&VisibilityRenderTarget);
 
