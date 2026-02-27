@@ -135,9 +135,9 @@ Scene LoadScene(StringView filePath)
 
 				lightTemplates.Add(Light
 				{
+					.Type = type,
 					.Intensity = intensity,
 					.Color = { .R = color.R, .G = color.G, .B = color.B },
-					.Type = type,
 				});
 			}
 		}

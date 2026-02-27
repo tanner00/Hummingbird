@@ -209,12 +209,12 @@ enum class LightType : uint8
 
 struct Light
 {
+	LightType Type;
+
 	Matrix LocalToWorld;
 
 	float Intensity;
 	Float3 Color;
-
-	LightType Type;
 };
 
 struct Scene
