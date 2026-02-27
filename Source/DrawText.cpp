@@ -2,6 +2,7 @@
 #include "DDS.hpp"
 #include "JSON.hpp"
 #include "RenderContext.hpp"
+#include "ResourceUploader.hpp"
 
 static constexpr usize MaxCharactersPerFrame = 2048;
 
@@ -86,13 +87,13 @@ void DrawText::Init()
 		});
 	}
 
-	FontTexture = GlobalDevice().Create(
+	FontTexture = ResourceUploader::Get().Upload(ResourceLifetime::Persistent, fontImage.Data,
 	{
 		.Type = RHI::ResourceType::Texture2D,
 		.Format = fontImage.Format,
 		.Flags = RHI::ResourceFlags::None,
 		.InitialLayout = RHI::BarrierLayout::GraphicsQueueCommon,
-		.Dimensions = { fontImage.Width, fontImage.Height } ,
+		.Dimensions = { fontImage.Width, fontImage.Height },
 		.MipMapCount = fontImage.MipMapCount,
 		.Name = "Font Texture"_view,
 	});
@@ -101,7 +102,6 @@ void DrawText::Init()
 		.Type = RHI::ViewType::ShaderResource,
 		.Resource = FontTexture,
 	});
-	GlobalDevice().Write(&FontTexture, fontImage.Data);
 
 	DDS::UnloadImage(&fontImage);
 

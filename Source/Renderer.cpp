@@ -4,6 +4,7 @@
 #include "DrawText.hpp"
 #include "GLTF.hpp"
 #include "RenderContext.hpp"
+#include "ResourceUploader.hpp"
 
 namespace HLSL
 {
@@ -14,15 +15,14 @@ using namespace RHI;
 
 static ::Allocator* RendererAllocator = &GlobalAllocator::Get();
 
-static ReadTexture CreateReadTexture(ResourceDimensions dimensions,
+static ReadTexture CreateReadTexture(ResourceLifetime lifetime,
+									 ResourceDimensions dimensions,
 									 uint16 mipMapCount,
 									 ResourceFormat format,
 									 const void* data,
 									 StringView name)
 {
-	CHECK(data);
-
-	const Resource texture = GlobalDevice().Create(
+	const Resource texture = ResourceUploader::Get().Upload(lifetime, data,
 	{
 		.Type = ResourceType::Texture2D,
 		.Format = format,
@@ -37,19 +37,19 @@ static ReadTexture CreateReadTexture(ResourceDimensions dimensions,
 		.Type = ViewType::ShaderResource,
 		.Resource = texture,
 	});
-	GlobalDevice().Write(&texture, data);
 
 	return ReadTexture { texture, view };
 }
 
-static ReadBuffer CreateReadBuffer(usize size,
+static ReadBuffer CreateReadBuffer(ResourceLifetime lifetime,
+								   usize size,
 								   usize stride,
 								   ResourceFlags flags,
 								   ViewType type,
 								   const void* data,
 								   StringView name)
 {
-	const Resource buffer = GlobalDevice().Create(
+	const Resource buffer = ResourceUploader::Get().Upload(lifetime, data,
 	{
 		.Type = ResourceType::Buffer,
 		.Flags = flags,
@@ -57,7 +57,7 @@ static ReadBuffer CreateReadBuffer(usize size,
 		.Size = size,
 		.Name = name,
 	});
-	const BufferView view = GlobalDevice().Create(BufferViewDescription
+	const BufferView view = GlobalDevice().Create(
 	{
 		.Type = type,
 		.Buffer =
@@ -67,10 +67,6 @@ static ReadBuffer CreateReadBuffer(usize size,
 			.Stride = stride,
 		},
 	});
-	if (data)
-	{
-		GlobalDevice().Write(&buffer, data);
-	}
 
 	return ReadBuffer { buffer, view };
 }
@@ -91,13 +87,24 @@ Renderer::Renderer(const Platform::Window* window)
 
 	CreateScreenTextures(window->DrawWidth, window->DrawHeight);
 
+	ResourceUploader::Get().Init(MB(32), MB(256));
 	DrawText::Get().Init();
 
 	static constexpr uint8 white[] = { 0xFF, 0xFF, 0xFF, 0xFF };
-	WhiteTexture = CreateReadTexture({ 1, 1 }, 1, ResourceFormat::RGBA8UNorm, white, "White Texture"_view);
+	WhiteTexture = CreateReadTexture(ResourceLifetime::Persistent,
+									 { 1, 1 },
+									 1,
+									 ResourceFormat::RGBA8UNorm,
+									 white,
+									 "White Texture"_view);
 
 	static constexpr uint8 defaultNormal[] = { 0x7F, 0x7F, 0xFF, 0x00 };
-	DefaultNormalMapTexture = CreateReadTexture({ 1, 1 }, 1, ResourceFormat::RGBA8UNorm, defaultNormal, "Default Normal Map Texture"_view);
+	DefaultNormalMapTexture = CreateReadTexture(ResourceLifetime::Persistent,
+												{ 1, 1 },
+												1,
+												ResourceFormat::RGBA8UNorm,
+												defaultNormal,
+												"Default Normal Map Texture"_view);
 
 	AnisotropicWrapSampler = GlobalDevice().Create(
 	{
@@ -107,20 +114,59 @@ Renderer::Renderer(const Platform::Window* window)
 		.VerticalAddress = SamplerAddress::Wrap,
 	});
 
-	SceneLuminanceBuffer = CreateReadBuffer(HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
-											0,
-											ResourceFlags::UnorderedAccess,
-											ViewType::UnorderedAccess,
-											nullptr,
-											"Scene Luminance Buffer"_view);
+	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
+	{
+		SceneBuffers[frameIndex] = GlobalDevice().Create(
+		{
+			.Type = ResourceType::Buffer,
+			.Flags = ResourceFlags::Upload,
+			.InitialLayout = BarrierLayout::Undefined,
+			.Size = sizeof(HLSL::Scene),
+			.Name = "Scene Buffer"_view,
+		});
+		SceneBufferViews[frameIndex] = GlobalDevice().Create(
+		{
+			.Type = ViewType::ConstantBuffer,
+			.Buffer = Buffer
+			{
+				.Resource = SceneBuffers[frameIndex],
+				.Size = sizeof(HLSL::Scene),
+				.Stride = 0,
+			},
+		});
+	}
+
+	SceneLuminanceBuffer = GlobalDevice().Create(
+	{
+		.Type = ResourceType::Buffer,
+		.Flags = ResourceFlags::UnorderedAccess,
+		.InitialLayout = BarrierLayout::Undefined,
+		.Size = HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
+		.Name = "Scene Luminance Buffer"_view,
+	});
+	SceneLuminanceBufferView = GlobalDevice().Create(
+	{
+		.Type = ViewType::UnorderedAccess,
+		.Buffer = Buffer
+		{
+			.Resource = SceneLuminanceBuffer,
+			.Size = SceneLuminanceBuffer.Size,
+			.Stride = 0,
+		},
+	});
 
 	CreatePipelines();
 }
 
 Renderer::~Renderer()
 {
+	GlobalDevice().WaitForIdle();
+
+	UnloadScene();
+
 	DestroyScreenTextures();
 
+	ResourceUploader::Get().Shutdown();
 	DrawText::Get().Shutdown();
 
 	GlobalDevice().Destroy(&WhiteTexture.Resource);
@@ -131,12 +177,16 @@ Renderer::~Renderer()
 
 	GlobalDevice().Destroy(&AnisotropicWrapSampler);
 
-	GlobalDevice().Destroy(&SceneLuminanceBuffer.Resource);
-	GlobalDevice().Destroy(&SceneLuminanceBuffer.View);
+	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
+	{
+		GlobalDevice().Destroy(&SceneBuffers[frameIndex]);
+		GlobalDevice().Destroy(&SceneBufferViews[frameIndex]);
+	}
+
+	GlobalDevice().Destroy(&SceneLuminanceBuffer);
+	GlobalDevice().Destroy(&SceneLuminanceBufferView);
 
 	DestroyPipelines();
-
-	UnloadScene();
 
 	DestroyRenderContext();
 }
@@ -243,7 +293,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
 		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
 	};
-	GlobalDevice().Write(&SceneBuffers[GlobalDevice().GetFrameIndex()].Resource, &sceneData);
+	GlobalDevice().Write(&SceneBuffers[GlobalDevice().GetFrameIndex()], &sceneData);
 
 	GlobalGraphics().ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
 	GlobalGraphics().ClearDepthStencil(DepthTexture.View);
@@ -269,7 +319,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().SetPipeline(DeferredPipeline);
 	GlobalGraphics().SetRootConstants(&rootConstants);
-	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()].Resource);
+	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()]);
 	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
 	GlobalGraphics().TextureBarrier
@@ -314,13 +364,13 @@ void Renderer::Update(const CameraController& cameraController)
 	(
 		{ BarrierStage::None, BarrierStage::ComputeShading },
 		{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
-		SceneLuminanceBuffer.Resource
+		SceneLuminanceBuffer
 	);
 
 	const HLSL::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
 	{
 		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
-		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBuffer.View),
+		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
 	};
 
 	GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
@@ -338,12 +388,12 @@ void Renderer::Update(const CameraController& cameraController)
 	(
 		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-		SceneLuminanceBuffer.Resource
+		SceneLuminanceBuffer
 	);
 
 	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
 	{
-		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBuffer.View),
+		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
 		.PixelCount = viewportDimensions.Width * viewportDimensions.Height,
 	};
 
@@ -355,7 +405,7 @@ void Renderer::Update(const CameraController& cameraController)
 	(
 		{ BarrierStage::ComputeShading, BarrierStage::PixelShading },
 		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-		SceneLuminanceBuffer.Resource
+		SceneLuminanceBuffer
 	);
 
 	const ReadTexture& swapChainTexture = SwapChainTextures[GlobalDevice().GetFrameIndex()];
@@ -384,7 +434,7 @@ void Renderer::Update(const CameraController& cameraController)
 	{
 		.HDRTextureIndex = ShouldAntiAlias() ? GlobalDevice().Get(AccumulationTexture.ShaderResourceView)
 											 : GlobalDevice().Get(HDRTexture.ShaderResourceView),
-		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBuffer.View),
+		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
 		.LinearWrapSamplerIndex = GlobalDevice().Get(RenderContext.LinearWrapSampler),
 		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
 	};
@@ -419,6 +469,8 @@ void Renderer::Update(const CameraController& cameraController)
 	);
 
 	GlobalGraphics().End();
+
+	ResourceUploader::Get().Flush();
 
 	GlobalDevice().Submit(GlobalGraphics());
 	GlobalDevice().Present();
@@ -458,7 +510,7 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 
 			GlobalGraphics().SetPipeline(pipeline);
 			GlobalGraphics().SetRootConstants(&rootConstants);
-			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()].Resource);
+			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()]);
 
 			GlobalGraphics().SetVertexBuffer(0,
 											 SubBuffer
@@ -527,7 +579,6 @@ void Renderer::Resize(uint32 width, uint32 height)
 	GlobalDevice().WaitForIdle();
 
 	DestroyScreenTextures();
-	GlobalDevice().ReleaseAllDestroys();
 
 	GlobalDevice().ResizeSwapChain(width, height);
 	CreateScreenTextures(width, height);
@@ -543,6 +594,17 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	VERIFY(scene.Buffers.GetLength() == 1, "GLTF file contains multiple buffers!");
 	const GLTF::Buffer& vertexBuffer = scene.Buffers[0];
+
+	GLTF::Buffer finalVertexBuffer = vertexBuffer;
+	SceneVertexBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+										 finalVertexBuffer.Size,
+										 0,
+										 ResourceFlags::None,
+										 ViewType::ShaderResource,
+										 finalVertexBuffer.Data,
+										 "Scene Vertex Buffer"_view);
+
+	ResourceUploader::Get().Flush();
 
 	usize globalPrimitiveIndex = 0;
 	for (const GLTF::Mesh& mesh : scene.Meshes)
@@ -583,14 +645,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		});
 	}
 
-	GLTF::Buffer finalVertexBuffer = vertexBuffer;
-	SceneVertexBuffer = CreateReadBuffer(finalVertexBuffer.Size,
-										 0,
-										 ResourceFlags::None,
-										 ViewType::ShaderResource,
-										 finalVertexBuffer.Data,
-										 "Scene Vertex Buffer"_view);
-
 	Array<HLSL::Primitive> primitiveData(RendererAllocator);
 	for (const Mesh& mesh : SceneMeshes)
 	{
@@ -610,7 +664,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			});
 		}
 	}
-	ScenePrimitiveBuffer = CreateReadBuffer(primitiveData.GetDataSize(),
+	ScenePrimitiveBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+											primitiveData.GetDataSize(),
 											primitiveData.GetElementSize(),
 											ResourceFlags::None,
 											ViewType::ShaderResource,
@@ -714,7 +769,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.MeshIndex = node.Mesh,
 		});
 	}
-	SceneDrawCallBuffer = CreateReadBuffer(drawCallData.GetDataSize(),
+	SceneDrawCallBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+										   drawCallData.GetDataSize(),
 										   drawCallData.GetElementSize(),
 										   ResourceFlags::None,
 										   ViewType::ShaderResource,
@@ -785,7 +841,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.NormalLocalToWorld = node.LocalToWorld.GetInverse().GetTranspose(),
 		});
 	}
-	SceneNodeBuffer = CreateReadBuffer(nodeData.GetDataSize(),
+	SceneNodeBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+									   nodeData.GetDataSize(),
 									   nodeData.GetElementSize(),
 									   ResourceFlags::None,
 									   ViewType::ShaderResource,
@@ -805,7 +862,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::Image& gltfImage = scene.Images[gltfTexture.Image];
 
 			DDS::Image image = DDS::LoadImage(gltfImage.Path.AsView());
-			const ReadTexture texture = CreateReadTexture({ image.Width, image.Height },
+			const ReadTexture texture = CreateReadTexture(ResourceLifetime::Scene,
+														  { image.Width, image.Height },
 														  image.MipMapCount,
 														  image.Format,
 														  image.Data,
@@ -899,7 +957,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
-	SceneMaterialBuffer = CreateReadBuffer(materialData.GetDataSize(),
+	SceneMaterialBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+										   materialData.GetDataSize(),
 										   materialData.GetElementSize(),
 										   ResourceFlags::None,
 										   ViewType::ShaderResource,
@@ -950,7 +1009,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		};
 	}
 
-	SceneDirectionalLightBuffer = CreateReadBuffer(sizeof(directionalLight),
+	SceneDirectionalLightBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+												   sizeof(directionalLight),
 												   0,
 												   ResourceFlags::None,
 												   ViewType::ConstantBuffer,
@@ -958,22 +1018,13 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 												   "Scene Directional Light Buffer"_view);
 	if (!pointLights.IsEmpty())
 	{
-		ScenePointLightsBuffer = CreateReadBuffer(pointLights.GetDataSize(),
+		ScenePointLightsBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+												  pointLights.GetDataSize(),
 												  pointLights.GetElementSize(),
 												  ResourceFlags::None,
 												  ViewType::ShaderResource,
 												  pointLights.GetData(),
 												  "Scene Point Lights Buffer"_view);
-	}
-
-	for (ReadBuffer& sceneBuffer : SceneBuffers)
-	{
-		sceneBuffer = CreateReadBuffer(sizeof(HLSL::Scene),
-									   0,
-									   ResourceFlags::Upload,
-									   ViewType::ConstantBuffer,
-									   nullptr,
-									   "Scene Buffer"_view);
 	}
 
 	TemporalAntiAliasing.DiscardPreviousFrame = true;
@@ -992,6 +1043,8 @@ void Renderer::UnloadScene()
 		GlobalDevice().Destroy(&buffer->View);
 	};
 
+	GlobalDevice().WaitForIdle();
+
 	destroyReadBuffer(&SceneVertexBuffer);
 	destroyReadBuffer(&ScenePrimitiveBuffer);
 	destroyReadBuffer(&SceneDrawCallBuffer);
@@ -999,10 +1052,6 @@ void Renderer::UnloadScene()
 	destroyReadBuffer(&SceneMaterialBuffer);
 	destroyReadBuffer(&SceneDirectionalLightBuffer);
 	destroyReadBuffer(&ScenePointLightsBuffer);
-	for (ReadBuffer& sceneBuffer : SceneBuffers)
-	{
-		destroyReadBuffer(&sceneBuffer);
-	}
 
 	for (Mesh& mesh : SceneMeshes)
 	{
@@ -1032,6 +1081,8 @@ void Renderer::UnloadScene()
 	SceneMeshes.Clear();
 	SceneNodes.Clear();
 	SceneMaterials.Clear();
+
+	ResourceUploader::Get().Reset();
 }
 
 void Renderer::CreatePipelines()
