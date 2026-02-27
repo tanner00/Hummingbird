@@ -6,14 +6,6 @@
 
 static constexpr usize MaxCharactersPerFrame = 2048;
 
-DrawText::DrawText()
-	: Glyphs(64, &GlobalAllocator::Get())
-	, Ascender(0.0f)
-	, RootConstants()
-	, CharacterIndex(0)
-{
-}
-
 void DrawText::Init()
 {
 	DDS::Image fontImage = DDS::LoadImage("Assets/Fonts/RobotoMSDF.dds"_view);
@@ -175,10 +167,7 @@ void DrawText::Draw(StringView text, Float2 position, Float3 rgb, float scale)
 
 void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 {
-	if (CharacterIndex + text.GetLength() > MaxCharactersPerFrame)
-	{
-		CharacterIndex = 0;
-	}
+	CHECK(CharacterIndex + text.GetLength() <= MaxCharactersPerFrame);
 
 	Float2 currentPositionScreen = { .X = position.X, .Y = position.Y - scale * Ascender };
 	for (usize textIndex = 0; textIndex < text.GetLength(); ++textIndex)

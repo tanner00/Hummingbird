@@ -28,13 +28,13 @@ float GeometrySmith(float3 viewDirection, float3 lightDirection, float3 normal, 
 	return gView * gLight;
 }
 
-float3 PBRImplementation(float3 cDiffuse,
-						 float3 f0,
-						 float roughness,
-						 float3 normalWorld,
-						 float3 viewDirectionWorld,
-						 float3 lightDirectionWorld,
-						 float3 lightRadiance)
+float3 BRDFCookTorrance(float3 cDiffuse,
+						float3 f0,
+						float roughness,
+						float3 normalWorld,
+						float3 viewDirectionWorld,
+						float3 lightDirectionWorld,
+						float3 lightRadiance)
 {
 	const float3 halfwayDirectionWorld = normalize(viewDirectionWorld + lightDirectionWorld);
 
@@ -45,11 +45,10 @@ float3 PBRImplementation(float3 cDiffuse,
 	const float3 f = FresnelSchlick(f0, halfwayDirectionWorld, viewDirectionWorld);
 	const float g = GeometrySmith(viewDirectionWorld, lightDirectionWorld, normalWorld, roughness);
 
-	const float3 brdf = (d * f * g) / max(4.0f * nDotV * nDotL, 0.0001f);
+	const float3 specularBRDF = (d * f * g) / max(4.0f * nDotV * nDotL, 0.0001f);
+	const float3 diffuseBRDF = (1.0f - f) * (cDiffuse / Pi);
 
-	const float3 diffuse = (1.0f - f) * (cDiffuse / Pi);
-
-	return (diffuse + brdf) * lightRadiance * nDotL;
+	return (diffuseBRDF + specularBRDF) * lightRadiance * nDotL;
 }
 
 float3 PBRMetallicRoughness(float3 baseColor,
@@ -62,7 +61,7 @@ float3 PBRMetallicRoughness(float3 baseColor,
 {
 	const float3 cDiffuse = lerp(baseColor.rgb, 0.0f, metallic);
 	const float3 f0 = lerp(DielectricSpecular, baseColor.rgb, metallic);
-	return PBRImplementation(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
+	return BRDFCookTorrance(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
 }
 
 float3 PBRSpecularGlossiness(float3 diffuse,
@@ -76,7 +75,7 @@ float3 PBRSpecularGlossiness(float3 diffuse,
 	const float3 cDiffuse = lerp(diffuse, 0.0f, max(specular.r, max(specular.g, specular.b)));
 	const float3 f0 = specular;
 	const float roughness = 1.0f - glossiness;
-	return PBRImplementation(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
+	return BRDFCookTorrance(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
 }
 
 float3 PBR(float3 baseColor,

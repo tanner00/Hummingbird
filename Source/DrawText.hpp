@@ -19,8 +19,6 @@ struct Glyph
 class DrawText : public NoCopy
 {
 public:
-	DrawText();
-
 	void Init();
 	void Shutdown();
 
@@ -36,6 +34,14 @@ public:
 	void Submit(uint32 width, uint32 height);
 
 private:
+	DrawText()
+		: Glyphs(64, &GlobalAllocator::Get())
+		, Ascender(0.0f)
+		, RootConstants()
+		, CharacterIndex(0)
+	{
+	}
+
 	HashTable<char, Glyph> Glyphs;
 
 	float Ascender;
@@ -45,10 +51,10 @@ private:
 	usize CharacterIndex;
 	Array<HLSL::Character> CharacterData;
 
-	RHI::GraphicsPipeline Pipeline;
-
 	RHI::Resource FontTexture;
 	RHI::TextureView FontTextureView;
+
+	RHI::GraphicsPipeline Pipeline;
 
 	RHI::Resource CharacterBuffers[RHI::FramesInFlight];
 	RHI::BufferView CharacterBufferViews[RHI::FramesInFlight];
