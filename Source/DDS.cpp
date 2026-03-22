@@ -79,9 +79,8 @@ static RHI::ResourceFormat From(DXGI_FORMAT format)
 	case DXGI_FORMAT_BC7_UNORM_SRGB:
 		return RHI::ResourceFormat::BC7UNormSRGB;
 	default:
-		break;
+		CHECK(false);
 	}
-	CHECK(false);
 	return RHI::ResourceFormat::None;
 }
 
