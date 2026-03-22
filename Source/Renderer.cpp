@@ -301,13 +301,10 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTexture.View);
 	UpdateScene(VisibilityPipeline);
 
-	GlobalGraphics().TextureBarrier
-	(
-		{ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
-		{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
-		{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
-		VisibilityRenderTarget.Resource
-	);
+	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
+									{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
+									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
+									VisibilityRenderTarget.Resource);
 
 	const HLSL::DeferredRootConstants rootConstants =
 	{
@@ -322,23 +319,17 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()]);
 	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
-	GlobalGraphics().TextureBarrier
-	(
-		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-		{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
-		{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
-		HDRTexture.Resource
-	);
+	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+									{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
+									{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
+									HDRTexture.Resource);
 
 	if (ShouldAntiAlias())
 	{
-		GlobalGraphics().TextureBarrier
-		(
-			{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-			{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
-			{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
-			PreviousAccumulationTexture.Resource
-		);
+		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+										{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
+										{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
+										PreviousAccumulationTexture.Resource);
 
 		const HLSL::ResolveRootConstants resolveRootConstants =
 		{
@@ -359,29 +350,20 @@ void Renderer::Update(const CameraController& cameraController)
 		GlobalGraphics().SetRootConstants(&resolveRootConstants);
 		GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
-		GlobalGraphics().TextureBarrier
-		(
-			{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-			{ BarrierAccess::ShaderResource, BarrierAccess::UnorderedAccess },
-			{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
-			PreviousAccumulationTexture.Resource
-		);
+		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+										{ BarrierAccess::ShaderResource, BarrierAccess::UnorderedAccess },
+										{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
+										PreviousAccumulationTexture.Resource);
 	}
 
-	GlobalGraphics().TextureBarrier
-	(
-		{ BarrierStage::PixelShading, BarrierStage::None },
-		{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-		{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::RenderTarget },
-		VisibilityRenderTarget.Resource
-	);
+	GlobalGraphics().TextureBarrier({ BarrierStage::PixelShading, BarrierStage::None },
+									{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
+									{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::RenderTarget },
+									VisibilityRenderTarget.Resource);
 
-	GlobalGraphics().BufferBarrier
-	(
-		{ BarrierStage::None, BarrierStage::ComputeShading },
-		{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
-		SceneLuminanceBuffer
-	);
+	GlobalGraphics().BufferBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
+								   { BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
+								   SceneLuminanceBuffer);
 
 	const HLSL::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
 	{
@@ -393,20 +375,14 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().SetRootConstants(&luminanceHistogramRootConstants);
 	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
-	GlobalGraphics().BufferBarrier
-	(
-		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-		SceneLuminanceBuffer
-	);
+	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
+								   SceneLuminanceBuffer);
 
-	GlobalGraphics().TextureBarrier
-	(
-		{ BarrierStage::ComputeShading, BarrierStage::None },
-		{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-		{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
-		HDRTexture.Resource
-	);
+	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::None },
+									{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
+									{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
+									HDRTexture.Resource);
 
 	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
 	{
@@ -418,31 +394,22 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().SetRootConstants(&luminanceAverageRootConstants);
 	GlobalGraphics().Dispatch(HLSL::LuminanceHistogramBinsCount, 1, 1);
 
-	GlobalGraphics().BufferBarrier
-	(
-		{ BarrierStage::ComputeShading, BarrierStage::PixelShading },
-		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-		SceneLuminanceBuffer
-	);
+	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
+								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
+								   SceneLuminanceBuffer);
 
 	const ReadTexture& swapChainTexture = SwapChainTextures[GlobalDevice().GetFrameIndex()];
 
-	GlobalGraphics().TextureBarrier
-	(
-		{ BarrierStage::None, BarrierStage::RenderTarget },
-		{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
-		{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
-		swapChainTexture.Resource
-	);
+	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::RenderTarget },
+									{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
+									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
+									swapChainTexture.Resource);
 	if (ShouldAntiAlias())
 	{
-		GlobalGraphics().TextureBarrier
-		(
-			{ BarrierStage::ComputeShading, BarrierStage::PixelShading },
-			{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
-			{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
-			AccumulationTexture.Resource
-		);
+		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
+										{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
+										{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
+										AccumulationTexture.Resource);
 	}
 
 	GlobalGraphics().SetRenderTarget(swapChainTexture.View);
@@ -462,13 +429,10 @@ void Renderer::Update(const CameraController& cameraController)
 
 	if (ShouldAntiAlias())
 	{
-		GlobalGraphics().TextureBarrier
-		(
-			{ BarrierStage::PixelShading, BarrierStage::None },
-			{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-			{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
-			AccumulationTexture.Resource
-		);
+		GlobalGraphics().TextureBarrier({ BarrierStage::PixelShading, BarrierStage::None },
+										{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
+										{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
+										AccumulationTexture.Resource);
 	}
 
 #if !RELEASE
@@ -477,13 +441,10 @@ void Renderer::Update(const CameraController& cameraController)
 
 	DrawText::Get().Submit(viewportDimensions.Width, viewportDimensions.Height);
 
-	GlobalGraphics().TextureBarrier
-	(
-		{ BarrierStage::RenderTarget, BarrierStage::None },
-		{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
-		{ BarrierLayout::RenderTarget, BarrierLayout::Present },
-		swapChainTexture.Resource
-	);
+	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::None },
+									{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
+									{ BarrierLayout::RenderTarget, BarrierLayout::Present },
+									swapChainTexture.Resource);
 
 	GlobalGraphics().End();
 
