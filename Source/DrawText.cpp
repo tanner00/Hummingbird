@@ -87,7 +87,7 @@ void DrawText::Init()
 		.InitialLayout = RHI::BarrierLayout::GraphicsQueueCommon,
 		.Dimensions = { fontImage.Width, fontImage.Height },
 		.MipMapCount = fontImage.MipMapCount,
-		.Name = "Font Texture"_view,
+		.Name = String("Font Texture"_view),
 	});
 	FontTextureView = GlobalDevice().Create(
 	{
@@ -99,25 +99,23 @@ void DrawText::Init()
 
 	RHI::Shader vertex = GlobalDevice().Create(
 	{
-		.FilePath = "Shaders/Text.hlsl"_view,
 		.Stage = RHI::ShaderStage::Vertex,
+		.FilePath = String("Shaders/Text.hlsl"_view),
 	});
 	RHI::Shader pixel = GlobalDevice().Create(
 	{
-		.FilePath = "Shaders/Text.hlsl"_view,
 		.Stage = RHI::ShaderStage::Pixel,
+		.FilePath = String("Shaders/Text.hlsl"_view),
 	});
 
-	RHI::ShaderStages stages;
-	stages.AddStage(vertex);
-	stages.AddStage(pixel);
 	Pipeline = GlobalDevice().Create(
 	{
-		.Stages = Move(stages),
+		.VertexStage = vertex,
+		.PixelStage = pixel,
 		.RenderTargetFormats = { RHI::ResourceFormat::RGBA8UNormSRGB },
 		.DepthStencilFormat = RHI::ResourceFormat::None,
 		.AlphaBlend = true,
-		.Name = "Text Pipeline"_view,
+		.Name = String("Text Pipeline"_view),
 	});
 	GlobalDevice().Destroy(&vertex);
 	GlobalDevice().Destroy(&pixel);
@@ -131,7 +129,7 @@ void DrawText::Init()
 			.Flags = RHI::ResourceFlags::Upload,
 			.InitialLayout = RHI::BarrierLayout::Undefined,
 			.Size = MaxCharactersPerFrame * sizeof(HLSL::Character),
-			.Name = "Character Buffer"_view,
+			.Name = String("Character Buffer"_view),
 		});
 		CharacterBufferViews[frameIndex] = GlobalDevice().Create(RHI::BufferViewDescription
 		{

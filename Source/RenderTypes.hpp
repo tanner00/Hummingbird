@@ -94,11 +94,8 @@ struct Material
 {
 	ReadTexture NormalMapTexture;
 
-	union
-	{
-		SpecularGlossiness SpecularGlossiness;
-		MetallicRoughness MetallicRoughness;
-	};
+	SpecularGlossiness SpecularGlossiness;
+	MetallicRoughness MetallicRoughness;
 	bool IsSpecularGlossiness;
 
 	bool Translucent;

@@ -2,6 +2,8 @@
 
 #include "RHI/RHI.hpp"
 
+#include "Luft/HashTable.hpp"
+
 namespace HLSL
 {
 #include "Shaders/Types.hlsli"

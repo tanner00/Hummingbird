@@ -14,7 +14,7 @@ static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 	VERIFY(directoryLength != INDEX_NONE, "Invalid GLTF file path!");
 
 	String fullPath(directoryLength + sizeof(pathSeparator) + filePath.GetLength(), Allocator);
-	fullPath.Append(sceneFilePath, directoryLength);
+	fullPath.Append(StringView { sceneFilePath.GetData(), directoryLength });
 	fullPath.Append(pathSeparator);
 	fullPath.Append(filePath);
 

@@ -103,7 +103,7 @@ Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, c
 			.Offset = UploadHeap.Offset,
 		},
 		.Size = uploadBufferSize,
-		.Name = "Upload Buffer"_view,
+		.Name = String("Upload Buffer"_view),
 	});
 	UploadBuffers.Add(uploadBuffer);
 

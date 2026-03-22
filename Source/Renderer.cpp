@@ -30,7 +30,7 @@ static ReadTexture CreateReadTexture(ResourceLifetime lifetime,
 		.InitialLayout = BarrierLayout::GraphicsQueueCommon,
 		.Dimensions = dimensions,
 		.MipMapCount = mipMapCount,
-		.Name = name,
+		.Name = String(name),
 	});
 	const TextureView view = GlobalDevice().Create(
 	{
@@ -55,7 +55,7 @@ static ReadBuffer CreateReadBuffer(ResourceLifetime lifetime,
 		.Flags = flags,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size,
-		.Name = name,
+		.Name = String(name),
 	});
 	const BufferView view = GlobalDevice().Create(
 	{
@@ -122,7 +122,7 @@ Renderer::Renderer(const Platform::Window* window)
 			.Flags = ResourceFlags::Upload,
 			.InitialLayout = BarrierLayout::Undefined,
 			.Size = sizeof(HLSL::Scene),
-			.Name = "Scene Buffer"_view,
+			.Name = String("Scene Buffer"_view),
 		});
 		SceneBufferViews[frameIndex] = GlobalDevice().Create(
 		{
@@ -142,7 +142,7 @@ Renderer::Renderer(const Platform::Window* window)
 		.Flags = ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
-		.Name = "Scene Luminance Buffer"_view,
+		.Name = String("Scene Luminance Buffer"_view),
 	});
 	SceneLuminanceBufferView = GlobalDevice().Create(
 	{
@@ -332,6 +332,14 @@ void Renderer::Update(const CameraController& cameraController)
 
 	if (ShouldAntiAlias())
 	{
+		GlobalGraphics().TextureBarrier
+		(
+			{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+			{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
+			{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
+			PreviousAccumulationTexture.Resource
+		);
+
 		const HLSL::ResolveRootConstants resolveRootConstants =
 		{
 			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
@@ -350,6 +358,14 @@ void Renderer::Update(const CameraController& cameraController)
 		GlobalGraphics().SetPipeline(ResolvePipeline);
 		GlobalGraphics().SetRootConstants(&resolveRootConstants);
 		GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
+
+		GlobalGraphics().TextureBarrier
+		(
+			{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+			{ BarrierAccess::ShaderResource, BarrierAccess::UnorderedAccess },
+			{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
+			PreviousAccumulationTexture.Resource
+		);
 	}
 
 	GlobalGraphics().TextureBarrier
@@ -377,18 +393,19 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().SetRootConstants(&luminanceHistogramRootConstants);
 	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
+	GlobalGraphics().BufferBarrier
+	(
+		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
+		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
+		SceneLuminanceBuffer
+	);
+
 	GlobalGraphics().TextureBarrier
 	(
 		{ BarrierStage::ComputeShading, BarrierStage::None },
 		{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
 		{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
 		HDRTexture.Resource
-	);
-	GlobalGraphics().BufferBarrier
-	(
-		{ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-		{ BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-		SceneLuminanceBuffer
 	);
 
 	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
@@ -550,10 +567,10 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 }
 
 #if !RELEASE
-void Renderer::UpdateFrameTimes(double startCpuTime)
+void Renderer::UpdateFrameTimes(double startCPUTime)
 {
-	const double cpuTime = Platform::GetTime() - startCpuTime;
-	const double gpuTime = GlobalGraphics().GetMostRecentGpuTime();
+	const double cpuTime = Platform::GetTime() - startCPUTime;
+	const double gpuTime = GlobalGraphics().GetMostRecentGPUTime();
 
 	AverageCpuTime = AverageCpuTime * 0.95 + cpuTime * 0.05;
 	AverageGpuTime = AverageGpuTime * 0.95 + gpuTime * 0.05;
@@ -683,7 +700,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::AlphaMode alphaMode = primitive.MaterialIndex != INDEX_NONE ? scene.Materials[primitive.MaterialIndex].AlphaMode
 																					: GLTF::AlphaMode::Opaque;
 
-			const AccelerationStructureGeometry geometry =
+			const RayTracingAccelerationStructureTriangleGeometry geometry =
 			{
 				.VertexBuffer = SubBuffer
 				{
@@ -699,9 +716,10 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 					.Stride = primitive.IndexStride,
 					.Offset = primitive.IndexOffset,
 				},
-				.Translucent = alphaMode != GLTF::AlphaMode::Opaque,
+				.Flags = alphaMode == GLTF::AlphaMode::Opaque ? RayTracingAccelerationStructureGeometryFlags::None
+															  : RayTracingAccelerationStructureGeometryFlags::Translucent,
 			};
-			const AccelerationStructureSize size = GlobalDevice().GetAccelerationStructureSize(geometry);
+			const RayTracingAccelerationStructureSize size = GlobalDevice().GetRayTracingAccelerationStructureSize(geometry);
 
 			Resource scratchResource = GlobalDevice().Create(
 			{
@@ -710,19 +728,19 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Flags = ResourceFlags::UnorderedAccess,
 				.InitialLayout = BarrierLayout::Undefined,
 				.Size = size.ScratchSize,
-				.Name = "Scratch Primitive Acceleration Structure"_view,
+				.Name = String("Scratch Primitive Acceleration Structure"_view),
 			});
 			transientResources.Add(scratchResource);
 			const Resource resultResource = GlobalDevice().Create(
 			{
 				.Type = ResourceType::Buffer,
 				.Format = ResourceFormat::None,
-				.Flags = ResourceFlags::AccelerationStructure,
+				.Flags = ResourceFlags::RayTracingAccelerationStructure | ResourceFlags::UnorderedAccess,
 				.InitialLayout = BarrierLayout::Undefined,
 				.Size = size.ResultSize,
-				.Name = "Primitive Acceleration Structure"_view,
+				.Name = String("Primitive Acceleration Structure"_view),
 			});
-			GlobalGraphics().BuildAccelerationStructure(geometry, scratchResource, resultResource);
+			GlobalGraphics().BuildRayTracingAccelerationStructure(geometry, scratchResource, resultResource);
 
 			primitive.AccelerationStructureResource = resultResource;
 		}
@@ -730,11 +748,11 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	GlobalGraphics().GlobalBarrier
 	(
-		{ BarrierStage::BuildAccelerationStructure, BarrierStage::BuildAccelerationStructure },
-		{ BarrierAccess::AccelerationStructureWrite, BarrierAccess::AccelerationStructureRead }
+		{ BarrierStage::BuildRayTracingAccelerationStructure, BarrierStage::BuildRayTracingAccelerationStructure },
+		{ BarrierAccess::RayTracingAccelerationStructureWrite, BarrierAccess::RayTracingAccelerationStructureRead }
 	);
 
-	Array<AccelerationStructureInstance> instances(RendererAllocator);
+	Array<RayTracingAccelerationStructureInstance> instances(RendererAllocator);
 	Array<HLSL::DrawCall> drawCallData(RendererAllocator);
 	for (usize nodeIndex = 0; nodeIndex < scene.Nodes.GetLength(); ++nodeIndex)
 	{
@@ -749,11 +767,11 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		const Mesh& mesh = SceneMeshes[node.Mesh];
 		for (const Primitive& primitive : mesh.Primitives)
 		{
-			instances.Add(AccelerationStructureInstance
+			instances.Add(RayTracingAccelerationStructureInstance
 			{
 				.ID = static_cast<uint32>(primitive.GlobalIndex),
 				.LocalToWorld = localToWorld,
-				.AccelerationStructureResource = primitive.AccelerationStructureResource,
+				.Resource = primitive.AccelerationStructureResource,
 			});
 
 			drawCallData.Add(HLSL::DrawCall
@@ -779,12 +797,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	const Resource instancesResource = GlobalDevice().Create(
 	{
-		.Type = ResourceType::AccelerationStructureInstances,
+		.Type = ResourceType::RayTracingAccelerationStructureInstances,
 		.Format = ResourceFormat::None,
 		.Flags = ResourceFlags::Upload,
 		.InitialLayout = BarrierLayout::Undefined,
-		.Size = instances.GetLength() * GlobalDevice().GetAccelerationStructureInstanceSize(),
-		.Name = "Scene Acceleration Structure Instances"_view,
+		.Size = instances.GetLength() * GlobalDevice().GetRayTracingAccelerationStructureInstanceSize(),
+		.Name = String("Scene Acceleration Structure Instances"_view),
 	});
 	transientResources.Add(instancesResource);
 	GlobalDevice().Write(&instancesResource, instances.GetData());
@@ -793,9 +811,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	{
 		.Resource = instancesResource,
 		.Size = instancesResource.Size,
-		.Stride = GlobalDevice().GetAccelerationStructureInstanceSize(),
+		.Stride = GlobalDevice().GetRayTracingAccelerationStructureInstanceSize(),
 	};
-	const AccelerationStructureSize size = GlobalDevice().GetAccelerationStructureSize(instancesBuffer);
+	const RayTracingAccelerationStructureSize size = GlobalDevice().GetRayTracingAccelerationStructureSize(instancesBuffer);
 
 	const Resource scratchResource = GlobalDevice().Create(
 	{
@@ -804,23 +822,23 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Flags = ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size.ScratchSize,
-		.Name = "Scratch Scene Acceleration Structure"_view,
+		.Name = String("Scratch Scene Acceleration Structure"_view),
 	});
 	transientResources.Add(scratchResource);
 	SceneAccelerationStructureResource = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Buffer,
 		.Format = ResourceFormat::None,
-		.Flags = ResourceFlags::AccelerationStructure,
+		.Flags = ResourceFlags::RayTracingAccelerationStructure | ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size.ResultSize,
-		.Name = "Scene Acceleration Structure"_view,
+		.Name = String("Scene Acceleration Structure"_view),
 	});
-	GlobalGraphics().BuildAccelerationStructure(instancesBuffer, scratchResource, SceneAccelerationStructureResource);
+	GlobalGraphics().BuildRayTracingAccelerationStructure(instancesBuffer, scratchResource, SceneAccelerationStructureResource);
 
-	SceneAccelerationStructure = GlobalDevice().Create(AccelerationStructureDescription
+	SceneAccelerationStructure = GlobalDevice().Create(RayTracingAccelerationStructureDescription
 	{
-		.AccelerationStructureResource = SceneAccelerationStructureResource,
+		.Resource = SceneAccelerationStructureResource,
 	});
 
 	GlobalGraphics().End();
@@ -851,7 +869,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	for (const GLTF::Material& gltfMaterial : scene.Materials)
 	{
-		const auto convertTexture = [this](const GLTF::Scene& scene, usize textureIndex, StringView textureName) -> ReadTexture
+		const auto convertTexture = [](const GLTF::Scene& scene, usize textureIndex, StringView textureName) -> ReadTexture
 		{
 			if (textureIndex == INDEX_NONE)
 			{
@@ -1032,12 +1050,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 void Renderer::UnloadScene()
 {
-	const auto destroyReadTexture = [this](ReadTexture* texture) -> void
+	const auto destroyReadTexture = [](ReadTexture* texture) -> void
 	{
 		GlobalDevice().Destroy(&texture->Resource);
 		GlobalDevice().Destroy(&texture->View);
 	};
-	const auto destroyReadBuffer = [this](ReadBuffer* buffer) -> void
+	const auto destroyReadBuffer = [](ReadBuffer* buffer) -> void
 	{
 		GlobalDevice().Destroy(&buffer->Resource);
 		GlobalDevice().Destroy(&buffer->View);
@@ -1087,41 +1105,39 @@ void Renderer::UnloadScene()
 
 void Renderer::CreatePipelines()
 {
-	const auto createGraphicsPipeline = [this](StringView name,
-											   StringView path,
-											   bool pixelShader,
-											   bool depth,
-											   auto... formats) -> GraphicsPipeline
+	const auto createGraphicsPipeline = [](StringView name,
+										   StringView path,
+										   bool pixelShader,
+										   bool depth,
+										   auto... formats) -> GraphicsPipeline
 	{
-		ShaderStages stages;
-
 		Shader vertex = GlobalDevice().Create(
 		{
-			.FilePath = path,
 			.Stage = ShaderStage::Vertex,
+			.FilePath = String(path),
 		});
-		stages.AddStage(vertex);
 
 		Shader pixel;
 		if (pixelShader)
 		{
 			pixel = GlobalDevice().Create(
 			{
-				.FilePath = path,
 				.Stage = ShaderStage::Pixel,
+				.FilePath = String(path),
 			});
-			stages.AddStage(pixel);
 		}
 
-		const GraphicsPipeline pipeline = GlobalDevice().Create(
+		const GraphicsPipeline pipeline = GlobalDevice().Create(GraphicsPipelineDescription
 		{
-			.Stages = Move(stages),
+			.VertexStage = vertex,
+			.PixelStage = pixel,
 			.RenderTargetFormats = { formats... },
 			.DepthStencilFormat = depth ? ResourceFormat::Depth32 : ResourceFormat::None,
 			.AlphaBlend = false,
 			.ReverseDepth = true,
-			.Name = name,
+			.Name = String(name),
 		});
+
 		GlobalDevice().Destroy(&vertex);
 		if (pixel.IsValid())
 		{
@@ -1130,18 +1146,18 @@ void Renderer::CreatePipelines()
 
 		return pipeline;
 	};
-	const auto createComputePipeline = [this](StringView name, StringView path) -> ComputePipeline
+	const auto createComputePipeline = [](StringView name, StringView path) -> ComputePipeline
 	{
 		Shader compute = GlobalDevice().Create(
 		{
-			.FilePath = path,
 			.Stage = ShaderStage::Compute,
+			.FilePath = String(path),
 		});
 
 		const ComputePipeline pipeline = GlobalDevice().Create(
 		{
-			.Stage = Move(compute),
-			.Name = name,
+			.Stage = compute,
+			.Name = String(name),
 		});
 		GlobalDevice().Destroy(&compute);
 
@@ -1184,7 +1200,7 @@ void Renderer::DestroyPipelines()
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 {
-	const auto createRenderTarget = [&](ResourceFormat format, StringView textureName) -> RenderTarget
+	const auto createRenderTarget = [width, height](ResourceFormat format, StringView textureName) -> RenderTarget
 	{
 		const Resource resource = GlobalDevice().Create(
 		{
@@ -1193,7 +1209,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.Flags = ResourceFlags::RenderTarget | ResourceFlags::UnorderedAccess,
 			.InitialLayout = BarrierLayout::RenderTarget,
 			.Dimensions = { width, height },
-			.Name = textureName,
+			.Name = String(textureName),
 		});
 		return RenderTarget
 		{
@@ -1215,7 +1231,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			}),
 		};
 	};
-	const auto createWriteTexture = [&](ResourceFormat format, StringView textureName) -> WriteTexture
+	const auto createWriteTexture = [width, height](ResourceFormat format, StringView textureName) -> WriteTexture
 	{
 		const Resource resource = GlobalDevice().Create(
 		{
@@ -1224,7 +1240,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.Flags = ResourceFlags::UnorderedAccess,
 			.InitialLayout = BarrierLayout::GraphicsQueueUnorderedAccess,
 			.Dimensions = { width, height },
-			.Name = textureName,
+			.Name = String(textureName),
 		});
 		return WriteTexture
 		{
@@ -1252,7 +1268,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.InitialLayout = BarrierLayout::Undefined,
 			.Dimensions = { width, height },
 			.SwapChainIndex = static_cast<uint8>(frameIndex),
-			.Name = "SwapChain Texture"_view,
+			.Name = String("SwapChain Texture"_view),
 		});
 		SwapChainTextures[frameIndex].View = GlobalDevice().Create(
 		{
@@ -1269,7 +1285,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.InitialLayout = BarrierLayout::DepthStencilWrite,
 		.Dimensions = { width, height },
 		.DepthClear = 0.0f,
-		.Name = "Depth Texture"_view,
+		.Name = String("Depth Texture"_view),
 	});
 	DepthTexture.View = GlobalDevice().Create(
 	{
@@ -1288,14 +1304,14 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 
 void Renderer::DestroyScreenTextures()
 {
-	const auto destroyRenderTarget = [this](RenderTarget* renderTarget) -> void
+	const auto destroyRenderTarget = [](RenderTarget* renderTarget) -> void
 	{
 		GlobalDevice().Destroy(&renderTarget->Resource);
 		GlobalDevice().Destroy(&renderTarget->RenderTargetView);
 		GlobalDevice().Destroy(&renderTarget->ShaderResourceView);
 		GlobalDevice().Destroy(&renderTarget->UnorderedAccessView);
 	};
-	const auto destroyWriteTexture = [this](WriteTexture* writeTexture) -> void
+	const auto destroyWriteTexture = [](WriteTexture* writeTexture) -> void
 	{
 		GlobalDevice().Destroy(&writeTexture->Resource);
 		GlobalDevice().Destroy(&writeTexture->ShaderResourceView);

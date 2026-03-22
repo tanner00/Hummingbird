@@ -28,7 +28,7 @@ private:
 	void UpdateScene(const RHI::GraphicsPipeline& pipeline);
 
 #if !RELEASE
-	void UpdateFrameTimes(double startCpuTime);
+	void UpdateFrameTimes(double startCPUTime);
 #endif
 
 	void LoadScene(const GLTF::Scene& scene);
@@ -71,7 +71,7 @@ private:
 	RHI::BufferView SceneLuminanceBufferView;
 
 	RHI::Resource SceneAccelerationStructureResource;
-	RHI::AccelerationStructure SceneAccelerationStructure;
+	RHI::RayTracingAccelerationStructure SceneAccelerationStructure;
 
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;
