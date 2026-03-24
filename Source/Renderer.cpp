@@ -291,7 +291,7 @@ void Renderer::Update(const CameraController& cameraController)
 			.Z = cameraController.GetPositionWorld().Z,
 		},
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
-		.PointLightsCount = static_cast<uint32>(ScenePointLightsBuffer.View.Buffer.Size / sizeof(HLSL::PointLight)),
+		.PointLightsCount = ScenePointLightsBuffer.View.IsValid() ? static_cast<uint32>(Count(ScenePointLightsBuffer.View.Buffer)) : 0,
 	};
 	GlobalDevice().Write(&SceneBuffers[GlobalDevice().GetFrameIndex()], &sceneData);
 
