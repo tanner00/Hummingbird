@@ -30,8 +30,8 @@ public:
 		return instance;
 	}
 
-	void Draw(StringView text, Float2 position, Float3 rgb, float scale);
-	void Draw(StringView text, Float2 position, Float4 rgba, float scale);
+	void Draw(StringView text, Float2 positionSS, Float3 rgb, float scale);
+	void Draw(StringView text, Float2 positionSS, Float4 rgba, float scale);
 
 	void Submit(uint32 width, uint32 height);
 

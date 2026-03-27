@@ -3,13 +3,13 @@
 
 struct VertexInput
 {
-	float3 PositionLocal : POSITION0;
+	float3 PositionLS : POSITION0;
 	float2 UV : TEXCOORD0;
 };
 
 struct PixelInput
 {
-	float4 PositionClip : SV_POSITION;
+	float4 PositionCS : SV_POSITION;
 	float2 UV : TEXCOORD0;
 };
 
@@ -22,7 +22,7 @@ PixelInput VertexStart(VertexInput input)
 	const Node node = nodeBuffer[RootConstants.NodeIndex];
 
 	PixelInput result;
-	result.PositionClip = TransformWorldToClip(TransformLocalPositionToWorld(input.PositionLocal, node.LocalToWorld), Scene.JitterWorldToClip);
+	result.PositionCS = TransformWorldToClip(TransformLocalPositionToWorld(input.PositionLS, node.LocalToWorld), Scene.JitterWorldToClip);
 	result.UV = input.UV;
 	return result;
 }

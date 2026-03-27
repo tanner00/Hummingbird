@@ -90,7 +90,7 @@ struct Scene
 
 	Matrix WorldToClip;
 	Matrix JitterWorldToClip;
-	Float3 ViewPositionWorld;
+	Float3 ViewPositionWS;
 
 	bool32 TwoChannelNormalMaps;
 
@@ -148,7 +148,7 @@ struct DirectionalLight
 	Float3 Color;
 	float IntensityLux;
 
-	Float3 DirectionWorld;
+	Float3 DirectionWS;
 
 	PAD(228);
 };
@@ -158,14 +158,14 @@ struct PointLight
 	Float3 Color;
 	float IntensityCandela;
 
-	Float3 PositionWorld;
+	Float3 PositionWS;
 };
 
 struct Character
 {
 	Float4 Color;
 
-	Float2 PositionScreen;
+	Float2 PositionSS;
 
 	Float2 AtlasPosition;
 	Float2 AtlasSize;

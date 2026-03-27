@@ -4,7 +4,7 @@
 
 struct PixelInput
 {
-	float4 PositionClip : SV_POSITION;
+	float4 PositionCS : SV_POSITION;
 	float2 UV : TEXCOORD0;
 	float4 Color : COLOR0;
 };
@@ -32,10 +32,10 @@ PixelInput VertexStart(uint vertexID : SV_VertexID)
 
 	const Character c = characterBuffer[characterIndex];
 
-	const float2 positionScreen = c.PositionScreen + c.Scale * (c.PlanePosition + c.PlaneSize * vertices[vertexIndex]);
+	const float2 positionSS = c.PositionSS + c.Scale * (c.PlanePosition + c.PlaneSize * vertices[vertexIndex]);
 
 	PixelInput result;
-	result.PositionClip = TransformScreenToClip(positionScreen, RootConstants.ScreenToClip);
+	result.PositionCS = TransformScreenToClip(positionSS, RootConstants.ScreenToClip);
 	result.UV = c.AtlasPosition + c.AtlasSize * vertices[vertexIndex];
 	result.Color = c.Color;
 	return result;
@@ -48,9 +48,9 @@ float4 PixelStart(PixelInput input) : SV_TARGET
 
 	const float3 multiChannelSignedDistance = fontTexture.Sample(linearWrapSampler, input.UV);
 	const float signedDistance = Median(multiChannelSignedDistance);
-	const float distanceScreen = CalculateDistanceFieldRangeScreen(input.UV, RootConstants.UnitRange) * (signedDistance - 0.5f);
+	const float distanceSS = CalculateDistanceFieldRangeSS(input.UV, RootConstants.UnitRange) * (signedDistance - 0.5f);
 
-	const float insideBlend = saturate(distanceScreen + 0.5f);
+	const float insideBlend = saturate(distanceSS + 0.5f);
 
 	return float4(input.Color.rgb, insideBlend * input.Color.a);
 }

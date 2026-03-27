@@ -232,7 +232,7 @@ void Renderer::Update(const CameraController& cameraController)
 	const ResourceDimensions viewportDimensions = HDRTexture.Resource.Dimensions;
 	GlobalGraphics().SetViewport(viewportDimensions.Width, viewportDimensions.Height);
 
-	Float2 currentJitterClip = Float2 { .X = 0.0f, .Y = 0.0f };
+	Float2 currentJitterCS = Float2 { .X = 0.0f, .Y = 0.0f };
 	if (ShouldAntiAlias())
 	{
 		static constexpr Float2 halton23Sequence[] =
@@ -258,7 +258,7 @@ void Renderer::Update(const CameraController& cameraController)
 		const uint32 frameCount = TemporalAntiAliasing.FrameCount;
 		const Float2 currentHalton = halton23Sequence[frameCount % ARRAY_COUNT(halton23Sequence)];
 
-		currentJitterClip = Float2
+		currentJitterCS = Float2
 		{
 			.X = currentHalton.X / static_cast<float>(viewportDimensions.Width),
 			.Y = currentHalton.Y / static_cast<float>(viewportDimensions.Height),
@@ -283,12 +283,12 @@ void Renderer::Update(const CameraController& cameraController)
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? GlobalDevice().Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = GlobalDevice().Get(SceneAccelerationStructure),
 		.WorldToClip = worldToClip,
-		.JitterWorldToClip = Matrix::Translation(currentJitterClip.X, currentJitterClip.Y, 0.0f) * worldToClip,
-		.ViewPositionWorld = Float3
+		.JitterWorldToClip = Matrix::Translation(currentJitterCS.X, currentJitterCS.Y, 0.0f) * worldToClip,
+		.ViewPositionWS = Float3
 		{
-			.X = cameraController.GetPositionWorld().X,
-			.Y = cameraController.GetPositionWorld().Y,
-			.Z = cameraController.GetPositionWorld().Z,
+			.X = cameraController.GetPositionWS().X,
+			.Y = cameraController.GetPositionWS().Y,
+			.Z = cameraController.GetPositionWS().Z,
 		},
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
 		.PointLightsCount = ScenePointLightsBuffer.View.IsValid() ? static_cast<uint32>(Count(ScenePointLightsBuffer.View.Buffer)) : 0,
@@ -950,11 +950,11 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	for (const GLTF::Light& light : scene.Lights)
 	{
-		Vector translation;
-		Quaternion orientation;
-		DecomposeTransform(light.LocalToWorld, &translation, &orientation, nullptr);
+		Vector translationWS;
+		Quaternion orientationWS;
+		DecomposeTransform(light.LocalToWorld, &translationWS, &orientationWS, nullptr);
 
-		const Vector directionWorld = -orientation.Rotate(GLTF::DefaultDirection);
+		const Vector directionWS = -orientationWS.Rotate(GLTF::DefaultDirectionLS);
 
 		if (light.Type == GLTF::LightType::Directional)
 		{
@@ -965,7 +965,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			{
 				.Color = light.Color,
 				.IntensityLux = light.Intensity,
-				.DirectionWorld = { .X = directionWorld.X, .Y = directionWorld.Y, .Z = directionWorld.Z },
+				.DirectionWS = { .X = directionWS.X, .Y = directionWS.Y, .Z = directionWS.Z },
 			};
 		}
 		else if (light.Type == GLTF::LightType::Point)
@@ -974,7 +974,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			{
 				.Color = light.Color,
 				.IntensityCandela = light.Intensity,
-				.PositionWorld = { .X = translation.X, .Y = translation.Y, .Z = translation.Z },
+				.PositionWS = { .X = translationWS.X, .Y = translationWS.Y, .Z = translationWS.Z },
 			});
 		}
 	}
@@ -984,7 +984,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		{
 			.Color = { .R = 1.0f, .G = 1.0f, .B = 1.0f },
 			.IntensityLux = 1.0f,
-			.DirectionWorld = { .X = 0.0f, .Y = 1.0f, .Z = 0.0f },
+			.DirectionWS = { .X = 0.0f, .Y = 1.0f, .Z = 0.0f },
 		};
 	}
 

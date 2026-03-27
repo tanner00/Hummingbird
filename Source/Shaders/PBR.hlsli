@@ -14,10 +14,10 @@ float NDFTrowbridgeReitzGGX(float3 normal, float3 halfwayDirection, float roughn
 	return alphaSquared / (Pi * pow(max((nDotH * nDotH) * (alphaSquared - 1.0f) + 1.0f, 0.0001f), 2.0f));
 }
 
-float GeometrySchlickGGX(float3 normal, float3 ray, float roughness)
+float GeometrySchlickGGX(float3 normal, float3 direction, float roughness)
 {
 	const float k = (roughness * roughness) / 2.0f;
-	const float nDotRay = saturate(dot(normal, ray));
+	const float nDotRay = saturate(dot(normal, direction));
 	return nDotRay / max(nDotRay * (1.0f - k) + k, 0.0001f);
 }
 
@@ -31,19 +31,19 @@ float GeometrySmith(float3 viewDirection, float3 lightDirection, float3 normal, 
 float3 BRDFCookTorrance(float3 cDiffuse,
 						float3 f0,
 						float roughness,
-						float3 normalWorld,
-						float3 viewDirectionWorld,
-						float3 lightDirectionWorld,
+						float3 normal,
+						float3 viewDirection,
+						float3 lightDirection,
 						float3 lightRadiance)
 {
-	const float3 halfwayDirectionWorld = normalize(viewDirectionWorld + lightDirectionWorld);
+	const float3 halfwayDirection = normalize(viewDirection + lightDirection);
 
-	const float nDotL = saturate(dot(normalWorld, lightDirectionWorld));
-	const float nDotV = saturate(dot(normalWorld, viewDirectionWorld));
+	const float nDotL = saturate(dot(normal, lightDirection));
+	const float nDotV = saturate(dot(normal, viewDirection));
 
-	const float d = NDFTrowbridgeReitzGGX(normalWorld, halfwayDirectionWorld, roughness);
-	const float3 f = FresnelSchlick(f0, halfwayDirectionWorld, viewDirectionWorld);
-	const float g = GeometrySmith(viewDirectionWorld, lightDirectionWorld, normalWorld, roughness);
+	const float d = NDFTrowbridgeReitzGGX(normal, halfwayDirection, roughness);
+	const float3 f = FresnelSchlick(f0, halfwayDirection, viewDirection);
+	const float g = GeometrySmith(viewDirection, lightDirection, normal, roughness);
 
 	const float3 specularBRDF = (d * f * g) / max(4.0f * nDotV * nDotL, 0.0001f);
 	const float3 diffuseBRDF = (1.0f - f) * (cDiffuse / Pi);
@@ -54,28 +54,28 @@ float3 BRDFCookTorrance(float3 cDiffuse,
 float3 PBRMetallicRoughness(float3 baseColor,
 							float metallic,
 							float roughness,
-							float3 normalWorld,
-							float3 viewDirectionWorld,
-							float3 lightDirectionWorld,
+							float3 normal,
+							float3 viewDirection,
+							float3 lightDirection,
 							float3 lightRadiance)
 {
 	const float3 cDiffuse = lerp(baseColor.rgb, 0.0f, metallic);
 	const float3 f0 = lerp(DielectricSpecular, baseColor.rgb, metallic);
-	return BRDFCookTorrance(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
+	return BRDFCookTorrance(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }
 
 float3 PBRSpecularGlossiness(float3 diffuse,
 							 float3 specular,
 							 float glossiness,
-							 float3 normalWorld,
-							 float3 viewDirectionWorld,
-							 float3 lightDirectionWorld,
+							 float3 normal,
+							 float3 viewDirection,
+							 float3 lightDirection,
 							 float3 lightRadiance)
 {
 	const float3 cDiffuse = lerp(diffuse, 0.0f, max(specular.r, max(specular.g, specular.b)));
 	const float3 f0 = specular;
 	const float roughness = 1.0f - glossiness;
-	return BRDFCookTorrance(cDiffuse, f0, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
+	return BRDFCookTorrance(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }
 
 float3 PBR(float3 baseColor,
@@ -84,12 +84,12 @@ float3 PBR(float3 baseColor,
 		   float3 specular,
 		   float roughness,
 		   float glossiness,
-		   float3 normalWorld,
-		   float3 viewDirectionWorld,
-		   float3 lightDirectionWorld,
+		   float3 normal,
+		   float3 viewDirection,
+		   float3 lightDirection,
 		   float3 lightRadiance,
 		   bool isSpecularGlossiness)
 {
-	return isSpecularGlossiness ? PBRSpecularGlossiness(diffuse.rgb, specular, glossiness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance)
-								: PBRMetallicRoughness(baseColor.rgb, metallic, roughness, normalWorld, viewDirectionWorld, lightDirectionWorld, lightRadiance);
+	return isSpecularGlossiness ? PBRSpecularGlossiness(diffuse.rgb, specular, glossiness, normal, viewDirection, lightDirection, lightRadiance)
+								: PBRMetallicRoughness(baseColor.rgb, metallic, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }

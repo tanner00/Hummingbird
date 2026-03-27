@@ -158,16 +158,16 @@ void DrawText::Shutdown()
 	this->~DrawText();
 }
 
-void DrawText::Draw(StringView text, Float2 position, Float3 rgb, float scale)
+void DrawText::Draw(StringView text, Float2 positionSS, Float3 rgb, float scale)
 {
-	Draw(text, position, Float4 { .R = rgb.R, .G = rgb.G, .B = rgb.B, .A = 1.0f }, scale);
+	Draw(text, positionSS, Float4 { .R = rgb.R, .G = rgb.G, .B = rgb.B, .A = 1.0f }, scale);
 }
 
-void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
+void DrawText::Draw(StringView text, Float2 positionSS, Float4 rgba, float scale)
 {
 	CHECK(CharacterIndex + text.GetLength() <= MaxCharactersPerFrame);
 
-	Float2 currentPositionScreen = { .X = position.X, .Y = position.Y - scale * Ascender };
+	Float2 currentPositionSS = { .X = positionSS.X, .Y = positionSS.Y - scale * Ascender };
 	for (usize textIndex = 0; textIndex < text.GetLength(); ++textIndex)
 	{
 		const Glyph& glyph = Glyphs[text[textIndex]];
@@ -175,7 +175,7 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 		CharacterData[CharacterIndex] = HLSL::Character
 		{
 			.Color = rgba,
-			.PositionScreen = currentPositionScreen,
+			.PositionSS = currentPositionSS,
 			.AtlasPosition = glyph.AtlasPosition,
 			.AtlasSize = glyph.AtlasSize,
 			.PlanePosition = glyph.PlanePosition,
@@ -183,7 +183,7 @@ void DrawText::Draw(StringView text, Float2 position, Float4 rgba, float scale)
 			.Scale = scale,
 		};
 
-		currentPositionScreen.X += glyph.Advance * scale;
+		currentPositionSS.X += glyph.Advance * scale;
 		++CharacterIndex;
 	}
 }

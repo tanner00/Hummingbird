@@ -3,8 +3,8 @@
 #include "Geometry.hlsli"
 #include "Types.hlsli"
 
-float CastShadowRay(float3 origin,
-					float3 directionWorld,
+float CastShadowRay(float3 originWS,
+					float3 directionWS,
 					float maxDistance,
 					RaytracingAccelerationStructure accelerationStructure,
 					ByteAddressBuffer vertexBuffer,
@@ -13,9 +13,9 @@ float CastShadowRay(float3 origin,
 					SamplerState sampler)
 {
 	RayDesc ray;
-	ray.Origin = origin;
+	ray.Origin = originWS;
 	ray.TMin = 0.001f;
-	ray.Direction = directionWorld;
+	ray.Direction = directionWS;
 	ray.TMax = maxDistance;
 
 	const RAY_FLAG opaqueFlags = RAY_FLAG_CULL_NON_OPAQUE;

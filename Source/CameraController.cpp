@@ -9,8 +9,8 @@ static constexpr float FastMovementSpeed = 10.0f;
 static constexpr float RotationSpeedRadians = 8.0f * DegreesToRadians;
 
 CameraController::CameraController()
-	: PositionWorld(Vector::Zero)
-	, OrientationWorld(Quaternion::Identity)
+	: PositionWS(Vector::Zero)
+	, OrientationWS(Quaternion::Identity)
 	, PitchRadians(0.0f)
 	, FieldOfViewYRadians(0.0f)
 	, AspectRatio(0.0f)
@@ -38,51 +38,51 @@ void CameraController::Update(float timeDelta)
 			PitchRadians = -Pi / 2.0f;
 		}
 
-		OrientationWorld = Quaternion::AxisAngle(Vector { 0.0f, 1.0f, 0.0f }, yawDeltaRadians) * OrientationWorld;
-		OrientationWorld = OrientationWorld.GetNormalized();
-		OrientationWorld = Quaternion::AxisAngle(OrientationWorld.Rotate(Vector { 1.0f, 0.0f, 0.0f }), pitchDeltaRadians) * OrientationWorld;
-		OrientationWorld = OrientationWorld.GetNormalized();
+		OrientationWS = Quaternion::AxisAngle(Vector { 0.0f, 1.0f, 0.0f }, yawDeltaRadians) * OrientationWS;
+		OrientationWS = OrientationWS.GetNormalized();
+		OrientationWS = Quaternion::AxisAngle(OrientationWS.Rotate(Vector { 1.0f, 0.0f, 0.0f }), pitchDeltaRadians) * OrientationWS;
+		OrientationWS = OrientationWS.GetNormalized();
 	}
 
-	const Vector forward = OrientationWorld.Rotate(GLTF::DefaultDirection);
-	const Vector up = OrientationWorld.Rotate(Vector { 0.0f, 1.0f, 0.0f });
-	const Vector side = up.Cross(OrientationWorld.Rotate(GLTF::DefaultDirection));
+	const Vector forwardWS = OrientationWS.Rotate(GLTF::DefaultDirectionLS);
+	const Vector upWS = OrientationWS.Rotate(Vector { 0.0f, 1.0f, 0.0f });
+	const Vector sideWS = upWS.Cross(OrientationWS.Rotate(GLTF::DefaultDirectionLS));
 
-	Vector movement = Vector::Zero;
+	Vector movementWS = Vector::Zero;
 	bool moving = false;
 
 	if (Platform::IsKeyPressed(Platform::Key::W))
 	{
-		movement = forward;
+		movementWS = forwardWS;
 		moving = true;
 	}
 	else if (Platform::IsKeyPressed(Platform::Key::S))
 	{
-		movement = -forward;
+		movementWS = -forwardWS;
 		moving = true;
 	}
 
 	if (Platform::IsKeyPressed(Platform::Key::A))
 	{
-		movement = movement + side;
+		movementWS = movementWS + sideWS;
 		moving = true;
 	}
 	else if (Platform::IsKeyPressed(Platform::Key::D))
 	{
-		movement = movement - side;
+		movementWS = movementWS - sideWS;
 		moving = true;
 	}
 
 	if (moving)
 	{
 		const float movementSpeed = Platform::IsKeyPressed(Platform::Key::Shift) ? FastMovementSpeed : DefaultMovementSpeed;
-		PositionWorld = PositionWorld + movement.GetNormalized() * movementSpeed * timeDelta;
+		PositionWS = PositionWS + movementWS.GetNormalized() * movementSpeed * timeDelta;
 	}
 }
 
 void CameraController::SetCamera(const GLTF::Camera& camera)
 {
-	DecomposeTransform(camera.LocalToWorld, &PositionWorld, &OrientationWorld, nullptr);
+	DecomposeTransform(camera.LocalToWorld, &PositionWS, &OrientationWS, nullptr);
 
 	PitchRadians = 0.0f;
 

@@ -5,7 +5,7 @@
 
 struct PixelInput
 {
-	float4 PositionClip : SV_POSITION;
+	float4 PositionCS : SV_POSITION;
 	float2 UV : TEXCOORD0;
 };
 
@@ -17,7 +17,7 @@ PixelInput VertexStart(uint vertexID : SV_VertexID)
 
 	PixelInput result;
 	result.UV = uv;
-	result.PositionClip = TransformUVToClip(uv);
+	result.PositionCS = TransformUVToClip(uv);
 	return result;
 }
 

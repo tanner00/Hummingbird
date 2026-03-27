@@ -45,33 +45,33 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	const uint triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 	uint indices[3];
-	float3 positionsLocal[3];
+	float3 positionsLS[3];
 	LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
-	LoadTrianglePositions(vertexBuffer, primitive, indices, positionsLocal);
+	LoadTrianglePositions(vertexBuffer, primitive, indices, positionsLS);
 
-	const float4 currentPositionsWorld[] =
+	const float4 currentPositionsWS[] =
 	{
-		TransformLocalPositionToWorld(positionsLocal[0], node.LocalToWorld),
-		TransformLocalPositionToWorld(positionsLocal[1], node.LocalToWorld),
-		TransformLocalPositionToWorld(positionsLocal[2], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLS[0], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLS[1], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLS[2], node.LocalToWorld),
 	};
-	const float4 currentPositionsClip[] =
+	const float4 currentPositionsCS[] =
 	{
-		TransformWorldToClip(currentPositionsWorld[0], RootConstants.WorldToClip),
-		TransformWorldToClip(currentPositionsWorld[1], RootConstants.WorldToClip),
-		TransformWorldToClip(currentPositionsWorld[2], RootConstants.WorldToClip),
+		TransformWorldToClip(currentPositionsWS[0], RootConstants.WorldToClip),
+		TransformWorldToClip(currentPositionsWS[1], RootConstants.WorldToClip),
+		TransformWorldToClip(currentPositionsWS[2], RootConstants.WorldToClip),
 	};
 
 	float3 currentWeights;
-	CalculateBarycentrics(currentPositionsClip, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, currentWeights);
+	CalculateBarycentrics(currentPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, currentWeights);
 
-	const float3 currentPositionWorld = LerpBarycentrics(currentWeights, currentPositionsWorld[0].xyz, currentPositionsWorld[1].xyz, currentPositionsWorld[2].xyz);
+	const float3 currentPositionWS = LerpBarycentrics(currentWeights, currentPositionsWS[0].xyz, currentPositionsWS[1].xyz, currentPositionsWS[2].xyz);
 
-	const float4 currentPositionClip = TransformWorldToClip(float4(currentPositionWorld, 1.0f), RootConstants.WorldToClip);
-	const float4 previousPositionClip = TransformWorldToClip(float4(currentPositionWorld, 1.0f), RootConstants.PreviousWorldToClip);
+	const float4 currentPositionCS = TransformWorldToClip(float4(currentPositionWS, 1.0f), RootConstants.WorldToClip);
+	const float4 previousPositionCS = TransformWorldToClip(float4(currentPositionWS, 1.0f), RootConstants.PreviousWorldToClip);
 
-	const float2 currentPositionUV = TransformClipToUV(currentPositionClip);
-	const float2 previousPositionUV = TransformClipToUV(previousPositionClip);
+	const float2 currentPositionUV = TransformClipToUV(currentPositionCS);
+	const float2 previousPositionUV = TransformClipToUV(previousPositionCS);
 	const float2 velocityUV = previousPositionUV - currentPositionUV;
 	const float2 reprojectedUV = TransformTexelToUV(dispatchThreadID.xy, hdrTextureDimensions) + velocityUV;
 
