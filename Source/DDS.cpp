@@ -1,5 +1,7 @@
 ﻿#include "DDS.hpp"
 
+#include "Luft/Platform.hpp"
+
 #include <dxgiformat.h>
 
 #define DDS_FORMAT(a, b, c, d) (((uint32)(d) << 24) | ((uint32)(c) << 16) | ((uint32)(b) << 8) | (uint32)(a))
@@ -124,7 +126,7 @@ static int32 ParseInt32(StringView view, usize* offset)
 Image LoadImage(StringView filePath)
 {
 	usize fileSize;
-	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &fileSize, *Allocator));
+	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath, &fileSize, Allocator));
 	const StringView fileView = { fileData, fileSize };
 
 	VERIFY(fileSize >= BaseHeaderSize, "Invalid DDS file!");

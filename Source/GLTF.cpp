@@ -1,6 +1,8 @@
 #include "GLTF.hpp"
 #include "JSON.hpp"
 
+#include "Luft/Platform.hpp"
+
 namespace GLTF
 {
 
@@ -21,7 +23,7 @@ static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 	return fullPath;
 }
 
-static Matrix InternalCalculateLocalToWorld(const Array<Node>& nodes, usize nodeIndex)
+static Matrix InternalCalculateLocalToWorld(ArrayView<Node> nodes, usize nodeIndex)
 {
 	if (nodeIndex == INDEX_NONE)
 	{
@@ -298,12 +300,12 @@ Scene LoadScene(StringView filePath)
 		const JSON::Object& bufferObject = bufferValue.GetObject();
 
 		const String& bufferPath = bufferObject["uri"_view].GetString();
-		const String fullPath = ResolveFilePath(filePath, bufferPath.AsView());
+		const String fullPath = ResolveFilePath(filePath, bufferPath);
 
 		const usize bufferSize = static_cast<usize>(bufferObject["byteLength"_view].GetDecimal());
 
 		usize fileSize;
-		uint8* bufferData = Platform::ReadEntireFile(fullPath.GetData(), fullPath.GetLength(), &fileSize, *Allocator);
+		uint8* bufferData = Platform::ReadEntireFile(fullPath, &fileSize, Allocator);
 		VERIFY(bufferSize == fileSize, "Failed to read GLTF buffer!");
 
 		buffers.Emplace(bufferData, bufferSize);
@@ -405,7 +407,7 @@ Scene LoadScene(StringView filePath)
 			const JSON::Object& imageObject = imageValue.GetObject();
 
 			const String& imagePath = imageObject["uri"_view].GetString();
-			const String fullPath = ResolveFilePath(filePath, imagePath.AsView());
+			const String fullPath = ResolveFilePath(filePath, imagePath);
 
 			images.Emplace(fullPath);
 		}

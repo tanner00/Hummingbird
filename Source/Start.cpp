@@ -2,8 +2,6 @@
 #include "GLTF.hpp"
 #include "Renderer.hpp"
 
-#include "Luft/Platform.hpp"
-
 static const StringView scenes[] =
 {
 	"Assets/Scenes/Sponza/Sponza.gltf"_view,
@@ -41,7 +39,7 @@ void Start()
 		Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
 	};
 
-	Platform::Window* window = Platform::CreateWindow("Hummingbird", 1920, 1080);
+	Platform::Window* window = Platform::CreateWindow("Hummingbird"_view, 1920, 1080);
 
 	Renderer renderer(window);
 	CameraController cameraController;
@@ -59,18 +57,18 @@ void Start()
 	{
 		Platform::ProcessEvents();
 
-		const bool setCaptured = IsMouseButtonPressedOnce(MouseButton::Left);
-		const bool setDefault = (IsKeyPressedOnce(Key::Escape) && Platform::GetInputMode() == InputMode::Captured) ||
+		const bool setCaptured = Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left);
+		const bool setDefault = (Platform::IsKeyPressedOnce(Platform::Key::Escape) && Platform::GetInputMode() == Platform::InputMode::Captured) ||
 								!Platform::IsWindowFocused(window);
-		const bool quit = IsKeyPressedOnce(Key::Escape) && Platform::GetInputMode() == InputMode::Default;
+		const bool quit = Platform::IsKeyPressedOnce(Platform::Key::Escape) && Platform::GetInputMode() == Platform::InputMode::Default;
 
 		if (setCaptured)
 		{
-			Platform::SetInputMode(window, InputMode::Captured);
+			Platform::SetInputMode(window, Platform::InputMode::Captured);
 		}
 		else if (setDefault)
 		{
-			Platform::SetInputMode(window, InputMode::Default);
+			Platform::SetInputMode(window, Platform::InputMode::Default);
 		}
 		else if (quit)
 		{
@@ -90,7 +88,7 @@ void Start()
 
 		for (usize sceneIndex = 0; sceneIndex < ARRAY_COUNT(scenes); ++sceneIndex)
 		{
-			if (IsKeyPressedOnce(static_cast<Key>(sceneIndex + static_cast<usize>(Key::One))))
+			if (Platform::IsKeyPressedOnce(static_cast<Platform::Key>(sceneIndex + static_cast<usize>(Platform::Key::One))))
 			{
 				setScene(sceneIndex, &renderer, &cameraController);
 			}

@@ -196,30 +196,30 @@ void Renderer::Update(const CameraController& cameraController)
 #if !RELEASE
 	const double startCpuTime = Platform::GetTime();
 
-	if (IsKeyPressedOnce(Key::L))
+	if (Platform::IsKeyPressedOnce(Platform::Key::L))
 	{
 		ViewMode = HLSL::ViewMode::Lit;
 	}
-	if (IsKeyPressedOnce(Key::U))
+	if (Platform::IsKeyPressedOnce(Platform::Key::U))
 	{
 		ViewMode = HLSL::ViewMode::Unlit;
 	}
-	if (IsKeyPressedOnce(Key::G))
+	if (Platform::IsKeyPressedOnce(Platform::Key::G))
 	{
 		ViewMode = HLSL::ViewMode::Geometry;
 	}
-	if (IsKeyPressedOnce(Key::N))
+	if (Platform::IsKeyPressedOnce(Platform::Key::N))
 	{
 		ViewMode = HLSL::ViewMode::Normal;
 	}
 
-	if (IsKeyPressedOnce(Key::T))
+	if (Platform::IsKeyPressedOnce(Platform::Key::T))
 	{
 		TemporalAntiAliasing.Enabled = !TemporalAntiAliasing.Enabled;
 		TemporalAntiAliasing.DiscardPreviousFrame = true;
 	}
 
-	if (IsKeyPressedOnce(Key::R))
+	if (Platform::IsKeyPressedOnce(Platform::Key::R))
 	{
 		GlobalDevice().WaitForIdle();
 		DestroyPipelines();
@@ -840,7 +840,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::Texture& gltfTexture = scene.Textures[textureIndex];
 			const GLTF::Image& gltfImage = scene.Images[gltfTexture.Image];
 
-			DDS::Image image = DDS::LoadImage(gltfImage.Path.AsView());
+			DDS::Image image = DDS::LoadImage(gltfImage.Path);
 			const ReadTexture texture = CreateReadTexture(ResourceLifetime::Scene,
 														  { image.Width, image.Height },
 														  image.MipMapCount,
