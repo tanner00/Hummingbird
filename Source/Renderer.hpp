@@ -67,10 +67,10 @@ private:
 	ReadBuffer SceneDirectionalLightBuffer;
 	ReadBuffer ScenePointLightsBuffer;
 
-	RHI::Resource SceneBuffers[RHI::FramesInFlight];
+	RHI::Resource SceneBufferResources[RHI::FramesInFlight];
 	RHI::BufferView SceneBufferViews[RHI::FramesInFlight];
 
-	RHI::Resource SceneLuminanceBuffer;
+	RHI::Resource SceneLuminanceBufferResource;
 	RHI::BufferView SceneLuminanceBufferView;
 
 	RHI::Resource SceneAccelerationStructureResource;
