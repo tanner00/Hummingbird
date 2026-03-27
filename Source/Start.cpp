@@ -41,7 +41,14 @@ void Start()
 
 	Platform::Window* window = Platform::CreateWindow("Hummingbird"_view, 1920, 1080);
 
-	Renderer renderer(window);
+#if DEBUG
+	const Array<String> arguments = Platform::GetCommandLineArguments();
+	const bool validation = (arguments.GetLength() >= 1) ? (arguments.First() == "rhi-validation"_view) : false;
+#else
+	static constexpr bool validation = false;
+#endif
+
+	Renderer renderer(window, validation);
 	CameraController cameraController;
 	setScene(0, &renderer, &cameraController);
 

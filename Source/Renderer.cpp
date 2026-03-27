@@ -71,7 +71,7 @@ static ReadBuffer CreateReadBuffer(ResourceLifetime lifetime,
 	return ReadBuffer { buffer, view };
 }
 
-Renderer::Renderer(const Platform::Window* window)
+Renderer::Renderer(Platform::Window* window, bool validation)
 	: SceneMeshes(RendererAllocator)
 	, SceneNodes(RendererAllocator)
 	, SceneMaterials(RendererAllocator)
@@ -83,7 +83,7 @@ Renderer::Renderer(const Platform::Window* window)
 	, AverageGpuTime(0.0)
 #endif
 {
-	CreateRenderContext(window);
+	CreateRenderContext(window, validation);
 
 	CreateScreenTextures(window->DrawWidth, window->DrawHeight);
 
