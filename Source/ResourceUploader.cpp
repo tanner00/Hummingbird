@@ -64,11 +64,11 @@ Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, c
 																: (lifetime == ResourceLifetime::Scene ? &SceneHeaps.Last() : nullptr);
 	CHECK(heap);
 
-	heap->Offset = NextMultipleOf(heap->Offset, GlobalDevice().GetResourceAlignment(description));
-	UploadHeap.Offset = NextMultipleOf(UploadHeap.Offset, GlobalDevice().GetResourceAlignment(description));
+	const usize resourceAlignment = GlobalDevice().GetResourceAlignment(description);
+	heap->Offset = NextMultipleOf(heap->Offset, resourceAlignment);
+	UploadHeap.Offset = NextMultipleOf(UploadHeap.Offset, resourceAlignment);
 
 	const usize resourceSize = GlobalDevice().GetResourceSize(description);
-	CHECK(resourceSize <= UploadHeap.Heap.Size);
 
 	if (heap->Offset + resourceSize > heap->Heap.Size)
 	{
@@ -86,12 +86,14 @@ Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, c
 		heap = &SceneHeaps.Last();
 	}
 
-	if (UploadHeap.Offset + resourceSize > UploadHeap.Heap.Size)
+	const usize resourceUploadSize = GlobalDevice().GetResourceUploadSize(description);
+	CHECK(resourceUploadSize <= UploadHeap.Heap.Size);
+
+	if (UploadHeap.Offset + resourceUploadSize > UploadHeap.Heap.Size)
 	{
 		Flush();
 	}
 
-	const usize uploadBufferSize = description.Type == ResourceType::Buffer ? description.Size : resourceSize;
 	const Resource uploadBuffer = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Buffer,
@@ -102,7 +104,7 @@ Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, c
 			.Heap = UploadHeap.Heap,
 			.Offset = UploadHeap.Offset,
 		},
-		.Size = uploadBufferSize,
+		.Size = resourceUploadSize,
 		.Name = String("Upload Buffer"_view),
 	});
 	UploadBuffers.Add(uploadBuffer);
@@ -114,7 +116,7 @@ Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, c
 	Graphics.Copy(resource, uploadBuffer);
 
 	heap->Offset += resourceSize;
-	UploadHeap.Offset += resourceSize;
+	UploadHeap.Offset += resourceUploadSize;
 
 	return resource;
 }
