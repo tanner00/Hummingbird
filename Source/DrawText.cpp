@@ -120,7 +120,7 @@ void DrawText::Init()
 	GlobalDevice().Destroy(&vertex);
 	GlobalDevice().Destroy(&pixel);
 
-	CharacterData.GrowToLengthUninitialized(MaxCharactersPerFrame);
+	CharacterData.AddUninitialized(MaxCharactersPerFrame);
 	for (usize frameIndex = 0; frameIndex < RHI::FramesInFlight; ++frameIndex)
 	{
 		CharacterBuffers[frameIndex] = GlobalDevice().Create(

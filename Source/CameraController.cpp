@@ -1,6 +1,8 @@
 #include "CameraController.hpp"
 #include "GLTF.hpp"
 
+#include "Luft/Platform.hpp"
+
 static constexpr float DefaultMovementSpeed = 4.0f;
 static constexpr float FastMovementSpeed = 10.0f;
 
@@ -19,10 +21,10 @@ CameraController::CameraController()
 
 void CameraController::Update(float timeDelta)
 {
-	if (Platform::GetInputMode() == InputMode::Captured)
+	if (Platform::GetInputMode() == Platform::InputMode::Captured)
 	{
-		const float yawDeltaRadians =   -static_cast<float>(GetMouseX()) * RotationSpeedRadians * timeDelta;
-		float pitchDeltaRadians =       -static_cast<float>(GetMouseY()) * RotationSpeedRadians * timeDelta;
+		const float yawDeltaRadians =   -static_cast<float>(Platform::GetMouseX()) * RotationSpeedRadians * timeDelta;
+		float pitchDeltaRadians =       -static_cast<float>(Platform::GetMouseY()) * RotationSpeedRadians * timeDelta;
 
 		PitchRadians += pitchDeltaRadians;
 		if (PitchRadians > +Pi / 2.0f)
@@ -49,23 +51,23 @@ void CameraController::Update(float timeDelta)
 	Vector movement = Vector::Zero;
 	bool moving = false;
 
-	if (IsKeyPressed(Key::W))
+	if (Platform::IsKeyPressed(Platform::Key::W))
 	{
 		movement = forward;
 		moving = true;
 	}
-	else if (IsKeyPressed(Key::S))
+	else if (Platform::IsKeyPressed(Platform::Key::S))
 	{
 		movement = -forward;
 		moving = true;
 	}
 
-	if (IsKeyPressed(Key::A))
+	if (Platform::IsKeyPressed(Platform::Key::A))
 	{
 		movement = movement + side;
 		moving = true;
 	}
-	else if (IsKeyPressed(Key::D))
+	else if (Platform::IsKeyPressed(Platform::Key::D))
 	{
 		movement = movement - side;
 		moving = true;
@@ -73,7 +75,7 @@ void CameraController::Update(float timeDelta)
 
 	if (moving)
 	{
-		const float movementSpeed = IsKeyPressed(Key::Shift) ? FastMovementSpeed : DefaultMovementSpeed;
+		const float movementSpeed = Platform::IsKeyPressed(Platform::Key::Shift) ? FastMovementSpeed : DefaultMovementSpeed;
 		PositionWorld = PositionWorld + movement.GetNormalized() * movementSpeed * timeDelta;
 	}
 }

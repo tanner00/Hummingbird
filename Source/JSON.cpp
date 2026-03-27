@@ -1,6 +1,7 @@
 ﻿#include "JSON.hpp"
 
 #include "Luft/Math.hpp"
+#include "Luft/Platform.hpp"
 
 namespace JSON
 {
@@ -501,7 +502,7 @@ static Object ParseObject(StringView buffer, usize* index)
 Object Load(StringView filePath)
 {
 	usize fileSize;
-	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath.GetData(), filePath.GetLength(), &fileSize, *Allocator));
+	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath, &fileSize, Allocator));
 	const StringView fileView(fileData, fileSize);
 
 	usize index = 0;

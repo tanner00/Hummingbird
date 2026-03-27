@@ -22,9 +22,12 @@ inline RHI::GraphicsContext& GlobalGraphics()
 	return RenderContext.Graphics;
 }
 
-inline void CreateRenderContext(const Platform::Window* window)
+inline void CreateRenderContext(Platform::Window* window)
 {
-	RenderContext.Device = GlobalAllocator::Get().Create<RHI::Device>(window);
+	RenderContext.Device = GlobalAllocator::Get().Create<RHI::Device>(RHI::DeviceDescription
+	{
+		.Window = window,
+	});
 
 	RenderContext.Graphics = GlobalDevice().Create(RHI::GraphicsContextDescription {});
 	RenderContext.LinearWrapSampler = GlobalDevice().Create(
