@@ -53,7 +53,9 @@ private:
 
 	RHI::Sampler AnisotropicWrapSampler;
 
-	RenderTarget VisibilityRenderTarget;
+	RHI::Resource VisibilityTextureResource;
+	RHI::TextureView VisibilityTextureRenderTargetView;
+	RHI::TextureView VisibilityTextureShaderResourceView;
 
 	WriteTexture HDRTexture;
 	WriteTexture AccumulationTexture;
