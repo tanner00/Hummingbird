@@ -19,11 +19,11 @@ void LoadTriangleIndices(ByteAddressBuffer vertexBuffer, Primitive primitive, ui
 	}
 }
 
-void LoadTrianglePositions(ByteAddressBuffer vertexBuffer, Primitive primitive, uint indices[3], out float3 positions[3])
+void LoadTrianglePositions(ByteAddressBuffer vertexBuffer, Primitive primitive, uint indices[3], out float3 positionsLS[3])
 {
-	positions[0] = vertexBuffer.Load<float3>(primitive.PositionOffset + indices[0] * primitive.PositionStride);
-	positions[1] = vertexBuffer.Load<float3>(primitive.PositionOffset + indices[1] * primitive.PositionStride);
-	positions[2] = vertexBuffer.Load<float3>(primitive.PositionOffset + indices[2] * primitive.PositionStride);
+	positionsLS[0] = vertexBuffer.Load<float3>(primitive.PositionOffset + indices[0] * primitive.PositionStride);
+	positionsLS[1] = vertexBuffer.Load<float3>(primitive.PositionOffset + indices[1] * primitive.PositionStride);
+	positionsLS[2] = vertexBuffer.Load<float3>(primitive.PositionOffset + indices[2] * primitive.PositionStride);
 }
 
 void LoadTriangleTextureCoordinates(ByteAddressBuffer vertexBuffer, Primitive primitive, uint indices[3], out float2 textureCoordinates[3])
@@ -33,9 +33,9 @@ void LoadTriangleTextureCoordinates(ByteAddressBuffer vertexBuffer, Primitive pr
 	textureCoordinates[2] = vertexBuffer.Load<float2>(primitive.TextureCoordinateOffset + indices[2] * primitive.TextureCoordinateStride);
 }
 
-void LoadTriangleNormals(ByteAddressBuffer vertexBuffer, Primitive primitive, uint indices[3], out float3 normals[3])
+void LoadTriangleNormals(ByteAddressBuffer vertexBuffer, Primitive primitive, uint indices[3], out float3 normalsLS[3])
 {
-	normals[0] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[0] * primitive.NormalStride);
-	normals[1] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[1] * primitive.NormalStride);
-	normals[2] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[2] * primitive.NormalStride);
+	normalsLS[0] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[0] * primitive.NormalStride);
+	normalsLS[1] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[1] * primitive.NormalStride);
+	normalsLS[2] = vertexBuffer.Load<float3>(primitive.NormalOffset + indices[2] * primitive.NormalStride);
 }

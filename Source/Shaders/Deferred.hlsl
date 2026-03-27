@@ -43,37 +43,37 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	const uint triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 	uint indices[3];
-	float3 positionsLocal[3];
+	float3 positionsLS[3];
 	float2 uvs[3];
-	float3 normalsLocal[3];
+	float3 normalsLS[3];
 	LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
-	LoadTrianglePositions(vertexBuffer, primitive, indices, positionsLocal);
+	LoadTrianglePositions(vertexBuffer, primitive, indices, positionsLS);
 	LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, uvs);
-	LoadTriangleNormals(vertexBuffer, primitive, indices, normalsLocal);
+	LoadTriangleNormals(vertexBuffer, primitive, indices, normalsLS);
 
-	const float4 positionsWorld[] =
+	const float4 positionsWS[] =
 	{
-		TransformLocalPositionToWorld(positionsLocal[0], node.LocalToWorld),
-		TransformLocalPositionToWorld(positionsLocal[1], node.LocalToWorld),
-		TransformLocalPositionToWorld(positionsLocal[2], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLS[0], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLS[1], node.LocalToWorld),
+		TransformLocalPositionToWorld(positionsLS[2], node.LocalToWorld),
 	};
-	const float4 positionsClip[] =
+	const float4 positionsCS[] =
 	{
-		TransformWorldToClip(positionsWorld[0], Scene.WorldToClip),
-		TransformWorldToClip(positionsWorld[1], Scene.WorldToClip),
-		TransformWorldToClip(positionsWorld[2], Scene.WorldToClip),
+		TransformWorldToClip(positionsWS[0], Scene.WorldToClip),
+		TransformWorldToClip(positionsWS[1], Scene.WorldToClip),
+		TransformWorldToClip(positionsWS[2], Scene.WorldToClip),
 	};
-	const float4 jitterPositionsClip[] =
+	const float4 jitterPositionsCS[] =
 	{
-		TransformWorldToClip(positionsWorld[0], Scene.JitterWorldToClip),
-		TransformWorldToClip(positionsWorld[1], Scene.JitterWorldToClip),
-		TransformWorldToClip(positionsWorld[2], Scene.JitterWorldToClip),
+		TransformWorldToClip(positionsWS[0], Scene.JitterWorldToClip),
+		TransformWorldToClip(positionsWS[1], Scene.JitterWorldToClip),
+		TransformWorldToClip(positionsWS[2], Scene.JitterWorldToClip),
 	};
 
 	float3 weights;
 	float3 ddxWeights;
 	float3 ddyWeights;
-	CalculateBarycentrics(positionsClip, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
+	CalculateBarycentrics(positionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
 
 	const float2 uv = LerpBarycentrics(weights, uvs[0], uvs[1], uvs[2]);
 
@@ -83,21 +83,21 @@ void ComputeStart(uint3 dispatchThreadID : SV_DispatchThreadID)
 	float3 jitterWeights;
 	float3 ddxJitterWeights;
 	float3 ddyJitterWeights;
-	CalculateBarycentrics(jitterPositionsClip, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, jitterWeights, ddxJitterWeights, ddyJitterWeights);
+	CalculateBarycentrics(jitterPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, jitterWeights, ddxJitterWeights, ddyJitterWeights);
 
-	const float3 positionWorld = LerpBarycentrics(jitterWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
-	const float3 normalLocal = LerpBarycentrics(jitterWeights, normalsLocal[0], normalsLocal[1], normalsLocal[2]);
+	const float3 positionWS = LerpBarycentrics(jitterWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
+	const float3 normalLS = LerpBarycentrics(jitterWeights, normalsLS[0], normalsLS[1], normalsLS[2]);
 
-	const float3 ddxPositionWorld = LerpBarycentrics(ddxJitterWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
-	const float3 ddyPositionWorld = LerpBarycentrics(ddyJitterWeights, positionsWorld[0].xyz, positionsWorld[1].xyz, positionsWorld[2].xyz);
+	const float3 ddxPositionWS = LerpBarycentrics(ddxJitterWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
+	const float3 ddyPositionWS = LerpBarycentrics(ddyJitterWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
 
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
-											positionWorld,
+											positionWS,
 											uv,
-											TransformLocalDirectionToWorld(normalLocal, node.NormalLocalToWorld),
+											TransformLocalDirectionToWorld(normalLS, node.NormalLocalToWorld),
 											drawCall.PrimitiveIndex,
-											ddxPositionWorld,
-											ddyPositionWorld,
+											ddxPositionWS,
+											ddyPositionWS,
 											ddxUV,
 											ddyUV,
 											RootConstants.ViewMode,

@@ -16,14 +16,14 @@ public:
 
 	void SetCamera(const GLTF::Camera& camera);
 
-	Vector GetPositionWorld() const
+	Vector GetPositionWS() const
 	{
-		return PositionWorld;
+		return PositionWS;
 	}
 
 	Matrix GetViewToWorld() const
 	{
-		return Matrix::Translation(PositionWorld) * OrientationWorld.ToMatrix();
+		return Matrix::Translation(PositionWS) * OrientationWS.ToMatrix();
 	}
 
 	float GetFieldOfViewYRadians() const { return FieldOfViewYRadians; }
@@ -32,8 +32,8 @@ public:
 	float GetFarZ() const { return FarZ; }
 
 private:
-	Vector PositionWorld;
-	Quaternion OrientationWorld;
+	Vector PositionWS;
+	Quaternion OrientationWS;
 
 	float PitchRadians;
 

@@ -9,7 +9,7 @@
 namespace GLTF
 {
 
-inline const Vector DefaultDirection = { +0.0f, +0.0f, -1.0f };
+inline const Vector DefaultDirectionLS = { +0.0f, +0.0f, -1.0f };
 
 enum class TargetType : uint8
 {

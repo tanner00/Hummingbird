@@ -2,22 +2,22 @@
 
 #include "Transform.hlsli"
 
-void CalculateBarycentrics(const float4 positionsClip[3],
-						   float2 pixelScreen,
+void CalculateBarycentrics(const float4 positionsCS[3],
+						   float2 pixelSS,
 						   float2 screenSize,
 						   out float3 weights,
 						   out float3 ddxWeights,
 						   out float3 ddyWeights)
 {
-	const float2 pixelNDC = TransformScreenToNDC(pixelScreen, screenSize);
+	const float2 pixelNDC = TransformScreenToNDC(pixelSS, screenSize);
 
-	const float3 inverseW = 1.0f / float3(positionsClip[0].w, positionsClip[1].w, positionsClip[2].w);
+	const float3 inverseW = 1.0f / float3(positionsCS[0].w, positionsCS[1].w, positionsCS[2].w);
 
 	const float2 positionsNDC[] =
 	{
-		positionsClip[0].xy * inverseW.x,
-		positionsClip[1].xy * inverseW.y,
-		positionsClip[2].xy * inverseW.z,
+		positionsCS[0].xy * inverseW.x,
+		positionsCS[1].xy * inverseW.y,
+		positionsCS[2].xy * inverseW.z,
 	};
 
 	const float inverseDeterminant = 1.0f / determinant(float2x2(positionsNDC[2] - positionsNDC[1],
@@ -48,14 +48,14 @@ void CalculateBarycentrics(const float4 positionsClip[3],
 	ddyWeights = ddyInterpolatedW * (weights * interpolatedInverseW + (-ddyBarycentrics * 2.0f / screenSize.y)) - weights;
 }
 
-void CalculateBarycentrics(const float4 positionsClip[3],
-						   float2 pixelScreen,
+void CalculateBarycentrics(const float4 positionsCS[3],
+						   float2 pixelSS,
 						   float2 screenSize,
 						   out float3 weights)
 {
 	float3 unused1;
 	float3 unused2;
-	CalculateBarycentrics(positionsClip, pixelScreen, screenSize, weights, unused1, unused2);
+	CalculateBarycentrics(positionsCS, pixelSS, screenSize, weights, unused1, unused2);
 }
 
 float LerpBarycentrics(float3 weights, float vX, float vY, float vZ)

@@ -1,38 +1,38 @@
 #pragma once
 
-float4 TransformLocalPositionToWorld(float3 positionLocal, matrix localToWorld)
+float4 TransformLocalPositionToWorld(float3 positionLS, matrix localToWorld)
 {
-	return mul(localToWorld, float4(positionLocal, 1.0f));
+	return mul(localToWorld, float4(positionLS, 1.0f));
 }
 
-float3 TransformLocalDirectionToWorld(float3 directionLocal, matrix localToWorld)
+float3 TransformLocalDirectionToWorld(float3 directionLS, matrix localToWorld)
 {
-	return mul((float3x3)localToWorld, directionLocal);
+	return mul((float3x3)localToWorld, directionLS);
 }
 
-float4 TransformWorldToClip(float4 positionWorld, matrix worldToClip)
+float4 TransformWorldToClip(float4 positionWS, matrix worldToClip)
 {
-	return mul(worldToClip, positionWorld);
+	return mul(worldToClip, positionWS);
 }
 
-float2 TransformClipToNDC(float4 positionClip)
+float2 TransformClipToNDC(float4 positionCS)
 {
-	return positionClip.xy / positionClip.w;
+	return positionCS.xy / positionCS.w;
 }
 
-float4 TransformScreenToClip(float2 positionScreen, matrix screenToClip)
+float4 TransformScreenToClip(float2 positionSS, matrix screenToClip)
 {
-	return mul(screenToClip, float4(positionScreen, 0.0f, 1.0f));
+	return mul(screenToClip, float4(positionSS, 0.0f, 1.0f));
 }
 
-float2 TransformScreenToNDC(float2 positionScreen, float2 screenSize)
+float2 TransformScreenToNDC(float2 positionSS, float2 screenSize)
 {
-	return float2(positionScreen * 2.0f / screenSize - 1.0f) * float2(1.0f, -1.0f);
+	return float2(positionSS * 2.0f / screenSize - 1.0f) * float2(1.0f, -1.0f);
 }
 
-float2 TransformClipToUV(float4 positionClip)
+float2 TransformClipToUV(float4 positionCS)
 {
-	return (TransformClipToNDC(positionClip) + 1.0f) / float2(2.0f, -2.0f);
+	return (TransformClipToNDC(positionCS) + 1.0f) / float2(2.0f, -2.0f);
 }
 
 float4 TransformUVToClip(float2 uv)
