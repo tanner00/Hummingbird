@@ -296,9 +296,9 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalDevice().Write(&SceneBuffers[GlobalDevice().GetFrameIndex()], &sceneData);
 
 	GlobalGraphics().ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
-	GlobalGraphics().ClearDepthStencil(DepthTexture.View);
+	GlobalGraphics().ClearDepthStencil(DepthTextureView);
 
-	GlobalGraphics().SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTexture.View);
+	GlobalGraphics().SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTextureView);
 	UpdateScene(VisibilityPipeline);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
@@ -398,12 +398,10 @@ void Renderer::Update(const CameraController& cameraController)
 								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
 								   SceneLuminanceBuffer);
 
-	const ReadTexture& swapChainTexture = SwapChainTextures[GlobalDevice().GetFrameIndex()];
-
 	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::RenderTarget },
 									{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
 									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
-									swapChainTexture.Resource);
+									SwapChainTextureResources[GlobalDevice().GetFrameIndex()]);
 	if (ShouldAntiAlias())
 	{
 		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
@@ -412,7 +410,7 @@ void Renderer::Update(const CameraController& cameraController)
 										AccumulationTexture.Resource);
 	}
 
-	GlobalGraphics().SetRenderTarget(swapChainTexture.View);
+	GlobalGraphics().SetRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
 
 	const HLSL::ToneMapRootConstants toneMapRootConstants =
 	{
@@ -444,7 +442,7 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::None },
 									{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
 									{ BarrierLayout::RenderTarget, BarrierLayout::Present },
-									swapChainTexture.Resource);
+									SwapChainTextureResources[GlobalDevice().GetFrameIndex()]);
 
 	GlobalGraphics().End();
 
@@ -1221,7 +1219,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 
 	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
 	{
-		SwapChainTextures[frameIndex].Resource = GlobalDevice().Create(
+		SwapChainTextureResources[frameIndex] = GlobalDevice().Create(
 		{
 			.Type = ResourceType::Texture2D,
 			.Format = ResourceFormat::RGBA8UNormSRGB,
@@ -1231,14 +1229,14 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.SwapChainIndex = static_cast<uint8>(frameIndex),
 			.Name = String("SwapChain Texture"_view),
 		});
-		SwapChainTextures[frameIndex].View = GlobalDevice().Create(
+		SwapChainTextureViews[frameIndex] = GlobalDevice().Create(
 		{
 			.Type = ViewType::RenderTarget,
-			.Resource = SwapChainTextures[frameIndex].Resource,
+			.Resource = SwapChainTextureResources[frameIndex],
 		});
 	}
 
-	DepthTexture.Resource = GlobalDevice().Create(
+	DepthTextureResource = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Texture2D,
 		.Format = ResourceFormat::Depth32,
@@ -1248,10 +1246,10 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.DepthClear = 0.0f,
 		.Name = String("Depth Texture"_view),
 	});
-	DepthTexture.View = GlobalDevice().Create(
+	DepthTextureView = GlobalDevice().Create(
 	{
 		.Type = ViewType::DepthStencil,
-		.Resource = DepthTexture.Resource,
+		.Resource = DepthTextureResource,
 	});
 
 	VisibilityRenderTarget = createRenderTarget(ResourceFormat::RG32UInt, "Visibility Texture"_view);
@@ -1279,13 +1277,13 @@ void Renderer::DestroyScreenTextures()
 		GlobalDevice().Destroy(&writeTexture->UnorderedAccessView);
 	};
 
-	for (ReadTexture& swapChainTexture : SwapChainTextures)
+	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
 	{
-		GlobalDevice().Destroy(&swapChainTexture.Resource);
-		GlobalDevice().Destroy(&swapChainTexture.View);
+		GlobalDevice().Destroy(&SwapChainTextureResources[frameIndex]);
+		GlobalDevice().Destroy(&SwapChainTextureViews[frameIndex]);
 	}
-	GlobalDevice().Destroy(&DepthTexture.View);
-	GlobalDevice().Destroy(&DepthTexture.Resource);
+	GlobalDevice().Destroy(&DepthTextureView);
+	GlobalDevice().Destroy(&DepthTextureResource);
 
 	destroyRenderTarget(&VisibilityRenderTarget);
 
