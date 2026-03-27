@@ -306,6 +306,11 @@ void Renderer::Update(const CameraController& cameraController)
 									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
 									VisibilityRenderTarget.Resource);
 
+	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
+									{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
+									{ BarrierLayout::Undefined, BarrierLayout::GraphicsQueueUnorderedAccess },
+									HDRTexture.Resource);
+
 	const HLSL::DeferredRootConstants deferredRootConstants =
 	{
 		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
@@ -378,11 +383,6 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
 								   SceneLuminanceBuffer);
-
-	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::None },
-									{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-									{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
-									HDRTexture.Resource);
 
 	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
 	{
