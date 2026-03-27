@@ -116,7 +116,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 
 	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
 	{
-		SceneBuffers[frameIndex] = GlobalDevice().Create(
+		SceneBufferResources[frameIndex] = GlobalDevice().Create(
 		{
 			.Type = ResourceType::Buffer,
 			.Flags = ResourceFlags::Upload,
@@ -129,14 +129,14 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 			.Type = ViewType::ConstantBuffer,
 			.Buffer = Buffer
 			{
-				.Resource = SceneBuffers[frameIndex],
+				.Resource = SceneBufferResources[frameIndex],
 				.Size = sizeof(HLSL::Scene),
 				.Stride = 0,
 			},
 		});
 	}
 
-	SceneLuminanceBuffer = GlobalDevice().Create(
+	SceneLuminanceBufferResource = GlobalDevice().Create(
 	{
 		.Type = ResourceType::Buffer,
 		.Flags = ResourceFlags::UnorderedAccess,
@@ -149,8 +149,8 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 		.Type = ViewType::UnorderedAccess,
 		.Buffer = Buffer
 		{
-			.Resource = SceneLuminanceBuffer,
-			.Size = SceneLuminanceBuffer.Size,
+			.Resource = SceneLuminanceBufferResource,
+			.Size = SceneLuminanceBufferResource.Size,
 			.Stride = 0,
 		},
 	});
@@ -179,11 +179,11 @@ Renderer::~Renderer()
 
 	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
 	{
-		GlobalDevice().Destroy(&SceneBuffers[frameIndex]);
+		GlobalDevice().Destroy(&SceneBufferResources[frameIndex]);
 		GlobalDevice().Destroy(&SceneBufferViews[frameIndex]);
 	}
 
-	GlobalDevice().Destroy(&SceneLuminanceBuffer);
+	GlobalDevice().Destroy(&SceneLuminanceBufferResource);
 	GlobalDevice().Destroy(&SceneLuminanceBufferView);
 
 	DestroyPipelines();
@@ -293,7 +293,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
 		.PointLightsCount = ScenePointLightsBuffer.View.IsValid() ? static_cast<uint32>(Count(ScenePointLightsBuffer.View.Buffer)) : 0,
 	};
-	GlobalDevice().Write(&SceneBuffers[GlobalDevice().GetFrameIndex()], &sceneData);
+	GlobalDevice().Write(&SceneBufferResources[GlobalDevice().GetFrameIndex()], &sceneData);
 
 	GlobalGraphics().ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
 	GlobalGraphics().ClearDepthStencil(DepthTextureView);
@@ -321,7 +321,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().SetPipeline(DeferredPipeline);
 	GlobalGraphics().SetRootConstants(&deferredRootConstants);
-	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()]);
+	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
 	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
@@ -368,7 +368,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
 								   { BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
-								   SceneLuminanceBuffer);
+								   SceneLuminanceBufferResource);
 
 	const HLSL::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
 	{
@@ -382,7 +382,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-								   SceneLuminanceBuffer);
+								   SceneLuminanceBufferResource);
 
 	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
 	{
@@ -396,7 +396,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
 								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-								   SceneLuminanceBuffer);
+								   SceneLuminanceBufferResource);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::RenderTarget },
 									{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
@@ -486,7 +486,7 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 
 			GlobalGraphics().SetPipeline(pipeline);
 			GlobalGraphics().SetRootConstants(&rootConstants);
-			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()]);
+			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
 
 			GlobalGraphics().SetVertexBuffer(0,
 											 SubBuffer
