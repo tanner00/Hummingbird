@@ -22,11 +22,12 @@ inline RHI::GraphicsContext& GlobalGraphics()
 	return RenderContext.Graphics;
 }
 
-inline void CreateRenderContext(Platform::Window* window)
+inline void CreateRenderContext(Platform::Window* window, bool validation)
 {
 	RenderContext.Device = GlobalAllocator::Get().Create<RHI::Device>(RHI::DeviceDescription
 	{
 		.Window = window,
+		.Validation = validation,
 	});
 
 	RenderContext.Graphics = GlobalDevice().Create(RHI::GraphicsContextDescription {});

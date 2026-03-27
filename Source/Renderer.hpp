@@ -12,7 +12,7 @@ struct Scene;
 class Renderer : public NoCopy
 {
 public:
-	explicit Renderer(const Platform::Window* window);
+	Renderer(Platform::Window* window, bool validation);
 	~Renderer();
 
 	void Update(const CameraController& cameraController);
