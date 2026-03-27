@@ -42,8 +42,11 @@ private:
 
 	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit; }
 
-	ReadTexture SwapChainTextures[RHI::FramesInFlight];
-	ReadTexture DepthTexture;
+	RHI::Resource SwapChainTextureResources[RHI::FramesInFlight];
+	RHI::TextureView SwapChainTextureViews[RHI::FramesInFlight];
+
+	RHI::Resource DepthTextureResource;
+	RHI::TextureView DepthTextureView;
 
 	ReadTexture WhiteTexture;
 	ReadTexture DefaultNormalMapTexture;
