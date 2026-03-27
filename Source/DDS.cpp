@@ -1,4 +1,4 @@
-﻿#include "DDS.hpp"
+#include "DDS.hpp"
 
 #include "Luft/Platform.hpp"
 

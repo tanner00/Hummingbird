@@ -1,4 +1,4 @@
-﻿static const float SensorSensitivity = 100.0f;
+static const float SensorSensitivity = 100.0f;
 
 float ConvertAverageLuminanceToEv100(float averageLuminance)
 {
