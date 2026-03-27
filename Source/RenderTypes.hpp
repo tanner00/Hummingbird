@@ -26,14 +26,6 @@ struct WriteTexture
 	RHI::TextureView UnorderedAccessView;
 };
 
-struct RenderTarget
-{
-	RHI::Resource Resource;
-	RHI::TextureView RenderTargetView;
-	RHI::TextureView ShaderResourceView;
-	RHI::TextureView UnorderedAccessView;
-};
-
 struct Primitive
 {
 	usize GlobalIndex;

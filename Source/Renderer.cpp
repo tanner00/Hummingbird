@@ -295,16 +295,16 @@ void Renderer::Update(const CameraController& cameraController)
 	};
 	GlobalDevice().Write(&SceneBufferResources[GlobalDevice().GetFrameIndex()], &sceneData);
 
-	GlobalGraphics().ClearRenderTarget(VisibilityRenderTarget.RenderTargetView);
+	GlobalGraphics().ClearRenderTarget(VisibilityTextureRenderTargetView);
 	GlobalGraphics().ClearDepthStencil(DepthTextureView);
 
-	GlobalGraphics().SetRenderTarget(VisibilityRenderTarget.RenderTargetView, DepthTextureView);
+	GlobalGraphics().SetRenderTarget(VisibilityTextureRenderTargetView, DepthTextureView);
 	UpdateScene(VisibilityPipeline);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
 									{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
 									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
-									VisibilityRenderTarget.Resource);
+									VisibilityTextureResource);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
 									{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
@@ -314,7 +314,7 @@ void Renderer::Update(const CameraController& cameraController)
 	const HLSL::DeferredRootConstants deferredRootConstants =
 	{
 		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
-		.VisibilityTextureIndex = GlobalDevice().Get(VisibilityRenderTarget.ShaderResourceView),
+		.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
 		.AnisotropicWrapSamplerIndex = GlobalDevice().Get(AnisotropicWrapSampler),
 		.ViewMode = ViewMode,
 	};
@@ -341,7 +341,7 @@ void Renderer::Update(const CameraController& cameraController)
 			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
 			.AccumulationTextureIndex = GlobalDevice().Get(AccumulationTexture.UnorderedAccessView),
 			.PreviousAccumulationTextureIndex = GlobalDevice().Get(PreviousAccumulationTexture.ShaderResourceView),
-			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityRenderTarget.ShaderResourceView),
+			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
 			.VertexBufferIndex = GlobalDevice().Get(SceneVertexBuffer.View),
 			.PrimitiveBufferIndex = GlobalDevice().Get(ScenePrimitiveBuffer.View),
 			.NodeBufferIndex = GlobalDevice().Get(SceneNodeBuffer.View),
@@ -364,7 +364,7 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().TextureBarrier({ BarrierStage::PixelShading, BarrierStage::None },
 									{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
 									{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::RenderTarget },
-									VisibilityRenderTarget.Resource);
+									VisibilityTextureResource);
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
 								   { BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
@@ -1159,37 +1159,6 @@ void Renderer::DestroyPipelines()
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 {
-	const auto createRenderTarget = [width, height](ResourceFormat format, StringView textureName) -> RenderTarget
-	{
-		const Resource resource = GlobalDevice().Create(
-		{
-			.Type = ResourceType::Texture2D,
-			.Format = format,
-			.Flags = ResourceFlags::RenderTarget | ResourceFlags::UnorderedAccess,
-			.InitialLayout = BarrierLayout::RenderTarget,
-			.Dimensions = { width, height },
-			.Name = String(textureName),
-		});
-		return RenderTarget
-		{
-			.Resource = resource,
-			.RenderTargetView = GlobalDevice().Create(
-			{
-				.Type = ViewType::RenderTarget,
-				.Resource = resource,
-			}),
-			.ShaderResourceView = GlobalDevice().Create(
-			{
-				.Type = ViewType::ShaderResource,
-				.Resource = resource,
-			}),
-			.UnorderedAccessView = GlobalDevice().Create(
-			{
-				.Type = ViewType::UnorderedAccess,
-				.Resource = resource,
-			}),
-		};
-	};
 	const auto createWriteTexture = [width, height](ResourceFormat format, StringView textureName) -> WriteTexture
 	{
 		const Resource resource = GlobalDevice().Create(
@@ -1252,7 +1221,25 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.Resource = DepthTextureResource,
 	});
 
-	VisibilityRenderTarget = createRenderTarget(ResourceFormat::RG32UInt, "Visibility Texture"_view);
+	VisibilityTextureResource = GlobalDevice().Create(
+	{
+		.Type = ResourceType::Texture2D,
+		.Format = ResourceFormat::RG32UInt,
+		.Flags = ResourceFlags::RenderTarget,
+		.InitialLayout = BarrierLayout::RenderTarget,
+		.Dimensions = { width, height },
+		.Name = String("Visibility Texture"_view),
+	});
+	VisibilityTextureRenderTargetView = GlobalDevice().Create(
+	{
+		.Type = ViewType::RenderTarget,
+		.Resource = VisibilityTextureResource,
+	});
+	VisibilityTextureShaderResourceView = GlobalDevice().Create(
+	{
+		.Type = ViewType::ShaderResource,
+		.Resource = VisibilityTextureResource,
+	});
 
 	HDRTexture = createWriteTexture(ResourceFormat::RGBA32Float, "HDR Texture"_view);
 	AccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);
@@ -1263,13 +1250,6 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 
 void Renderer::DestroyScreenTextures()
 {
-	const auto destroyRenderTarget = [](RenderTarget* renderTarget) -> void
-	{
-		GlobalDevice().Destroy(&renderTarget->Resource);
-		GlobalDevice().Destroy(&renderTarget->RenderTargetView);
-		GlobalDevice().Destroy(&renderTarget->ShaderResourceView);
-		GlobalDevice().Destroy(&renderTarget->UnorderedAccessView);
-	};
 	const auto destroyWriteTexture = [](WriteTexture* writeTexture) -> void
 	{
 		GlobalDevice().Destroy(&writeTexture->Resource);
@@ -1285,7 +1265,9 @@ void Renderer::DestroyScreenTextures()
 	GlobalDevice().Destroy(&DepthTextureView);
 	GlobalDevice().Destroy(&DepthTextureResource);
 
-	destroyRenderTarget(&VisibilityRenderTarget);
+	GlobalDevice().Destroy(&VisibilityTextureResource);
+	GlobalDevice().Destroy(&VisibilityTextureRenderTargetView);
+	GlobalDevice().Destroy(&VisibilityTextureShaderResourceView);
 
 	destroyWriteTexture(&HDRTexture);
 	destroyWriteTexture(&AccumulationTexture);
