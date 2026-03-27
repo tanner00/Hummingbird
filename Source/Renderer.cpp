@@ -1024,6 +1024,8 @@ void Renderer::UnloadScene()
 
 	GlobalDevice().WaitForIdle();
 
+	ResourceUploader::Get().Reset();
+
 	destroyReadBuffer(&SceneVertexBuffer);
 	destroyReadBuffer(&ScenePrimitiveBuffer);
 	destroyReadBuffer(&SceneDrawCallBuffer);
@@ -1060,8 +1062,6 @@ void Renderer::UnloadScene()
 	SceneMeshes.Clear();
 	SceneNodes.Clear();
 	SceneMaterials.Clear();
-
-	ResourceUploader::Get().Reset();
 }
 
 void Renderer::CreatePipelines()
