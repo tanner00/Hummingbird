@@ -306,7 +306,7 @@ void Renderer::Update(const CameraController& cameraController)
 									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
 									VisibilityRenderTarget.Resource);
 
-	const HLSL::DeferredRootConstants rootConstants =
+	const HLSL::DeferredRootConstants deferredRootConstants =
 	{
 		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
 		.VisibilityTextureIndex = GlobalDevice().Get(VisibilityRenderTarget.ShaderResourceView),
@@ -315,7 +315,7 @@ void Renderer::Update(const CameraController& cameraController)
 	};
 
 	GlobalGraphics().SetPipeline(DeferredPipeline);
-	GlobalGraphics().SetRootConstants(&rootConstants);
+	GlobalGraphics().SetRootConstants(&deferredRootConstants);
 	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBuffers[GlobalDevice().GetFrameIndex()]);
 	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
 

@@ -18,12 +18,9 @@ uint Hash(uint v)
 
 float3 ToColor(uint v)
 {
-	return float3
-	(
-		float((v >>  0) & 0xFF) / 255.0f,
-		float((v >>  8) & 0xFF) / 255.0f,
-		float((v >> 16) & 0xFF) / 255.0f
-	);
+	return float3(float((v >>  0) & 0xFF) / 255.0f,
+				  float((v >>  8) & 0xFF) / 255.0f,
+				  float((v >> 16) & 0xFF) / 255.0f);
 }
 
 template<typename T>
