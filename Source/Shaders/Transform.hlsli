@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 float4 TransformLocalPositionToWorld(float3 positionLocal, matrix localToWorld)
 {

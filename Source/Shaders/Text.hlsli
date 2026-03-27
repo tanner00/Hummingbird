@@ -1,4 +1,4 @@
-﻿float Median(float3 v)
+float Median(float3 v)
 {
 	return max(min(v.x, v.y), min(max(v.x, v.y), v.z));
 }

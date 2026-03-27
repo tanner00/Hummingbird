@@ -1,4 +1,4 @@
-﻿#include "Luminance.hlsli"
+#include "Luminance.hlsli"
 
 uint HDRToHistogramBin(float3 hdrColor)
 {

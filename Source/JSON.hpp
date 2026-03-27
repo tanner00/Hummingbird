@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Luft/Array.hpp"
 #include "Luft/HashTable.hpp"

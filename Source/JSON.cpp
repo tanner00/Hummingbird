@@ -1,4 +1,4 @@
-﻿#include "JSON.hpp"
+#include "JSON.hpp"
 
 #include "Luft/Math.hpp"
 #include "Luft/Platform.hpp"
