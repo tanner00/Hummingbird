@@ -101,6 +101,8 @@ struct Scene
 
 struct Primitive
 {
+	uint MaterialIndex;
+
 	uint PositionOffset;
 	uint PositionStride;
 
@@ -112,8 +114,6 @@ struct Primitive
 
 	uint IndexOffset;
 	uint IndexStride;
-
-	uint MaterialIndex;
 };
 
 struct Node

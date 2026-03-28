@@ -2,7 +2,7 @@
 #include "GLTF.hpp"
 #include "Renderer.hpp"
 
-static const StringView scenes[] =
+static const StringView Scenes[] =
 {
 	"Assets/Scenes/Sponza/Sponza.gltf"_view,
 	"Assets/Scenes/Bistro/Bistro.gltf"_view,
@@ -12,33 +12,33 @@ static const StringView scenes[] =
 
 static bool NeedsResize = false;
 
+static void SetScene(usize sceneIndex, Renderer* renderer, CameraController* cameraController)
+{
+	const double start = Platform::GetTime();
+
+	GLTF::Scene scene = GLTF::LoadScene(Scenes[sceneIndex]);
+
+	const GLTF::Camera defaultCamera =
+	{
+		.LocalToWorld = Matrix::Identity,
+		.FieldOfViewYRadians = Pi / 3.0f,
+		.AspectRatio = 16.0f / 9.0f,
+		.NearZ = 0.1f,
+		.FarZ = 1000.0f,
+	};
+	const GLTF::Camera camera = scene.Cameras.IsEmpty() ? defaultCamera : scene.Cameras[0];
+
+	cameraController->SetCamera(camera);
+	renderer->SetScene(scene);
+
+	GLTF::UnloadScene(&scene);
+
+	const double end = Platform::GetTime();
+	Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
+}
+
 void Start()
 {
-	const auto setScene = [](usize sceneIndex, Renderer* renderer, CameraController* cameraController) -> void
-	{
-		const double start = Platform::GetTime();
-
-		GLTF::Scene scene = GLTF::LoadScene(scenes[sceneIndex]);
-
-		const GLTF::Camera defaultCamera =
-		{
-			.LocalToWorld = Matrix::Identity,
-			.FieldOfViewYRadians = Pi / 3.0f,
-			.AspectRatio = 16.0f / 9.0f,
-			.NearZ = 0.1f,
-			.FarZ = 1000.0f,
-		};
-		const GLTF::Camera camera = scene.Cameras.IsEmpty() ? defaultCamera : scene.Cameras[0];
-
-		cameraController->SetCamera(camera);
-		renderer->SetScene(scene);
-
-		GLTF::UnloadScene(&scene);
-
-		const double end = Platform::GetTime();
-		Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
-	};
-
 	Platform::Window* window = Platform::CreateWindow("Hummingbird"_view, 1920, 1080);
 
 #if DEBUG
@@ -50,7 +50,7 @@ void Start()
 
 	Renderer renderer(window, validation);
 	CameraController cameraController;
-	setScene(0, &renderer, &cameraController);
+	SetScene(0, &renderer, &cameraController);
 
 	Platform::ShowWindow(window);
 	Platform::InstallResizeHandler([](Platform::Window*) -> void
@@ -93,11 +93,11 @@ void Start()
 			NeedsResize = false;
 		}
 
-		for (usize sceneIndex = 0; sceneIndex < ARRAY_COUNT(scenes); ++sceneIndex)
+		for (usize sceneIndex = 0; sceneIndex < ARRAY_COUNT(Scenes); ++sceneIndex)
 		{
 			if (Platform::IsKeyPressedOnce(static_cast<Platform::Key>(sceneIndex + static_cast<usize>(Platform::Key::One))))
 			{
-				setScene(sceneIndex, &renderer, &cameraController);
+				SetScene(sceneIndex, &renderer, &cameraController);
 			}
 		}
 

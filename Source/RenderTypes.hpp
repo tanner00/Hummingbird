@@ -29,6 +29,7 @@ struct WriteTexture
 struct Primitive
 {
 	usize GlobalIndex;
+	usize MaterialIndex;
 
 	usize PositionOffset;
 	usize PositionStride;
@@ -45,8 +46,6 @@ struct Primitive
 	usize IndexOffset;
 	usize IndexStride;
 	usize IndexSize;
-
-	usize MaterialIndex;
 
 	RHI::Resource AccelerationStructureResource;
 };

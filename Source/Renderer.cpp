@@ -597,6 +597,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			primitives.Add(Primitive
 			{
 				.GlobalIndex = globalPrimitiveIndex,
+				.MaterialIndex = primitive.Material,
 				.PositionOffset = positionView.Offset,
 				.PositionStride = positionView.Stride,
 				.PositionSize = positionView.Size,
@@ -609,7 +610,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.IndexOffset = indexView.Offset,
 				.IndexStride = indexView.Stride,
 				.IndexSize = indexView.Size,
-				.MaterialIndex = primitive.Material,
 				.AccelerationStructureResource = {},
 			});
 			++globalPrimitiveIndex;
@@ -628,6 +628,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		{
 			primitiveData.Add(HLSL::Primitive
 			{
+				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
 				.PositionOffset = static_cast<uint32>(primitive.PositionOffset),
 				.PositionStride = static_cast<uint32>(primitive.PositionStride),
 				.TextureCoordinateOffset = static_cast<uint32>(primitive.TextureCoordinateOffset),
@@ -636,7 +637,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.NormalStride = static_cast<uint32>(primitive.NormalStride),
 				.IndexOffset = static_cast<uint32>(primitive.IndexOffset),
 				.IndexStride = static_cast<uint32>(primitive.IndexStride),
-				.MaterialIndex = static_cast<uint32>(primitive.MaterialIndex),
 			});
 		}
 	}
@@ -705,11 +705,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		}
 	}
 
-	GlobalGraphics().GlobalBarrier
-	(
-		{ BarrierStage::BuildRayTracingAccelerationStructure, BarrierStage::BuildRayTracingAccelerationStructure },
-		{ BarrierAccess::RayTracingAccelerationStructureWrite, BarrierAccess::RayTracingAccelerationStructureRead }
-	);
+	GlobalGraphics().GlobalBarrier({ BarrierStage::BuildRayTracingAccelerationStructure, BarrierStage::BuildRayTracingAccelerationStructure },
+								   { BarrierAccess::RayTracingAccelerationStructureWrite, BarrierAccess::RayTracingAccelerationStructureRead });
 
 	Array<RayTracingAccelerationStructureInstance> instances(RendererAllocator);
 	Array<HLSL::DrawCall> drawCallData(RendererAllocator);
@@ -1130,7 +1127,6 @@ void Renderer::CreatePipelines()
 												ResourceFormat::RG32UInt);
 	DeferredPipeline = createComputePipeline("Deferred Pipeline"_view,
 											 "Shaders/Deferred.hlsl"_view);
-
 
 	ResolvePipeline = createComputePipeline("Resolve Pipeline"_view,
 											"Shaders/Resolve.hlsl"_view);
