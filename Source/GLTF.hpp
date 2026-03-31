@@ -169,14 +169,14 @@ struct MetallicRoughness
 
 struct Material
 {
-	usize NormalMapTexture;
-
 	union
 	{
 		SpecularGlossiness SpecularGlossiness;
 		MetallicRoughness MetallicRoughness;
 	};
 	bool IsSpecularGlossiness;
+
+	usize NormalMapTexture;
 
 	AlphaMode AlphaMode;
 	float AlphaCutoff;

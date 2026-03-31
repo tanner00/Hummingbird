@@ -856,8 +856,8 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 		Material material =
 		{
-			.NormalMapTexture = convertTexture(scene, gltfMaterial.NormalMapTexture, "Scene Normal Map Texture"_view),
 			.IsSpecularGlossiness = gltfMaterial.IsSpecularGlossiness,
+			.NormalMapTexture = convertTexture(scene, gltfMaterial.NormalMapTexture, "Scene Normal Map Texture"_view),
 			.Translucent = gltfMaterial.AlphaMode != GLTF::AlphaMode::Opaque,
 			.AlphaCutoff = gltfMaterial.AlphaCutoff,
 		};
@@ -916,7 +916,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		materialData.Add(HLSL::Material
 		{
 			.BaseColorOrDiffuseTextureIndex = GlobalDevice().Get(baseColorOrDiffuseTexture.View),
-			.NormalMapTextureIndex = GlobalDevice().Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
 			.MetallicRoughnessOrSpecularGlossinessTextureIndex = GlobalDevice().Get(metallicRoughnessOrSpecularGlossinessTexture.View),
 			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness
 									  ? material.SpecularGlossiness.DiffuseFactor
@@ -928,6 +927,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 										 ? material.SpecularGlossiness.GlossinessFactor
 										 : material.MetallicRoughness.RoughnessFactor,
 			.IsSpecularGlossiness = material.IsSpecularGlossiness,
+			.NormalMapTextureIndex = GlobalDevice().Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
