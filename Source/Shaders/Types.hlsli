@@ -131,7 +131,6 @@ struct DrawCall
 struct Material
 {
 	uint BaseColorOrDiffuseTextureIndex;
-	uint NormalMapTextureIndex;
 	uint MetallicRoughnessOrSpecularGlossinessTextureIndex;
 
 	Float4 BaseColorOrDiffuseFactor;
@@ -139,6 +138,8 @@ struct Material
 	float RoughnessOrGlossinessFactor;
 
 	bool32 IsSpecularGlossiness;
+
+	uint NormalMapTextureIndex;
 
 	float AlphaCutoff;
 };

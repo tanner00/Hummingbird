@@ -83,11 +83,11 @@ struct MetallicRoughness
 
 struct Material
 {
-	ReadTexture NormalMapTexture;
-
 	SpecularGlossiness SpecularGlossiness;
 	MetallicRoughness MetallicRoughness;
 	bool IsSpecularGlossiness;
+
+	ReadTexture NormalMapTexture;
 
 	bool Translucent;
 	float AlphaCutoff;
