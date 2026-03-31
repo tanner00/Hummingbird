@@ -18,28 +18,16 @@ float CastShadowRay(float3 originWS,
 	ray.Direction = directionWS;
 	ray.TMax = maxDistance;
 
-	const RAY_FLAG opaqueFlags = RAY_FLAG_CULL_NON_OPAQUE;
-	RayQuery<opaqueFlags> opaqueQuery;
-	opaqueQuery.TraceRayInline(accelerationStructure, opaqueFlags, 0xFF, ray);
+	const RAY_FLAG flags = RAY_FLAG_NONE;
+	RayQuery<flags> query;
+	query.TraceRayInline(accelerationStructure, flags, 0xFF, ray);
 
-	opaqueQuery.Proceed();
-
-	if (opaqueQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+	while (query.Proceed())
 	{
-		return 0.0f;
-	}
-
-	const RAY_FLAG translucentFlags = RAY_FLAG_CULL_OPAQUE;
-	RayQuery<translucentFlags> translucentQuery;
-	translucentQuery.TraceRayInline(accelerationStructure, translucentFlags, 0xFF, ray);
-
-	while (translucentQuery.Proceed())
-	{
-		const uint primitiveIndex = translucentQuery.CandidateInstanceID();
+		const uint primitiveIndex = query.CandidateInstanceID();
 		const Primitive primitive = primitiveBuffer[primitiveIndex];
-		const Material material = materialBuffer[primitive.MaterialIndex];
 
-		const uint triangleIndex = translucentQuery.CandidatePrimitiveIndex();
+		const uint triangleIndex = query.CandidatePrimitiveIndex();
 		const uint triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 		uint indices[3];
@@ -47,12 +35,13 @@ float CastShadowRay(float3 originWS,
 		LoadTriangleIndices(vertexBuffer, primitive, triangleOffset, indices);
 		LoadTriangleTextureCoordinates(vertexBuffer, primitive, indices, uvs);
 
-		const float2 barycentrics = translucentQuery.CandidateTriangleBarycentrics();
+		const float2 barycentrics = query.CandidateTriangleBarycentrics();
 		const float3 weights = float3(1.0f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
 		const float2 uv = uvs[0] * weights.x
 						+ uvs[1] * weights.y
 						+ uvs[2] * weights.z;
 
+		const Material material = materialBuffer[primitive.MaterialIndex];
 		const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
 		const float alpha = baseColorOrDiffuseTexture.SampleLevel(sampler, uv, 0).a * material.BaseColorOrDiffuseFactor.a;
 
@@ -60,6 +49,11 @@ float CastShadowRay(float3 originWS,
 		{
 			return 0.0f;
 		}
+	}
+
+	if (query.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+	{
+		return 0.0f;
 	}
 
 	return 1.0f;
