@@ -71,6 +71,18 @@ static ReadBuffer CreateReadBuffer(ResourceLifetime lifetime,
 	return ReadBuffer { buffer, view };
 }
 
+static void DestroyReadTexture(ReadTexture* texture)
+{
+	GlobalDevice().Destroy(&texture->Resource);
+	GlobalDevice().Destroy(&texture->View);
+}
+
+static void DestroyReadBuffer(ReadBuffer* buffer)
+{
+	GlobalDevice().Destroy(&buffer->Resource);
+	GlobalDevice().Destroy(&buffer->View);
+}
+
 Renderer::Renderer(Platform::Window* window, bool validation)
 	: SceneMeshes(RendererAllocator)
 	, SceneNodes(RendererAllocator)
@@ -169,11 +181,8 @@ Renderer::~Renderer()
 	ResourceUploader::Get().Shutdown();
 	DrawText::Get().Shutdown();
 
-	GlobalDevice().Destroy(&WhiteTexture.Resource);
-	GlobalDevice().Destroy(&WhiteTexture.View);
-
-	GlobalDevice().Destroy(&DefaultNormalMapTexture.Resource);
-	GlobalDevice().Destroy(&DefaultNormalMapTexture.View);
+	DestroyReadTexture(&WhiteTexture);
+	DestroyReadTexture(&DefaultNormalMapTexture);
 
 	GlobalDevice().Destroy(&AnisotropicWrapSampler);
 
@@ -1006,28 +1015,17 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 void Renderer::UnloadScene()
 {
-	const auto destroyReadTexture = [](ReadTexture* texture) -> void
-	{
-		GlobalDevice().Destroy(&texture->Resource);
-		GlobalDevice().Destroy(&texture->View);
-	};
-	const auto destroyReadBuffer = [](ReadBuffer* buffer) -> void
-	{
-		GlobalDevice().Destroy(&buffer->Resource);
-		GlobalDevice().Destroy(&buffer->View);
-	};
-
 	GlobalDevice().WaitForIdle();
 
 	ResourceUploader::Get().Reset();
 
-	destroyReadBuffer(&SceneVertexBuffer);
-	destroyReadBuffer(&ScenePrimitiveBuffer);
-	destroyReadBuffer(&SceneDrawCallBuffer);
-	destroyReadBuffer(&SceneNodeBuffer);
-	destroyReadBuffer(&SceneMaterialBuffer);
-	destroyReadBuffer(&SceneDirectionalLightBuffer);
-	destroyReadBuffer(&ScenePointLightsBuffer);
+	DestroyReadBuffer(&SceneVertexBuffer);
+	DestroyReadBuffer(&ScenePrimitiveBuffer);
+	DestroyReadBuffer(&SceneDrawCallBuffer);
+	DestroyReadBuffer(&SceneNodeBuffer);
+	DestroyReadBuffer(&SceneMaterialBuffer);
+	DestroyReadBuffer(&SceneDirectionalLightBuffer);
+	DestroyReadBuffer(&ScenePointLightsBuffer);
 
 	for (Mesh& mesh : SceneMeshes)
 	{
@@ -1041,16 +1039,16 @@ void Renderer::UnloadScene()
 
 	for (Material& material : SceneMaterials)
 	{
-		destroyReadTexture(&material.NormalMapTexture);
+		DestroyReadTexture(&material.NormalMapTexture);
 		if (material.IsSpecularGlossiness)
 		{
-			destroyReadTexture(&material.SpecularGlossiness.DiffuseTexture);
-			destroyReadTexture(&material.SpecularGlossiness.SpecularGlossinessTexture);
+			DestroyReadTexture(&material.SpecularGlossiness.DiffuseTexture);
+			DestroyReadTexture(&material.SpecularGlossiness.SpecularGlossinessTexture);
 		}
 		else
 		{
-			destroyReadTexture(&material.MetallicRoughness.BaseColorTexture);
-			destroyReadTexture(&material.MetallicRoughness.MetallicRoughnessTexture);
+			DestroyReadTexture(&material.MetallicRoughness.BaseColorTexture);
+			DestroyReadTexture(&material.MetallicRoughness.MetallicRoughnessTexture);
 		}
 	}
 
