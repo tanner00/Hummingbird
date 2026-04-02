@@ -8,7 +8,7 @@ workspace "Hummingbird"
 	startproject "Hummingbird"
 
 filter { "files:**.hlsl" }
-	flags { "ExcludeFromBuild" }
+	excludefrombuild { "On" }
 	filter {}
 
 include "Luft/Luft.lua"
