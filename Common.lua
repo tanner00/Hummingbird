@@ -3,7 +3,8 @@ cppdialect "C++20"
 warnings "Extra"
 conformancemode "On"
 
-flags { "MultiProcessorCompile", "FatalWarnings" }
+multiprocessorcompile "On"
+fatalwarnings { "All" }
 
 exceptionhandling "Off"
 rtti "Off"
@@ -21,7 +22,11 @@ end
 
 function UseWindowsSettings(extra_define)
 	filter "platforms:Win64"
-		defines { "PLATFORM_WINDOWS=1", extra_define }
+		if extra_define ~= nil and extra_define ~= "" then
+			defines { "PLATFORM_WINDOWS=1", extra_define }
+		else
+			defines { "PLATFORM_WINDOWS=1" }
+		end
 		system "Windows"
 		toolset "Msc"
 		architecture "x86_64"
@@ -34,7 +39,8 @@ function DefineConfigurations()
 end
 
 function UseOptimizedSettings()
-	flags { "LinkTimeOptimization", "NoBufferSecurityCheck" }
+	linktimeoptimization "On"
+	buffersecuritycheck "Off"
 	omitframepointer "On"
 	vectorextensions "AVX2"
 end
