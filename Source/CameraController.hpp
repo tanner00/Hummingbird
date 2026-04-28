@@ -12,7 +12,7 @@ class CameraController
 public:
 	CameraController();
 
-	void Update(float timeDelta);
+	void Update(float32 timeDelta);
 
 	void SetCamera(const GLTF::Camera& camera);
 
@@ -26,19 +26,19 @@ public:
 		return Matrix::Translation(PositionWS) * OrientationWS.ToMatrix();
 	}
 
-	float GetFieldOfViewYRadians() const { return FieldOfViewYRadians; }
-	float GetAspectRatio() const { return AspectRatio; }
-	float GetNearZ() const { return NearZ; }
-	float GetFarZ() const { return FarZ; }
+	float32 GetFieldOfViewYRadians() const { return FieldOfViewYRadians; }
+	float32 GetAspectRatio() const { return AspectRatio; }
+	float32 GetNearZ() const { return NearZ; }
+	float32 GetFarZ() const { return FarZ; }
 
 private:
 	Vector PositionWS;
 	Quaternion OrientationWS;
 
-	float PitchRadians;
+	float32 PitchRadians;
 
-	float FieldOfViewYRadians;
-	float AspectRatio;
-	float NearZ;
-	float FarZ;
+	float32 FieldOfViewYRadians;
+	float32 AspectRatio;
+	float32 NearZ;
+	float32 FarZ;
 };

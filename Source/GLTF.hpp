@@ -150,21 +150,21 @@ struct Texture
 struct SpecularGlossiness
 {
 	usize DiffuseTexture;
-	Float4 DiffuseFactor;
+	float32x4 DiffuseFactor;
 
 	usize SpecularGlossinessTexture;
-	Float3 SpecularFactor;
-	float GlossinessFactor;
+	float32x3 SpecularFactor;
+	float32 GlossinessFactor;
 };
 
 struct MetallicRoughness
 {
 	usize BaseColorTexture;
-	Float4 BaseColorFactor;
+	float32x4 BaseColorFactor;
 
 	usize MetallicRoughnessTexture;
-	float MetallicFactor;
-	float RoughnessFactor;
+	float32 MetallicFactor;
+	float32 RoughnessFactor;
 };
 
 struct Material
@@ -179,7 +179,7 @@ struct Material
 	usize NormalMapTexture;
 
 	AlphaMode AlphaMode;
-	float AlphaCutoff;
+	float32 AlphaCutoff;
 };
 
 struct Sampler
@@ -194,11 +194,11 @@ struct Camera
 {
 	Matrix LocalToWorld;
 
-	float FieldOfViewYRadians;
-	float AspectRatio;
+	float32 FieldOfViewYRadians;
+	float32 AspectRatio;
 
-	float NearZ;
-	float FarZ;
+	float32 NearZ;
+	float32 FarZ;
 };
 
 enum class LightType : uint8
@@ -213,8 +213,8 @@ struct Light
 
 	Matrix LocalToWorld;
 
-	float Intensity;
-	Float3 Color;
+	float32 Intensity;
+	float32x3 RGB;
 };
 
 struct Scene
@@ -271,7 +271,7 @@ inline usize GetComponentSize(ComponentType componentType)
 		sizeof(int16),
 		sizeof(uint16),
 		sizeof(uint32),
-		sizeof(float),
+		sizeof(float32),
 	};
 	return componentSizes[static_cast<usize>(componentType)];
 }

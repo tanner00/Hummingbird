@@ -14,7 +14,7 @@ static bool NeedsResize = false;
 
 static void SetScene(usize sceneIndex, Renderer* renderer, CameraController* cameraController)
 {
-	const double start = Platform::GetTime();
+	const float64 start = Platform::GetTime();
 
 	GLTF::Scene scene = GLTF::LoadScene(Scenes[sceneIndex]);
 
@@ -33,7 +33,7 @@ static void SetScene(usize sceneIndex, Renderer* renderer, CameraController* cam
 
 	GLTF::UnloadScene(&scene);
 
-	const double end = Platform::GetTime();
+	const float64 end = Platform::GetTime();
 	Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
 }
 
@@ -43,7 +43,7 @@ void Start()
 
 #if DEBUG
 	const Array<String> arguments = Platform::GetCommandLineArguments();
-	const bool validation = (arguments.GetLength() >= 1) ? (arguments.First() == "rhi-validation"_view) : false;
+	const bool validation = (arguments.GetCount() >= 1) ? (arguments.First() == "rhi-validation"_view) : false;
 #else
 	static constexpr bool validation = false;
 #endif
@@ -58,7 +58,7 @@ void Start()
 		NeedsResize = true;
 	});
 
-	double timeLast = 0.0;
+	float64 timeLast = 0.0;
 
 	while (!Platform::IsQuitRequested())
 	{
@@ -101,11 +101,11 @@ void Start()
 			}
 		}
 
-		const double timeNow = Platform::GetTime();
-		const double timeDelta = timeNow - timeLast;
+		const float64 timeNow = Platform::GetTime();
+		const float64 timeDelta = timeNow - timeLast;
 		timeLast = timeNow;
 
-		cameraController.Update(static_cast<float>(timeDelta));
+		cameraController.Update(static_cast<float32>(timeDelta));
 		renderer.Update(cameraController);
 	}
 

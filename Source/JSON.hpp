@@ -58,7 +58,7 @@ public:
 	{
 	}
 
-	explicit Value(double decimal)
+	explicit Value(float64 decimal)
 		: DecimalValue(decimal)
 		, Tag(Tag::Decimal)
 	{
@@ -102,7 +102,7 @@ public:
 		return StringValue;
 	}
 
-	double GetDecimal() const
+	float64 GetDecimal() const
 	{
 		VERIFY(Tag == Tag::Decimal, "Unexpected JSON value type!");
 		return DecimalValue;
@@ -120,7 +120,7 @@ private:
 		Object* ObjectValue;
 		Array ArrayValue;
 		String StringValue;
-		double DecimalValue;
+		float64 DecimalValue;
 		bool BooleanValue;
 		void* NullValue;
 	};

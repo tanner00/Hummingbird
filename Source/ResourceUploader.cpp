@@ -147,10 +147,10 @@ void ResourceUploader::Reset()
 {
 	Flush();
 
-	while (SceneHeaps.GetLength() > 1)
+	while (SceneHeaps.GetCount() > 1)
 	{
 		GlobalDevice().Destroy(&SceneHeaps.Last().Heap);
-		SceneHeaps.Remove(SceneHeaps.GetLength() - 1);
+		SceneHeaps.Remove(SceneHeaps.GetCount() - 1);
 	}
 	SceneHeaps.First().Offset = 0;
 }

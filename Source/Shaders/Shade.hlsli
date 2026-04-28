@@ -5,38 +5,38 @@
 #include "Shadow.hlsli"
 #include "Types.hlsli"
 
-void ComputeTangents(float3 normal,
-					 float3 ddxPosition,
-					 float3 ddyPosition,
-					 float2 ddxUV,
-					 float2 ddyUV,
-					 out float3 tangent,
-					 out float3 bitangent)
+void ComputeTangents(float32x3 normal,
+					 float32x3 ddxPosition,
+					 float32x3 ddyPosition,
+					 float32x2 ddxUV,
+					 float32x2 ddyUV,
+					 out float32x3 tangent,
+					 out float32x3 bitangent)
 {
-	const float3 ddxPositionPerpendicular = -cross(ddxPosition, normal);
-	const float3 ddyPositionPerpendicular = cross(ddyPosition, normal);
+	const float32x3 ddxPositionPerpendicular = -cross(ddxPosition, normal);
+	const float32x3 ddyPositionPerpendicular = cross(ddyPosition, normal);
 
 	tangent = ddyPositionPerpendicular * ddxUV.x + ddxPositionPerpendicular * ddyUV.x;
 	bitangent = ddyPositionPerpendicular * ddxUV.y + ddxPositionPerpendicular * ddyUV.y;
 
-	const float inverseScale = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
+	const float32 inverseScale = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
 
 	tangent *= inverseScale;
 	bitangent *= inverseScale;
 }
 
-float4 Shade(Scene scene,
-			 float3 positionWS,
-			 float2 uv,
-			 float3 normalWS,
-			 uint primitiveIndex,
-			 float3 ddxPositionWS,
-			 float3 ddyPositionWS,
-			 float2 ddxUV,
-			 float2 ddyUV,
-			 ViewMode viewMode,
-			 uint primitiveID,
-			 uint anisotropicWrapSamplerIndex)
+float32x4 Shade(Scene scene,
+				float32x3 positionWS,
+				float32x2 uv,
+				float32x3 normalWS,
+				uint32 primitiveIndex,
+				float32x3 ddxPositionWS,
+				float32x3 ddyPositionWS,
+				float32x2 ddxUV,
+				float32x2 ddyUV,
+				ViewMode viewMode,
+				uint32 primitiveID,
+				uint32 anisotropicWrapSamplerIndex)
 {
 	normalWS = normalize(normalWS);
 
@@ -51,83 +51,83 @@ float4 Shade(Scene scene,
 	const Primitive primitive = primitiveBuffer[primitiveIndex];
 	const Material material = materialBuffer[primitive.MaterialIndex];
 
-	const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
-	const float4 baseColorOrDiffuse = baseColorOrDiffuseTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
+	const Texture2D<float32x4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
+	const float32x4 baseColorOrDiffuse = baseColorOrDiffuseTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
 
-	const float alpha = material.BaseColorOrDiffuseFactor.a * baseColorOrDiffuse.a;
+	const float32 alpha = material.BaseColorOrDiffuseFactor.a * baseColorOrDiffuse.a;
 
-	const float4 baseColorFactor = material.IsSpecularGlossiness ? 0.0f : material.BaseColorOrDiffuseFactor;
-	const float4 diffuseFactor = material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
-	const float4 baseColor = baseColorFactor * baseColorOrDiffuse;
-	const float4 diffuse = diffuseFactor * baseColorOrDiffuse;
+	const float32x4 baseColorFactor = material.IsSpecularGlossiness ? 0.0f : material.BaseColorOrDiffuseFactor;
+	const float32x4 diffuseFactor = material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
+	const float32x4 baseColor = baseColorFactor * baseColorOrDiffuse;
+	const float32x4 diffuse = diffuseFactor * baseColorOrDiffuse;
 
-	const float3 unlitColor = material.IsSpecularGlossiness ? diffuse.rgb : baseColor.rgb;
+	const float32x3 unlitColor = material.IsSpecularGlossiness ? diffuse.rgb : baseColor.rgb;
 
-	const Texture2D<float3> normalMapTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.NormalMapTextureIndex)];
-	float3 normalTS = normalMapTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV).xyz * 2.0f - 1.0f;
+	const Texture2D<float32x3> normalMapTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.NormalMapTextureIndex)];
+	float32x3 normalTS = normalMapTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV).xyz * 2.0f - 1.0f;
 	if (scene.TwoChannelNormalMaps)
 	{
 		normalTS.z = sqrt(1.0f - saturate(dot(normalTS.xy, normalTS.xy)));
 	}
 
-	float3 tangentWS;
-	float3 bitangentWS;
+	float32x3 tangentWS;
+	float32x3 bitangentWS;
 	ComputeTangents(normalWS, ddxPositionWS, ddyPositionWS, ddxUV, ddyUV, tangentWS, bitangentWS);
 	const float3x3 tbn = transpose(float3x3(tangentWS, bitangentWS, normalWS));
 
-	const float3 shadeNormalWS = all(normalTS <= 0.0001f) ? normalWS : normalize(mul(tbn, normalTS));
+	const float32x3 shadeNormalWS = all(normalTS <= 0.0001f) ? normalWS : normalize(mul(tbn, normalTS));
 
 	switch (viewMode)
 	{
 	case ViewMode::Unlit:
-		return float4(unlitColor, alpha);
+		return float32x4(unlitColor, alpha);
 	case ViewMode::Geometry:
-		return float4(ToColor(Hash(primitiveID)), alpha);
+		return float32x4(ToColor(Hash(primitiveID)), alpha);
 	case ViewMode::Normal:
-		return float4(SRGBToLinear(shadeNormalWS * 0.5f + 0.5f), 1.0f);
+		return float32x4(SRGBToLinear(shadeNormalWS * 0.5f + 0.5f), 1.0f);
 	default:
 		break;
 	}
 
-	const Texture2D<float3> metallicRoughnessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
-	const Texture2D<float4> specularGlossinessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
-	const float3 metallicRoughness = metallicRoughnessTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
-	const float4 specularGlossiness = specularGlossinessTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
+	const Texture2D<float32x3> metallicRoughnessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
+	const Texture2D<float32x4> specularGlossinessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
+	const float32x3 metallicRoughness = metallicRoughnessTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
+	const float32x4 specularGlossiness = specularGlossinessTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
 
-	const float metallicFactor = material.IsSpecularGlossiness ? 0.0f : material.MetallicOrSpecularFactor.x;
-	const float roughnessFactor = material.IsSpecularGlossiness ? 0.0f : material.RoughnessOrGlossinessFactor;
-	const float metallic = metallicFactor * metallicRoughness.b;
-	const float roughness = roughnessFactor * metallicRoughness.g;
+	const float32 metallicFactor = material.IsSpecularGlossiness ? 0.0f : material.MetallicOrSpecularFactor.x;
+	const float32 roughnessFactor = material.IsSpecularGlossiness ? 0.0f : material.RoughnessOrGlossinessFactor;
+	const float32 metallic = metallicFactor * metallicRoughness.b;
+	const float32 roughness = roughnessFactor * metallicRoughness.g;
 
-	const float3 specularFactor = material.IsSpecularGlossiness ? material.MetallicOrSpecularFactor : 0.0f;
-	const float glossinessFactor = material.IsSpecularGlossiness ? material.RoughnessOrGlossinessFactor : 0.0f;
-	const float3 specular = specularFactor * specularGlossiness.rgb;
-	const float glossiness = glossinessFactor * SRGBToLinear(specularGlossiness.a);
+	const float32x3 specularFactor = material.IsSpecularGlossiness ? material.MetallicOrSpecularFactor : 0.0f;
+	const float32 glossinessFactor = material.IsSpecularGlossiness ? material.RoughnessOrGlossinessFactor : 0.0f;
+	const float32x3 specular = specularFactor * specularGlossiness.rgb;
+	const float32 glossiness = glossinessFactor * SRGBToLinear(specularGlossiness.a);
 
-	const float3 viewDirectionWS = normalize(scene.ViewPositionWS - positionWS);
+	const float32x3 viewDirectionWS = normalize(scene.ViewPositionWS - positionWS);
 
-	float3 finalColor = 0.0f;
+	float32x3 finalColor = 0.0f;
 
-	for (uint pointLightIndex = 0; pointLightIndex < scene.PointLightsCount; ++pointLightIndex)
+	for (uint32 pointLightIndex = 0; pointLightIndex < scene.PointLightsCount; ++pointLightIndex)
 	{
 		const PointLight pointLight = pointLightsBuffer[pointLightIndex];
 
-		const float3 pointLightDirectionWS = normalize(pointLight.PositionWS - positionWS);
-		const float objectToLightDistance = distance(pointLight.PositionWS, positionWS);
+		const float32x3 pointLightDirectionWS = normalize(pointLight.PositionWS - positionWS);
+		const float32 objectToLightDistance = distance(pointLight.PositionWS, positionWS);
 
-		const float attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
+		const float32 attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
 
-		const float3 contribution = PBR(baseColor.rgb,
-										diffuse.rgb,
-										metallic,
-										specular,
-										roughness,
-										glossiness,
-										shadeNormalWS,
-										viewDirectionWS,
-										pointLightDirectionWS,
-										attenuation * pointLight.IntensityCandela * pointLight.Color,
-										material.IsSpecularGlossiness);
+		const float32x3 contribution = PBR(baseColor.rgb,
+										   diffuse.rgb,
+										   metallic,
+										   specular,
+										   roughness,
+										   glossiness,
+										   shadeNormalWS,
+										   viewDirectionWS,
+										   pointLightDirectionWS,
+										   attenuation * pointLight.IntensityCandela * pointLight.RGB,
+										   material.IsSpecularGlossiness);
 		finalColor += contribution * CastShadowRay(positionWS,
 												   pointLightDirectionWS,
 												   objectToLightDistance,
@@ -138,19 +138,19 @@ float4 Shade(Scene scene,
 												   anisotropicWrapSampler);
 	}
 
-	const float3 directionalLightDirectionWS = normalize(directionalLightBuffer.DirectionWS);
+	const float32x3 directionalLightDirectionWS = normalize(directionalLightBuffer.DirectionWS);
 
-	const float3 directionalLightContribution = PBR(baseColor.rgb,
-													diffuse.rgb,
-													metallic,
-													specular,
-													roughness,
-													glossiness,
-													shadeNormalWS,
-													viewDirectionWS,
-													directionalLightDirectionWS,
-													directionalLightBuffer.IntensityLux * directionalLightBuffer.Color,
-													material.IsSpecularGlossiness);
+	const float32x3 directionalLightContribution = PBR(baseColor.rgb,
+													   diffuse.rgb,
+													   metallic,
+													   specular,
+													   roughness,
+													   glossiness,
+													   shadeNormalWS,
+													   viewDirectionWS,
+													   directionalLightDirectionWS,
+													   directionalLightBuffer.IntensityLux * directionalLightBuffer.Color,
+													   material.IsSpecularGlossiness);
 	finalColor += directionalLightContribution * CastShadowRay(positionWS,
 															   directionalLightDirectionWS,
 															   Infinity,
@@ -160,8 +160,8 @@ float4 Shade(Scene scene,
 															   materialBuffer,
 															   anisotropicWrapSampler);
 
-	const float3 ambientLightContribution = 0.05f * directionalLightBuffer.IntensityLux * unlitColor;
+	const float32x3 ambientLightContribution = 0.05f * directionalLightBuffer.IntensityLux * unlitColor;
 	finalColor += ambientLightContribution;
 
-	return float4(finalColor, alpha);
+	return float32x4(finalColor, alpha);
 }

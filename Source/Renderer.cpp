@@ -153,7 +153,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 		.Type = ResourceType::Buffer,
 		.Flags = ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
-		.Size = HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float),
+		.Size = HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float32),
 		.Name = String("Scene Luminance Buffer"_view),
 	});
 	SceneLuminanceBufferView = GlobalDevice().Create(
@@ -203,7 +203,7 @@ Renderer::~Renderer()
 void Renderer::Update(const CameraController& cameraController)
 {
 #if !RELEASE
-	const double startCpuTime = Platform::GetTime();
+	const float64 startCpuTime = Platform::GetTime();
 
 	if (Platform::IsKeyPressedOnce(Platform::Key::L))
 	{
@@ -241,10 +241,10 @@ void Renderer::Update(const CameraController& cameraController)
 	const ResourceDimensions viewportDimensions = HDRTexture.Resource.Dimensions;
 	GlobalGraphics().SetViewport(viewportDimensions.Width, viewportDimensions.Height);
 
-	Float2 currentJitterCS = Float2 { .X = 0.0f, .Y = 0.0f };
+	float32x2 currentJitterCS = { .X = 0.0f, .Y = 0.0f };
 	if (ShouldAntiAlias())
 	{
-		static constexpr Float2 halton23Sequence[] =
+		static constexpr float32x2 halton23Sequence[] =
 		{
 			{ .X = 0.500000f, .Y = 0.333333f },
 			{ .X = 0.250000f, .Y = 0.666667f },
@@ -265,9 +265,9 @@ void Renderer::Update(const CameraController& cameraController)
 		};
 
 		const uint32 frameCount = TemporalAntiAliasing.FrameCount;
-		const Float2 currentHalton = halton23Sequence[frameCount % ARRAY_COUNT(halton23Sequence)];
+		const float32x2 currentHalton = halton23Sequence[frameCount % ARRAY_COUNT(halton23Sequence)];
 
-		currentJitterCS = Float2
+		currentJitterCS = float32x2
 		{
 			.X = currentHalton.X / static_cast<float>(viewportDimensions.Width),
 			.Y = currentHalton.Y / static_cast<float>(viewportDimensions.Height),
@@ -293,7 +293,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.AccelerationStructureIndex = GlobalDevice().Get(SceneAccelerationStructure),
 		.WorldToClip = worldToClip,
 		.JitterWorldToClip = Matrix::Translation(currentJitterCS.X, currentJitterCS.Y, 0.0f) * worldToClip,
-		.ViewPositionWS = Float3
+		.ViewPositionWS = float32x3
 		{
 			.X = cameraController.GetPositionWS().X,
 			.Y = cameraController.GetPositionWS().Y,
@@ -472,7 +472,7 @@ void Renderer::Update(const CameraController& cameraController)
 void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 {
 	usize drawCallIndex = 0;
-	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetLength(); ++nodeIndex)
+	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetCount(); ++nodeIndex)
 	{
 		const Node& node = SceneNodes[nodeIndex];
 		const Mesh& mesh = SceneMeshes[node.MeshIndex];
@@ -535,10 +535,10 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 }
 
 #if !RELEASE
-void Renderer::UpdateFrameTimes(double startCPUTime)
+void Renderer::UpdateFrameTimes(float64 startCPUTime)
 {
-	const double cpuTime = Platform::GetTime() - startCPUTime;
-	const double gpuTime = GlobalGraphics().GetMostRecentGPUTime();
+	const float64 cpuTime = Platform::GetTime() - startCPUTime;
+	const float64 gpuTime = GlobalGraphics().GetMostRecentGPUTime();
 
 	AverageCpuTime = AverageCpuTime * 0.95 + cpuTime * 0.05;
 	AverageGpuTime = AverageGpuTime * 0.95 + gpuTime * 0.05;
@@ -547,14 +547,14 @@ void Renderer::UpdateFrameTimes(double startCPUTime)
 	Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), AverageCpuTime * 1000.0);
 	DrawText::Get().Draw(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) },
 						 { .X = 0.0f, .Y = 0.0f },
-						 Float3 { .R = 1.0f, .G = 1.0f, .B = 1.0f },
+						 float32x3 { 1.0f, 1.0f, 1.0f },
 						 32.0f);
 
 	char gpuTimeText[16] = {};
 	Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), AverageGpuTime * 1000.0);
 	DrawText::Get().Draw(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) },
 						 { .X = 0.0f, .Y = 32.0f },
-						 Float3 { .R = 1.0f, .G = 1.0f, .B = 1.0f },
+						 float32x3 { 1.0f, 1.0f, 1.0f },
 						 32.0f);
 }
 #endif
@@ -577,7 +577,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	SceneTwoChannelNormalMaps = scene.TwoChannelNormalMaps;
 
-	VERIFY(scene.Buffers.GetLength() == 1, "GLTF file contains multiple buffers!");
+	VERIFY(scene.Buffers.GetCount() == 1, "GLTF file contains multiple buffers!");
 	const GLTF::Buffer& vertexBuffer = scene.Buffers[0];
 
 	GLTF::Buffer finalVertexBuffer = vertexBuffer;
@@ -594,7 +594,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	usize globalPrimitiveIndex = 0;
 	for (const GLTF::Mesh& mesh : scene.Meshes)
 	{
-		Array<Primitive> primitives(mesh.Primitives.GetLength(), RendererAllocator);
+		Array<Primitive> primitives(mesh.Primitives.GetCount(), RendererAllocator);
 
 		for (const GLTF::Primitive& primitive : mesh.Primitives)
 		{
@@ -719,7 +719,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 	Array<RayTracingAccelerationStructureInstance> instances(RendererAllocator);
 	Array<HLSL::DrawCall> drawCallData(RendererAllocator);
-	for (usize nodeIndex = 0; nodeIndex < scene.Nodes.GetLength(); ++nodeIndex)
+	for (usize nodeIndex = 0; nodeIndex < scene.Nodes.GetCount(); ++nodeIndex)
 	{
 		const GLTF::Node& node = scene.Nodes[nodeIndex];
 		if (node.Mesh == INDEX_NONE)
@@ -741,7 +741,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 			drawCallData.Add(HLSL::DrawCall
 			{
-				.NodeIndex = static_cast<uint32>(SceneNodes.GetLength()),
+				.NodeIndex = static_cast<uint32>(SceneNodes.GetCount()),
 				.PrimitiveIndex = static_cast<uint32>(primitive.GlobalIndex),
 			});
 		}
@@ -766,7 +766,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Format = ResourceFormat::None,
 		.Flags = ResourceFlags::Upload,
 		.InitialLayout = BarrierLayout::Undefined,
-		.Size = instances.GetLength() * GlobalDevice().GetRayTracingAccelerationStructureInstanceSize(),
+		.Size = instances.GetCount() * GlobalDevice().GetRayTracingAccelerationStructureInstanceSize(),
 		.Name = String("Scene Acceleration Structure Instances"_view),
 	});
 	transientResources.Add(instancesResource);
@@ -815,7 +815,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		GlobalDevice().Destroy(&resource);
 	}
 
-	Array<HLSL::Node> nodeData(SceneNodes.GetLength(), RendererAllocator);
+	Array<HLSL::Node> nodeData(SceneNodes.GetCount(), RendererAllocator);
 	for (const Node& node : SceneNodes)
 	{
 		nodeData.Add(HLSL::Node
@@ -899,7 +899,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		SceneMaterials.Add(material);
 	}
 
-	Array<HLSL::Material> materialData(SceneMaterials.GetLength(), RendererAllocator);
+	Array<HLSL::Material> materialData(SceneMaterials.GetCount(), RendererAllocator);
 	for (const Material& material : SceneMaterials)
 	{
 		ReadTexture baseColorOrDiffuseTexture = WhiteTexture;
@@ -931,7 +931,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 									  : material.MetallicRoughness.BaseColorFactor,
 			.MetallicOrSpecularFactor = material.IsSpecularGlossiness
 									  ? material.SpecularGlossiness.SpecularFactor
-									  : Float3 { .R = material.MetallicRoughness.MetallicFactor, .G = 0.0f, .B = 0.0f },
+									  : float32x3 { material.MetallicRoughness.MetallicFactor, 0.0f, 0.0f },
 			.RoughnessOrGlossinessFactor = material.IsSpecularGlossiness
 										 ? material.SpecularGlossiness.GlossinessFactor
 										 : material.MetallicRoughness.RoughnessFactor,
@@ -967,7 +967,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 			directionalLight = HLSL::DirectionalLight
 			{
-				.Color = light.Color,
+				.Color = light.RGB,
 				.IntensityLux = light.Intensity,
 				.DirectionWS = { .X = directionWS.X, .Y = directionWS.Y, .Z = directionWS.Z },
 			};
@@ -976,7 +976,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		{
 			pointLights.Add(HLSL::PointLight
 			{
-				.Color = light.Color,
+				.RGB = light.RGB,
 				.IntensityCandela = light.Intensity,
 				.PositionWS = { .X = translationWS.X, .Y = translationWS.Y, .Z = translationWS.Z },
 			});
@@ -986,7 +986,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	{
 		directionalLight = HLSL::DirectionalLight
 		{
-			.Color = { .R = 1.0f, .G = 1.0f, .B = 1.0f },
+			.Color = { 1.0f, 1.0f, 1.0f },
 			.IntensityLux = 1.0f,
 			.DirectionWS = { .X = 0.0f, .Y = 1.0f, .Z = 0.0f },
 		};

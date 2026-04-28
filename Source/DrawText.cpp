@@ -31,10 +31,10 @@ void DrawText::Init()
 		const JSON::Object& glyphObject = glyphValue.GetObject();
 
 		const float advance = static_cast<float>(glyphObject["advance"_view].GetDecimal());
-		Float2 atlasPosition = { .X = 0.0f, .Y = 0.0f };
-		Float2 atlasSize = { .X = 0.0f, .Y = 0.0f };
-		Float2 planePosition = { .X = 0.0f, .Y = 0.0f };
-		Float2 planeSize = { .X = 0.0f, .Y = 0.0f };
+		float32x2 atlasPosition = { .X = 0.0f, .Y = 0.0f };
+		float32x2 atlasSize = { .X = 0.0f, .Y = 0.0f };
+		float32x2 planePosition = { .X = 0.0f, .Y = 0.0f };
+		float32x2 planeSize = { .X = 0.0f, .Y = 0.0f };
 
 		if (glyphObject.HasKey("atlasBounds"_view))
 		{
@@ -158,16 +158,16 @@ void DrawText::Shutdown()
 	this->~DrawText();
 }
 
-void DrawText::Draw(StringView text, Float2 positionSS, Float3 rgb, float scale)
+void DrawText::Draw(StringView text, float32x2 positionSS, float32x3 rgb, float scale)
 {
-	Draw(text, positionSS, Float4 { .R = rgb.R, .G = rgb.G, .B = rgb.B, .A = 1.0f }, scale);
+	Draw(text, positionSS, float32x4 { rgb.X, rgb.Y, rgb.Z, 1.0f }, scale);
 }
 
-void DrawText::Draw(StringView text, Float2 positionSS, Float4 rgba, float scale)
+void DrawText::Draw(StringView text, float32x2 positionSS, float32x4 rgba, float scale)
 {
 	CHECK(CharacterIndex + text.GetLength() <= MaxCharactersPerFrame);
 
-	Float2 currentPositionSS = { .X = positionSS.X, .Y = positionSS.Y - scale * Ascender };
+	float32x2 currentPositionSS = { .X = positionSS.X, .Y = positionSS.Y - scale * Ascender };
 	for (usize textIndex = 0; textIndex < text.GetLength(); ++textIndex)
 	{
 		const Glyph& glyph = Glyphs[text[textIndex]];

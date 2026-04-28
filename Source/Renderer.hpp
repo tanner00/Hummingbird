@@ -28,7 +28,7 @@ private:
 	void UpdateScene(const RHI::GraphicsPipeline& pipeline);
 
 #if !RELEASE
-	void UpdateFrameTimes(double startCPUTime);
+	void UpdateFrameTimes(float64 startCPUTime);
 #endif
 
 	void LoadScene(const GLTF::Scene& scene);

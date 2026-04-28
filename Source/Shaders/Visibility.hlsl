@@ -3,14 +3,14 @@
 
 struct VertexInput
 {
-	float3 PositionLS : POSITION0;
-	float2 UV : TEXCOORD0;
+	float32x3 PositionLS : POSITION0;
+	float32x2 UV : TEXCOORD0;
 };
 
 struct PixelInput
 {
-	float4 PositionCS : SV_POSITION;
-	float2 UV : TEXCOORD0;
+	float32x4 PositionCS : SV_POSITION;
+	float32x2 UV : TEXCOORD0;
 };
 
 ConstantBuffer<SceneRootConstants> RootConstants : register(b0);
@@ -27,7 +27,7 @@ PixelInput VertexStart(VertexInput input)
 	return result;
 }
 
-uint2 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_Target
+uint32x2 PixelStart(PixelInput input, uint32 primitiveID : SV_PrimitiveID) : SV_Target
 {
 	const SamplerState anisotropicWrapSampler = ResourceDescriptorHeap[RootConstants.AnisotropicWrapSamplerIndex];
 	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
@@ -36,13 +36,13 @@ uint2 PixelStart(PixelInput input, uint primitiveID : SV_PrimitiveID) : SV_Targe
 	const Primitive primitive = primitiveBuffer[RootConstants.PrimitiveIndex];
 	const Material material = materialBuffer[primitive.MaterialIndex];
 
-	const Texture2D<float4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
-	const float alpha = baseColorOrDiffuseTexture.Sample(anisotropicWrapSampler, input.UV).a * material.BaseColorOrDiffuseFactor.a;
+	const Texture2D<float32x4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
+	const float32 alpha = baseColorOrDiffuseTexture.Sample(anisotropicWrapSampler, input.UV).a * material.BaseColorOrDiffuseFactor.a;
 
 	if (alpha < material.AlphaCutoff && RootConstants.ViewMode != ViewMode::Geometry)
 	{
 		discard;
 	}
 
-	return uint2(RootConstants.DrawCallIndex + 1, primitiveID + 1);
+	return uint32x2(RootConstants.DrawCallIndex + 1, primitiveID + 1);
 }
