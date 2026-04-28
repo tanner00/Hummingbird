@@ -3,10 +3,10 @@
 
 #include "Luft/Platform.hpp"
 
-static constexpr float DefaultMovementSpeed = 4.0f;
-static constexpr float FastMovementSpeed = 10.0f;
+static constexpr float32 DefaultMovementSpeed = 4.0f;
+static constexpr float32 FastMovementSpeed = 10.0f;
 
-static constexpr float RotationSpeedRadians = 8.0f * DegreesToRadians;
+static constexpr float32 RotationSpeedRadians = 8.0f * DegreesToRadians;
 
 CameraController::CameraController()
 	: PositionWS(Vector::Zero)
@@ -19,12 +19,12 @@ CameraController::CameraController()
 {
 }
 
-void CameraController::Update(float timeDelta)
+void CameraController::Update(float32 timeDelta)
 {
 	if (Platform::GetInputMode() == Platform::InputMode::Captured)
 	{
-		const float yawDeltaRadians =   -static_cast<float>(Platform::GetMouseX()) * RotationSpeedRadians * timeDelta;
-		float pitchDeltaRadians =       -static_cast<float>(Platform::GetMouseY()) * RotationSpeedRadians * timeDelta;
+		const float32 yawDeltaRadians =   -static_cast<float32>(Platform::GetMouseX()) * RotationSpeedRadians * timeDelta;
+		float32 pitchDeltaRadians =       -static_cast<float32>(Platform::GetMouseY()) * RotationSpeedRadians * timeDelta;
 
 		PitchRadians += pitchDeltaRadians;
 		if (PitchRadians > +Pi / 2.0f)
@@ -75,7 +75,7 @@ void CameraController::Update(float timeDelta)
 
 	if (moving)
 	{
-		const float movementSpeed = Platform::IsKeyPressed(Platform::Key::Shift) ? FastMovementSpeed : DefaultMovementSpeed;
+		const float32 movementSpeed = Platform::IsKeyPressed(Platform::Key::Shift) ? FastMovementSpeed : DefaultMovementSpeed;
 		PositionWS = PositionWS + movementWS.GetNormalized() * movementSpeed * timeDelta;
 	}
 }

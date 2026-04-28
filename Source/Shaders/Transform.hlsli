@@ -1,51 +1,53 @@
 #pragma once
 
-float4 TransformLocalPositionToWorld(float3 positionLS, matrix localToWorld)
+#include "Common.hlsli"
+
+float32x4 TransformLocalPositionToWorld(float32x3 positionLS, float32x4x4 localToWorld)
 {
-	return mul(localToWorld, float4(positionLS, 1.0f));
+	return mul(localToWorld, float32x4(positionLS, 1.0f));
 }
 
-float3 TransformLocalDirectionToWorld(float3 directionLS, matrix localToWorld)
+float32x3 TransformLocalDirectionToWorld(float32x3 directionLS, float32x4x4 localToWorld)
 {
 	return mul((float3x3)localToWorld, directionLS);
 }
 
-float4 TransformWorldToClip(float4 positionWS, matrix worldToClip)
+float32x4 TransformWorldToClip(float32x4 positionWS, float32x4x4 worldToClip)
 {
 	return mul(worldToClip, positionWS);
 }
 
-float2 TransformClipToNDC(float4 positionCS)
+float32x2 TransformClipToNDC(float32x4 positionCS)
 {
 	return positionCS.xy / positionCS.w;
 }
 
-float4 TransformScreenToClip(float2 positionSS, matrix screenToClip)
+float32x4 TransformScreenToClip(float32x2 positionSS, float32x4x4 screenToClip)
 {
-	return mul(screenToClip, float4(positionSS, 0.0f, 1.0f));
+	return mul(screenToClip, float32x4(positionSS, 0.0f, 1.0f));
 }
 
-float2 TransformScreenToNDC(float2 positionSS, float2 screenSize)
+float32x2 TransformScreenToNDC(float32x2 positionSS, float32x2 screenSize)
 {
-	return float2(positionSS * 2.0f / screenSize - 1.0f) * float2(1.0f, -1.0f);
+	return float32x2(positionSS * 2.0f / screenSize - 1.0f) * float32x2(1.0f, -1.0f);
 }
 
-float2 TransformClipToUV(float4 positionCS)
+float32x2 TransformClipToUV(float32x4 positionCS)
 {
-	return (TransformClipToNDC(positionCS) + 1.0f) / float2(2.0f, -2.0f);
+	return (TransformClipToNDC(positionCS) + 1.0f) / float32x2(2.0f, -2.0f);
 }
 
-float4 TransformUVToClip(float2 uv)
+float32x4 TransformUVToClip(float32x2 uv)
 {
-	return float4(uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
+	return float32x4(uv * float32x2(2.0f, -2.0f) + float32x2(-1.0f, 1.0f), 0.0f, 1.0f);
 }
 
-float2 TransformTexelToUV(uint2 texel, uint2 textureDimensions)
+float32x2 TransformTexelToUV(uint2 texel, uint2 textureDimensions)
 {
 	return (texel + 0.5f) / textureDimensions;
 }
 
-float2 TransformVertexIDToUV(uint vertexID)
+float32x2 TransformVertexIDToUV(uint32 vertexID)
 {
-	return float2(((2 - vertexID) << 1) & 2, (2 - vertexID) & 2);
+	return float32x2(((2 - vertexID) << 1) & 2, (2 - vertexID) & 2);
 }

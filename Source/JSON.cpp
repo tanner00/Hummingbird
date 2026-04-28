@@ -269,7 +269,7 @@ static int64 ParseInt64(StringView buffer, usize* index)
 	return isNegative ? -value : value;
 }
 
-static double ParseDoubleNoExponent(StringView buffer, usize* index)
+static float64 ParseDoubleNoExponent(StringView buffer, usize* index)
 {
 	CHECK(index);
 	const bool isNegative = PeekCharacter(buffer, *index) == '-';
@@ -295,8 +295,8 @@ static double ParseDoubleNoExponent(StringView buffer, usize* index)
 		}
 	}
 
-	const float factor = isNegative ? -1.0f : 1.0f;
-	return static_cast<double>(whole) + factor * (static_cast<double>(fractional) / static_cast<double>(divisor));
+	const float32 factor = isNegative ? -1.0f : 1.0f;
+	return static_cast<float64>(whole) + factor * (static_cast<float64>(fractional) / static_cast<float64>(divisor));
 }
 
 static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
@@ -362,9 +362,9 @@ static String ParseString(StringView buffer, usize* index)
 	return result;
 }
 
-static double ParseNumber(StringView buffer, usize* index)
+static float64 ParseNumber(StringView buffer, usize* index)
 {
-	const double mantissa = ParseDoubleNoExponent(buffer, index);
+	const float64 mantissa = ParseDoubleNoExponent(buffer, index);
 	int64 exponent = 0;
 	if (PeekCharacter(buffer, *index) == 'e' || PeekCharacter(buffer, *index) == 'E')
 	{
@@ -372,8 +372,8 @@ static double ParseNumber(StringView buffer, usize* index)
 		exponent = ParseInt64(buffer, index);
 	}
 
-	const double power = static_cast<double>(Power10(Absolute(exponent)));
-	const double multiplier = (exponent >= 0) ? power : (1.0 / power);
+	const float64 power = static_cast<float64>(Power10(Absolute(exponent)));
+	const float64 multiplier = (exponent >= 0) ? power : (1.0 / power);
 	return mantissa * multiplier;
 }
 

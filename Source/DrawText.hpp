@@ -11,10 +11,10 @@ namespace HLSL
 
 struct Glyph
 {
-	Float2 AtlasPosition;
-	Float2 AtlasSize;
-	Float2 PlanePosition;
-	Float2 PlaneSize;
+	float32x2 AtlasPosition;
+	float32x2 AtlasSize;
+	float32x2 PlanePosition;
+	float32x2 PlaneSize;
 	float Advance;
 };
 
@@ -30,8 +30,8 @@ public:
 		return instance;
 	}
 
-	void Draw(StringView text, Float2 positionSS, Float3 rgb, float scale);
-	void Draw(StringView text, Float2 positionSS, Float4 rgba, float scale);
+	void Draw(StringView text, float32x2 positionSS, float32x3 rgb, float scale);
+	void Draw(StringView text, float32x2 positionSS, float32x4 rgba, float scale);
 
 	void Submit(uint32 width, uint32 height);
 

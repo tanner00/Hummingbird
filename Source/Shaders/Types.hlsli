@@ -4,7 +4,7 @@
 #include "Shared.hlsli"
 #undef SHARED_ON
 
-enum class ViewMode : uint
+enum class ViewMode : uint32
 {
 	Lit,
 	Unlit,
@@ -14,11 +14,11 @@ enum class ViewMode : uint
 
 struct SceneRootConstants
 {
-	uint AnisotropicWrapSamplerIndex;
+	uint32 AnisotropicWrapSamplerIndex;
 
-	uint DrawCallIndex;
-	uint PrimitiveIndex;
-	uint NodeIndex;
+	uint32 DrawCallIndex;
+	uint32 PrimitiveIndex;
+	uint32 NodeIndex;
 
 	ViewMode ViewMode;
 
@@ -29,23 +29,23 @@ struct SceneRootConstants
 
 struct DeferredRootConstants
 {
-	uint HDRTextureIndex;
-	uint VisibilityTextureIndex;
-	uint AnisotropicWrapSamplerIndex;
+	uint32 HDRTextureIndex;
+	uint32 VisibilityTextureIndex;
+	uint32 AnisotropicWrapSamplerIndex;
 
 	ViewMode ViewMode;
 };
 
 struct ResolveRootConstants
 {
-	uint HDRTextureIndex;
-	uint AccumulationTextureIndex;
-	uint PreviousAccumulationTextureIndex;
-	uint VisibilityTextureIndex;
-	uint VertexBufferIndex;
-	uint PrimitiveBufferIndex;
-	uint NodeBufferIndex;
-	uint DrawCallBufferIndex;
+	uint32 HDRTextureIndex;
+	uint32 AccumulationTextureIndex;
+	uint32 PreviousAccumulationTextureIndex;
+	uint32 VisibilityTextureIndex;
+	uint32 VertexBufferIndex;
+	uint32 PrimitiveBufferIndex;
+	uint32 NodeBufferIndex;
+	uint32 DrawCallBufferIndex;
 
 	bool32 DiscardPreviousFrame;
 
@@ -57,63 +57,63 @@ struct ResolveRootConstants
 
 struct LuminanceHistogramRootConstants
 {
-	uint HDRTextureIndex;
-	uint LuminanceBufferIndex;
+	uint32 HDRTextureIndex;
+	uint32 LuminanceBufferIndex;
 };
 
 struct LuminanceAverageRootConstants
 {
-	uint LuminanceBufferIndex;
+	uint32 LuminanceBufferIndex;
 
-	uint PixelCount;
+	uint32 PixelCount;
 };
 
 struct ToneMapRootConstants
 {
-	uint HDRTextureIndex;
-	uint LuminanceBufferIndex;
-	uint LinearWrapSamplerIndex;
+	uint32 HDRTextureIndex;
+	uint32 LuminanceBufferIndex;
+	uint32 LinearWrapSamplerIndex;
 
 	bool32 DebugViewMode;
 };
 
 struct Scene
 {
-	uint VertexBufferIndex;
-	uint PrimitiveBufferIndex;
-	uint NodeBufferIndex;
-	uint MaterialBufferIndex;
-	uint DrawCallBufferIndex;
-	uint DirectionalLightBufferIndex;
-	uint PointLightsBufferIndex;
-	uint AccelerationStructureIndex;
+	uint32 VertexBufferIndex;
+	uint32 PrimitiveBufferIndex;
+	uint32 NodeBufferIndex;
+	uint32 MaterialBufferIndex;
+	uint32 DrawCallBufferIndex;
+	uint32 DirectionalLightBufferIndex;
+	uint32 PointLightsBufferIndex;
+	uint32 AccelerationStructureIndex;
 
 	Matrix WorldToClip;
 	Matrix JitterWorldToClip;
-	Float3 ViewPositionWS;
+	float32x3 ViewPositionWS;
 
 	bool32 TwoChannelNormalMaps;
 
-	uint PointLightsCount;
+	uint32 PointLightsCount;
 
 	PAD(76);
 };
 
 struct Primitive
 {
-	uint MaterialIndex;
+	uint32 MaterialIndex;
 
-	uint PositionOffset;
-	uint PositionStride;
+	uint32 PositionOffset;
+	uint32 PositionStride;
 
-	uint TextureCoordinateOffset;
-	uint TextureCoordinateStride;
+	uint32 TextureCoordinateOffset;
+	uint32 TextureCoordinateStride;
 
-	uint NormalOffset;
-	uint NormalStride;
+	uint32 NormalOffset;
+	uint32 NormalStride;
 
-	uint IndexOffset;
-	uint IndexStride;
+	uint32 IndexOffset;
+	uint32 IndexStride;
 };
 
 struct Node
@@ -124,69 +124,69 @@ struct Node
 
 struct DrawCall
 {
-	uint NodeIndex;
-	uint PrimitiveIndex;
+	uint32 NodeIndex;
+	uint32 PrimitiveIndex;
 };
 
 struct Material
 {
-	uint BaseColorOrDiffuseTextureIndex;
-	uint MetallicRoughnessOrSpecularGlossinessTextureIndex;
+	uint32 BaseColorOrDiffuseTextureIndex;
+	uint32 MetallicRoughnessOrSpecularGlossinessTextureIndex;
 
-	Float4 BaseColorOrDiffuseFactor;
-	Float3 MetallicOrSpecularFactor;
-	float RoughnessOrGlossinessFactor;
+	float32x4 BaseColorOrDiffuseFactor;
+	float32x3 MetallicOrSpecularFactor;
+	float32 RoughnessOrGlossinessFactor;
 
 	bool32 IsSpecularGlossiness;
 
-	uint NormalMapTextureIndex;
+	uint32 NormalMapTextureIndex;
 
-	float AlphaCutoff;
+	float32 AlphaCutoff;
 };
 
 struct DirectionalLight
 {
-	Float3 Color;
-	float IntensityLux;
+	float32x3 Color;
+	float32 IntensityLux;
 
-	Float3 DirectionWS;
+	float32x3 DirectionWS;
 
 	PAD(228);
 };
 
 struct PointLight
 {
-	Float3 Color;
-	float IntensityCandela;
+	float32x3 RGB;
+	float32 IntensityCandela;
 
-	Float3 PositionWS;
+	float32x3 PositionWS;
 };
 
 struct Character
 {
-	Float4 Color;
+	float32x4 Color;
 
-	Float2 PositionSS;
+	float32x2 PositionSS;
 
-	Float2 AtlasPosition;
-	Float2 AtlasSize;
+	float32x2 AtlasPosition;
+	float32x2 AtlasSize;
 
-	Float2 PlanePosition;
-	Float2 PlaneSize;
+	float32x2 PlanePosition;
+	float32x2 PlaneSize;
 
 	float Scale;
 };
 
 struct TextRootConstants
 {
-	uint CharacterBufferIndex;
-	uint FontTextureIndex;
-	uint LinearWrapSampler;
+	uint32 CharacterBufferIndex;
+	uint32 FontTextureIndex;
+	uint32 LinearWrapSampler;
 
 	PAD(4);
 
 	Matrix ScreenToClip;
-	Float2 UnitRange;
+	float32x2 UnitRange;
 };
 
 #define SHARED_OFF true

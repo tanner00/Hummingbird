@@ -64,21 +64,21 @@ struct Node
 struct SpecularGlossiness
 {
 	ReadTexture DiffuseTexture;
-	Float4 DiffuseFactor;
+	float32x4 DiffuseFactor;
 
 	ReadTexture SpecularGlossinessTexture;
-	Float3 SpecularFactor;
-	float GlossinessFactor;
+	float32x3 SpecularFactor;
+	float32 GlossinessFactor;
 };
 
 struct MetallicRoughness
 {
 	ReadTexture BaseColorTexture;
-	Float4 BaseColorFactor;
+	float32x4 BaseColorFactor;
 
 	ReadTexture MetallicRoughnessTexture;
-	float MetallicFactor;
-	float RoughnessFactor;
+	float32 MetallicFactor;
+	float32 RoughnessFactor;
 };
 
 struct Material
@@ -90,7 +90,7 @@ struct Material
 	ReadTexture NormalMapTexture;
 
 	bool Translucent;
-	float AlphaCutoff;
+	float32 AlphaCutoff;
 };
 
 namespace HLSL
