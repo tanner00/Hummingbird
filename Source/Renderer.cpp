@@ -241,7 +241,7 @@ void Renderer::Update(const CameraController& cameraController)
 	const ResourceDimensions screenDimensions = SwapChainTextureResources[GlobalDevice().GetFrameIndex()].Dimensions;
 	GlobalGraphics().SetViewport(screenDimensions.Width, screenDimensions.Height);
 
-	float32x2 currentJitterCS = { .X = 0.0f, .Y = 0.0f };
+	float32x2 currentJitterNDC = { .X = 0.0f, .Y = 0.0f };
 	if (ShouldAntiAlias())
 	{
 		static constexpr float32x2 halton23Sequence[] =
@@ -267,10 +267,10 @@ void Renderer::Update(const CameraController& cameraController)
 		const uint32 frameCount = TemporalAntiAliasing.FrameCount;
 		const float32x2 currentHalton = halton23Sequence[frameCount % ARRAY_COUNT(halton23Sequence)];
 
-		currentJitterCS = float32x2
+		currentJitterNDC = float32x2
 		{
-			.X = currentHalton.X / static_cast<float>(screenDimensions.Width),
-			.Y = currentHalton.Y / static_cast<float>(screenDimensions.Height),
+			.X = (currentHalton.X - 0.5f) * (2.0f / static_cast<float32>(screenDimensions.Width)),
+			.Y = (currentHalton.Y - 0.5f) * (2.0f / static_cast<float32>(screenDimensions.Height)),
 		};
 	}
 
@@ -292,7 +292,7 @@ void Renderer::Update(const CameraController& cameraController)
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? GlobalDevice().Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = GlobalDevice().Get(SceneAccelerationStructure),
 		.WorldToClip = worldToClip,
-		.JitterWorldToClip = Matrix::Translation(currentJitterCS.X, currentJitterCS.Y, 0.0f) * worldToClip,
+		.JitterWorldToClip = Matrix::Translation(currentJitterNDC.X, currentJitterNDC.Y, 0.0f) * worldToClip,
 		.ViewPositionWS = float32x3
 		{
 			.X = cameraController.GetPositionWS().X,
