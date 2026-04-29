@@ -30,7 +30,7 @@ static ReadTexture CreateReadTexture(ResourceUploader::Lifetime lifetime,
 		.InitialLayout = BarrierLayout::GraphicsQueueCommon,
 		.Dimensions = dimensions,
 		.MipMapCount = mipMapCount,
-		.Name = String(name),
+		.Name = String(name, RendererAllocator),
 	});
 	const TextureView view = GlobalDevice().Create(
 	{
@@ -55,7 +55,7 @@ static ReadBuffer CreateReadBuffer(ResourceUploader::Lifetime lifetime,
 		.Flags = flags,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size,
-		.Name = String(name),
+		.Name = String(name, RendererAllocator),
 	});
 	const BufferView view = GlobalDevice().Create(
 	{
@@ -134,7 +134,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 			.Flags = ResourceFlags::Upload,
 			.InitialLayout = BarrierLayout::Undefined,
 			.Size = sizeof(HLSL::Scene),
-			.Name = String("Scene Buffer"_view),
+			.Name = String("Scene Buffer"_view, RendererAllocator),
 		});
 		SceneBufferViews[frameIndex] = GlobalDevice().Create(
 		{
@@ -154,7 +154,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 		.Flags = ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float32),
-		.Name = String("Scene Luminance Buffer"_view),
+		.Name = String("Scene Luminance Buffer"_view, RendererAllocator),
 	});
 	SceneLuminanceBufferView = GlobalDevice().Create(
 	{
@@ -696,7 +696,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Flags = ResourceFlags::UnorderedAccess,
 				.InitialLayout = BarrierLayout::Undefined,
 				.Size = size.ScratchSize,
-				.Name = String("Scratch Primitive Acceleration Structure"_view),
+				.Name = String("Scratch Primitive Acceleration Structure"_view, RendererAllocator),
 			});
 			transientResources.Add(scratchResource);
 			const Resource resultResource = GlobalDevice().Create(
@@ -706,7 +706,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Flags = ResourceFlags::RayTracingAccelerationStructure | ResourceFlags::UnorderedAccess,
 				.InitialLayout = BarrierLayout::Undefined,
 				.Size = size.ResultSize,
-				.Name = String("Primitive Acceleration Structure"_view),
+				.Name = String("Primitive Acceleration Structure"_view, RendererAllocator),
 			});
 			GlobalGraphics().BuildRayTracingAccelerationStructure(geometry, scratchResource, resultResource);
 
@@ -767,7 +767,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Flags = ResourceFlags::Upload,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = instances.GetCount() * GlobalDevice().GetRayTracingAccelerationStructureInstanceSize(),
-		.Name = String("Scene Acceleration Structure Instances"_view),
+		.Name = String("Scene Acceleration Structure Instances"_view, RendererAllocator),
 	});
 	transientResources.Add(instancesResource);
 	GlobalDevice().Write(&instancesResource, instances.GetData());
@@ -787,7 +787,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Flags = ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size.ScratchSize,
-		.Name = String("Scratch Scene Acceleration Structure"_view),
+		.Name = String("Scratch Scene Acceleration Structure"_view, RendererAllocator),
 	});
 	transientResources.Add(scratchResource);
 	SceneAccelerationStructureResource = GlobalDevice().Create(
@@ -797,7 +797,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Flags = ResourceFlags::RayTracingAccelerationStructure | ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size.ResultSize,
-		.Name = String("Scene Acceleration Structure"_view),
+		.Name = String("Scene Acceleration Structure"_view, RendererAllocator),
 	});
 	GlobalGraphics().BuildRayTracingAccelerationStructure(instancesBuffer, scratchResource, SceneAccelerationStructureResource);
 
@@ -1068,7 +1068,7 @@ void Renderer::CreatePipelines()
 		Shader vertex = GlobalDevice().Create(
 		{
 			.Stage = ShaderStage::Vertex,
-			.FilePath = String(path),
+			.FilePath = String(path, RendererAllocator),
 		});
 
 		Shader pixel;
@@ -1077,7 +1077,7 @@ void Renderer::CreatePipelines()
 			pixel = GlobalDevice().Create(
 			{
 				.Stage = ShaderStage::Pixel,
-				.FilePath = String(path),
+				.FilePath = String(path, RendererAllocator),
 			});
 		}
 
@@ -1089,7 +1089,7 @@ void Renderer::CreatePipelines()
 			.DepthStencilFormat = depth ? ResourceFormat::Depth32 : ResourceFormat::None,
 			.AlphaBlend = false,
 			.ReverseDepth = true,
-			.Name = String(name),
+			.Name = String(name, RendererAllocator),
 		});
 
 		GlobalDevice().Destroy(&vertex);
@@ -1105,13 +1105,13 @@ void Renderer::CreatePipelines()
 		Shader compute = GlobalDevice().Create(
 		{
 			.Stage = ShaderStage::Compute,
-			.FilePath = String(path),
+			.FilePath = String(path, RendererAllocator),
 		});
 
 		const ComputePipeline pipeline = GlobalDevice().Create(
 		{
 			.Stage = compute,
-			.Name = String(name),
+			.Name = String(name, RendererAllocator),
 		});
 		GlobalDevice().Destroy(&compute);
 
@@ -1162,7 +1162,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.Flags = ResourceFlags::UnorderedAccess,
 			.InitialLayout = BarrierLayout::GraphicsQueueUnorderedAccess,
 			.Dimensions = { width, height },
-			.Name = String(textureName),
+			.Name = String(textureName, RendererAllocator),
 		});
 		return WriteTexture
 		{
@@ -1190,7 +1190,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 			.InitialLayout = BarrierLayout::Undefined,
 			.Dimensions = { width, height },
 			.SwapChainIndex = static_cast<uint8>(frameIndex),
-			.Name = String("SwapChain Texture"_view),
+			.Name = String("SwapChain Texture"_view, RendererAllocator),
 		});
 		SwapChainTextureViews[frameIndex] = GlobalDevice().Create(
 		{
@@ -1207,7 +1207,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.InitialLayout = BarrierLayout::DepthStencilWrite,
 		.Dimensions = { width, height },
 		.DepthClear = 0.0f,
-		.Name = String("Depth Texture"_view),
+		.Name = String("Depth Texture"_view, RendererAllocator),
 	});
 	DepthTextureView = GlobalDevice().Create(
 	{
@@ -1222,7 +1222,7 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 		.Flags = ResourceFlags::RenderTarget,
 		.InitialLayout = BarrierLayout::RenderTarget,
 		.Dimensions = { width, height },
-		.Name = String("Visibility Texture"_view),
+		.Name = String("Visibility Texture"_view, RendererAllocator),
 	});
 	VisibilityTextureRenderTargetView = GlobalDevice().Create(
 	{
