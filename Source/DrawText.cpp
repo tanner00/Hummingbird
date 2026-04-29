@@ -79,7 +79,7 @@ void DrawText::Init()
 		});
 	}
 
-	FontTexture = ResourceUploader::Get().Upload(ResourceLifetime::Persistent, fontImage.Data,
+	FontTexture = ResourceUploader::Upload(ResourceUploader::Lifetime::Persistent, fontImage.Data,
 	{
 		.Type = RHI::ResourceType::Texture2D,
 		.Format = fontImage.Format,

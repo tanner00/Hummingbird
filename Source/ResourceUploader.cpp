@@ -3,9 +3,26 @@
 
 using namespace RHI;
 
+namespace ResourceUploader
+{
+
 static constexpr usize SingleSceneHeapSize = MB(256);
 
-void ResourceUploader::Init(usize persistentHeapSize, usize uploadHeapSize)
+struct LinearHeap
+{
+	Heap Heap;
+	usize Offset;
+};
+
+static Array<LinearHeap> SceneHeaps(&StaticAllocator::Get());
+static LinearHeap PersistentHeap;
+static LinearHeap UploadHeap;
+
+static GraphicsContext Graphics;
+
+static Array<Resource> UploadBuffers(&StaticAllocator::Get());
+
+void Init(usize persistentHeapSize, usize uploadHeapSize)
 {
 	SceneHeaps.Add(LinearHeap
 	{
@@ -39,7 +56,7 @@ void ResourceUploader::Init(usize persistentHeapSize, usize uploadHeapSize)
 	Graphics.Begin();
 }
 
-void ResourceUploader::Shutdown()
+void Shutdown()
 {
 	for (LinearHeap& heap : SceneHeaps)
 	{
@@ -54,14 +71,12 @@ void ResourceUploader::Shutdown()
 	{
 		GlobalDevice().Destroy(&uploadBuffer);
 	}
-
-	this->~ResourceUploader();
 }
 
-Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, const ResourceDescription& description)
+Resource Upload(Lifetime lifetime, const void* data, const ResourceDescription& description)
 {
-	LinearHeap* heap = lifetime == ResourceLifetime::Persistent ? &PersistentHeap
-																: (lifetime == ResourceLifetime::Scene ? &SceneHeaps.Last() : nullptr);
+	LinearHeap* heap = lifetime == Lifetime::Persistent ? &PersistentHeap
+														: (lifetime == Lifetime::Scene ? &SceneHeaps.Last() : nullptr);
 	CHECK(heap);
 
 	const usize resourceAlignment = GlobalDevice().GetResourceAlignment(description);
@@ -72,7 +87,7 @@ Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, c
 
 	if (heap->Offset + resourceSize > heap->Heap.Size)
 	{
-		CHECK(lifetime == ResourceLifetime::Scene);
+		CHECK(lifetime == Lifetime::Scene);
 
 		SceneHeaps.Add(LinearHeap
 		{
@@ -121,7 +136,7 @@ Resource ResourceUploader::Upload(ResourceLifetime lifetime, const void* data, c
 	return resource;
 }
 
-void ResourceUploader::Flush()
+void Flush()
 {
 	if (UploadHeap.Offset == 0)
 	{
@@ -143,7 +158,7 @@ void ResourceUploader::Flush()
 	Graphics.Begin();
 }
 
-void ResourceUploader::Reset()
+void Reset()
 {
 	Flush();
 
@@ -153,4 +168,6 @@ void ResourceUploader::Reset()
 		SceneHeaps.Remove(SceneHeaps.GetCount() - 1);
 	}
 	SceneHeaps.First().Offset = 0;
+}
+
 }

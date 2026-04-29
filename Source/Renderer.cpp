@@ -15,14 +15,14 @@ using namespace RHI;
 
 static ::Allocator* RendererAllocator = &GlobalAllocator::Get();
 
-static ReadTexture CreateReadTexture(ResourceLifetime lifetime,
+static ReadTexture CreateReadTexture(ResourceUploader::Lifetime lifetime,
 									 ResourceDimensions dimensions,
 									 uint16 mipMapCount,
 									 ResourceFormat format,
 									 const void* data,
 									 StringView name)
 {
-	const Resource texture = ResourceUploader::Get().Upload(lifetime, data,
+	const Resource texture = ResourceUploader::Upload(lifetime, data,
 	{
 		.Type = ResourceType::Texture2D,
 		.Format = format,
@@ -41,7 +41,7 @@ static ReadTexture CreateReadTexture(ResourceLifetime lifetime,
 	return ReadTexture { texture, view };
 }
 
-static ReadBuffer CreateReadBuffer(ResourceLifetime lifetime,
+static ReadBuffer CreateReadBuffer(ResourceUploader::Lifetime lifetime,
 								   usize size,
 								   usize stride,
 								   ResourceFlags flags,
@@ -49,7 +49,7 @@ static ReadBuffer CreateReadBuffer(ResourceLifetime lifetime,
 								   const void* data,
 								   StringView name)
 {
-	const Resource buffer = ResourceUploader::Get().Upload(lifetime, data,
+	const Resource buffer = ResourceUploader::Upload(lifetime, data,
 	{
 		.Type = ResourceType::Buffer,
 		.Flags = flags,
@@ -99,11 +99,11 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 
 	CreateScreenTextures(window->DrawWidth, window->DrawHeight);
 
-	ResourceUploader::Get().Init(MB(32), MB(256));
+	ResourceUploader::Init(MB(32), MB(256));
 	DrawText::Get().Init();
 
 	static constexpr uint8 white[] = { 0xFF, 0xFF, 0xFF, 0xFF };
-	WhiteTexture = CreateReadTexture(ResourceLifetime::Persistent,
+	WhiteTexture = CreateReadTexture(ResourceUploader::Lifetime::Persistent,
 									 { 1, 1 },
 									 1,
 									 ResourceFormat::RGBA8UNorm,
@@ -111,7 +111,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 									 "White Texture"_view);
 
 	static constexpr uint8 defaultNormal[] = { 0x7F, 0x7F, 0xFF, 0x00 };
-	DefaultNormalMapTexture = CreateReadTexture(ResourceLifetime::Persistent,
+	DefaultNormalMapTexture = CreateReadTexture(ResourceUploader::Lifetime::Persistent,
 												{ 1, 1 },
 												1,
 												ResourceFormat::RGBA8UNorm,
@@ -178,7 +178,7 @@ Renderer::~Renderer()
 
 	DestroyScreenTextures();
 
-	ResourceUploader::Get().Shutdown();
+	ResourceUploader::Shutdown();
 	DrawText::Get().Shutdown();
 
 	DestroyReadTexture(&WhiteTexture);
@@ -455,7 +455,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().End();
 
-	ResourceUploader::Get().Flush();
+	ResourceUploader::Flush();
 
 	GlobalDevice().Submit(GlobalGraphics());
 	GlobalDevice().Present();
@@ -581,7 +581,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	const GLTF::Buffer& vertexBuffer = scene.Buffers[0];
 
 	GLTF::Buffer finalVertexBuffer = vertexBuffer;
-	SceneVertexBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+	SceneVertexBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
 										 finalVertexBuffer.Size,
 										 0,
 										 ResourceFlags::None,
@@ -589,7 +589,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 										 finalVertexBuffer.Data,
 										 "Scene Vertex Buffer"_view);
 
-	ResourceUploader::Get().Flush();
+	ResourceUploader::Flush();
 
 	usize globalPrimitiveIndex = 0;
 	for (const GLTF::Mesh& mesh : scene.Meshes)
@@ -649,7 +649,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			});
 		}
 	}
-	ScenePrimitiveBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+	ScenePrimitiveBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
 											primitiveData.GetDataSize(),
 											primitiveData.GetElementSize(),
 											ResourceFlags::None,
@@ -752,7 +752,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.MeshIndex = node.Mesh,
 		});
 	}
-	SceneDrawCallBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+	SceneDrawCallBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
 										   drawCallData.GetDataSize(),
 										   drawCallData.GetElementSize(),
 										   ResourceFlags::None,
@@ -824,7 +824,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.NormalLocalToWorld = node.LocalToWorld.GetInverse().GetTranspose(),
 		});
 	}
-	SceneNodeBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+	SceneNodeBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
 									   nodeData.GetDataSize(),
 									   nodeData.GetElementSize(),
 									   ResourceFlags::None,
@@ -845,7 +845,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			const GLTF::Image& gltfImage = scene.Images[gltfTexture.Image];
 
 			DDS::Image image = DDS::LoadImage(gltfImage.Path);
-			const ReadTexture texture = CreateReadTexture(ResourceLifetime::Scene,
+			const ReadTexture texture = CreateReadTexture(ResourceUploader::Lifetime::Scene,
 														  { image.Width, image.Height },
 														  image.MipMapCount,
 														  image.Format,
@@ -940,7 +940,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
-	SceneMaterialBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+	SceneMaterialBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
 										   materialData.GetDataSize(),
 										   materialData.GetElementSize(),
 										   ResourceFlags::None,
@@ -992,7 +992,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		};
 	}
 
-	SceneDirectionalLightBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+	SceneDirectionalLightBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
 												   sizeof(directionalLight),
 												   0,
 												   ResourceFlags::None,
@@ -1001,7 +1001,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 												   "Scene Directional Light Buffer"_view);
 	if (!pointLights.IsEmpty())
 	{
-		ScenePointLightsBuffer = CreateReadBuffer(ResourceLifetime::Scene,
+		ScenePointLightsBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
 												  pointLights.GetDataSize(),
 												  pointLights.GetElementSize(),
 												  ResourceFlags::None,
@@ -1017,7 +1017,7 @@ void Renderer::UnloadScene()
 {
 	GlobalDevice().WaitForIdle();
 
-	ResourceUploader::Get().Reset();
+	ResourceUploader::Reset();
 
 	DestroyReadBuffer(&SceneVertexBuffer);
 	DestroyReadBuffer(&ScenePrimitiveBuffer);
