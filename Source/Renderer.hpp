@@ -42,6 +42,28 @@ private:
 
 	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit; }
 
+	Array<Mesh> SceneMeshes;
+	Array<Node> SceneNodes;
+	Array<Material> SceneMaterials;
+	bool SceneTwoChannelNormalMaps;
+
+	HLSL::ViewMode ViewMode;
+
+	struct
+	{
+		bool Enabled;
+		bool DiscardPreviousFrame;
+
+		Matrix PreviousWorldToClip;
+
+		uint32 FrameCount;
+	} TemporalAntiAliasing;
+
+#if !RELEASE
+	float64 AverageCPUTime;
+	float64 AverageGPUTime;
+#endif
+
 	RHI::Resource SwapChainTextureResources[RHI::FramesInFlight];
 	RHI::TextureView SwapChainTextureViews[RHI::FramesInFlight];
 
@@ -78,11 +100,6 @@ private:
 	RHI::Resource SceneAccelerationStructureResource;
 	RHI::RayTracingAccelerationStructure SceneAccelerationStructure;
 
-	Array<Mesh> SceneMeshes;
-	Array<Node> SceneNodes;
-	Array<Material> SceneMaterials;
-	bool SceneTwoChannelNormalMaps;
-
 	RHI::GraphicsPipeline VisibilityPipeline;
 	RHI::ComputePipeline DeferredPipeline;
 
@@ -92,21 +109,4 @@ private:
 	RHI::ComputePipeline LuminanceAveragePipeline;
 
 	RHI::GraphicsPipeline ToneMapPipeline;
-
-	HLSL::ViewMode ViewMode;
-
-	struct TemporalAntiAliasing
-	{
-		bool Enabled;
-		bool DiscardPreviousFrame;
-
-		Matrix PreviousWorldToClip;
-
-		uint32 FrameCount;
-	} TemporalAntiAliasing;
-
-#if !RELEASE
-	double AverageCpuTime;
-	double AverageGpuTime;
-#endif
 };
