@@ -91,8 +91,8 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 	, ViewMode(HLSL::ViewMode::Lit)
 	, TemporalAntiAliasing({ .Enabled = true, .DiscardPreviousFrame = true, .PreviousWorldToClip = Matrix::Identity, .FrameCount = 0 })
 #if !RELEASE
-	, AverageCpuTime(0.0)
-	, AverageGpuTime(0.0)
+	, AverageCPUTime(0.0)
+	, AverageGPUTime(0.0)
 #endif
 {
 	CreateRenderContext(window, validation);
@@ -102,7 +102,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 	ResourceUploader::Init(MB(32), MB(256));
 	DrawText::Get().Init();
 
-	static constexpr uint8 white[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+	static constexpr uint8 white[] = { 0xff, 0xff, 0xff, 0xff };
 	WhiteTexture = CreateReadTexture(ResourceUploader::Lifetime::Persistent,
 									 { 1, 1 },
 									 1,
@@ -110,7 +110,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 									 white,
 									 "White Texture"_view);
 
-	static constexpr uint8 defaultNormal[] = { 0x7F, 0x7F, 0xFF, 0x00 };
+	static constexpr uint8 defaultNormal[] = { 0x7f, 0x7f, 0xff, 0x00 };
 	DefaultNormalMapTexture = CreateReadTexture(ResourceUploader::Lifetime::Persistent,
 												{ 1, 1 },
 												1,
@@ -203,7 +203,7 @@ Renderer::~Renderer()
 void Renderer::Update(const CameraController& cameraController)
 {
 #if !RELEASE
-	const float64 startCpuTime = Platform::GetTime();
+	const float64 startCPUTime = Platform::GetTime();
 
 	if (Platform::IsKeyPressedOnce(Platform::Key::L))
 	{
@@ -238,8 +238,8 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().Begin();
 
-	const ResourceDimensions viewportDimensions = HDRTexture.Resource.Dimensions;
-	GlobalGraphics().SetViewport(viewportDimensions.Width, viewportDimensions.Height);
+	const ResourceDimensions screenDimensions = SwapChainTextureResources[GlobalDevice().GetFrameIndex()].Dimensions;
+	GlobalGraphics().SetViewport(screenDimensions.Width, screenDimensions.Height);
 
 	float32x2 currentJitterCS = { .X = 0.0f, .Y = 0.0f };
 	if (ShouldAntiAlias())
@@ -269,8 +269,8 @@ void Renderer::Update(const CameraController& cameraController)
 
 		currentJitterCS = float32x2
 		{
-			.X = currentHalton.X / static_cast<float>(viewportDimensions.Width),
-			.Y = currentHalton.Y / static_cast<float>(viewportDimensions.Height),
+			.X = currentHalton.X / static_cast<float>(screenDimensions.Width),
+			.Y = currentHalton.Y / static_cast<float>(screenDimensions.Height),
 		};
 	}
 
@@ -331,7 +331,7 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().SetPipeline(DeferredPipeline);
 	GlobalGraphics().SetRootConstants(&deferredRootConstants);
 	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
+	GlobalGraphics().Dispatch((screenDimensions.Width + 15) / 16, (screenDimensions.Height + 15) / 16, 1);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 									{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
@@ -362,7 +362,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 		GlobalGraphics().SetPipeline(ResolvePipeline);
 		GlobalGraphics().SetRootConstants(&resolveRootConstants);
-		GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
+		GlobalGraphics().Dispatch((screenDimensions.Width + 15) / 16, (screenDimensions.Height + 15) / 16, 1);
 
 		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 										{ BarrierAccess::ShaderResource, BarrierAccess::UnorderedAccess },
@@ -387,7 +387,7 @@ void Renderer::Update(const CameraController& cameraController)
 
 	GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
 	GlobalGraphics().SetRootConstants(&luminanceHistogramRootConstants);
-	GlobalGraphics().Dispatch((viewportDimensions.Width + 15) / 16, (viewportDimensions.Height + 15) / 16, 1);
+	GlobalGraphics().Dispatch((screenDimensions.Width + 15) / 16, (screenDimensions.Height + 15) / 16, 1);
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
@@ -396,7 +396,7 @@ void Renderer::Update(const CameraController& cameraController)
 	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
 	{
 		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-		.PixelCount = viewportDimensions.Width * viewportDimensions.Height,
+		.PixelCount = screenDimensions.Width * screenDimensions.Height,
 	};
 
 	GlobalGraphics().SetPipeline(LuminanceAveragePipeline);
@@ -443,10 +443,10 @@ void Renderer::Update(const CameraController& cameraController)
 	}
 
 #if !RELEASE
-	UpdateFrameTimes(startCpuTime);
+	UpdateFrameTimes(startCPUTime);
 #endif
 
-	DrawText::Get().Submit(viewportDimensions.Width, viewportDimensions.Height);
+	DrawText::Get().Submit(screenDimensions.Width, screenDimensions.Height);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::None },
 									{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
@@ -540,18 +540,18 @@ void Renderer::UpdateFrameTimes(float64 startCPUTime)
 	const float64 cpuTime = Platform::GetTime() - startCPUTime;
 	const float64 gpuTime = GlobalGraphics().GetMostRecentGPUTime();
 
-	AverageCpuTime = AverageCpuTime * 0.95 + cpuTime * 0.05;
-	AverageGpuTime = AverageGpuTime * 0.95 + gpuTime * 0.05;
+	AverageCPUTime = AverageCPUTime * 0.95 + cpuTime * 0.05;
+	AverageGPUTime = AverageGPUTime * 0.95 + gpuTime * 0.05;
 
 	char cpuTimeText[16] = {};
-	Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), AverageCpuTime * 1000.0);
+	Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), AverageCPUTime * 1000.0);
 	DrawText::Get().Draw(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) },
 						 { .X = 0.0f, .Y = 0.0f },
 						 float32x3 { 1.0f, 1.0f, 1.0f },
 						 32.0f);
 
 	char gpuTimeText[16] = {};
-	Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), AverageGpuTime * 1000.0);
+	Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), AverageGPUTime * 1000.0);
 	DrawText::Get().Draw(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) },
 						 { .X = 0.0f, .Y = 32.0f },
 						 float32x3 { 1.0f, 1.0f, 1.0f },
