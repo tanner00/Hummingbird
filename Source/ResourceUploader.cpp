@@ -14,13 +14,13 @@ struct LinearHeap
 	usize Offset;
 };
 
-static Array<LinearHeap> SceneHeaps(&StaticAllocator::Get());
+static Array<LinearHeap> SceneHeaps(&GlobalAllocator::Get());
 static LinearHeap PersistentHeap;
 static LinearHeap UploadHeap;
 
 static GraphicsContext Graphics;
 
-static Array<Resource> UploadBuffers(&StaticAllocator::Get());
+static Array<Resource> UploadBuffers(&GlobalAllocator::Get());
 
 void Init(usize persistentHeapSize, usize uploadHeapSize)
 {
