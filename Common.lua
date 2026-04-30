@@ -1,10 +1,11 @@
 language "C++"
 cppdialect "C++20"
-warnings "Extra"
 conformancemode "On"
 
-multiprocessorcompile "On"
+warnings "Extra"
 fatalwarnings { "All" }
+
+multiprocessorcompile "On"
 
 exceptionhandling "Off"
 rtti "Off"
