@@ -1,10 +1,10 @@
 #include "Renderer.hpp"
 #include "CameraController.hpp"
 #include "DDS.hpp"
-#include "DrawText.hpp"
 #include "GLTF.hpp"
 #include "RenderContext.hpp"
 #include "ResourceUploader.hpp"
+#include "UI.hpp"
 
 namespace HLSL
 {
@@ -100,7 +100,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 	CreateScreenTextures(window->DrawWidth, window->DrawHeight);
 
 	ResourceUploader::Init(MB(32), MB(256));
-	DrawText::Get().Init();
+	UI::Init();
 
 	static constexpr uint8 white[] = { 0xff, 0xff, 0xff, 0xff };
 	WhiteTexture = CreateReadTexture(ResourceUploader::Lifetime::Persistent,
@@ -179,7 +179,7 @@ Renderer::~Renderer()
 	DestroyScreenTextures();
 
 	ResourceUploader::Shutdown();
-	DrawText::Get().Shutdown();
+	UI::Shutdown();
 
 	DestroyReadTexture(&WhiteTexture);
 	DestroyReadTexture(&DefaultNormalMapTexture);
@@ -410,7 +410,7 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::RenderTarget },
 									{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
 									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
-									SwapChainTextureResources[GlobalDevice().GetFrameIndex()]);
+									FinalTextureResource);
 	if (ShouldAntiAlias())
 	{
 		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
@@ -419,7 +419,7 @@ void Renderer::Update(const CameraController& cameraController)
 										AccumulationTexture.Resource);
 	}
 
-	GlobalGraphics().SetRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
+	GlobalGraphics().SetRenderTarget(FinalTextureRenderTargetView);
 
 	const HLSL::ToneMapRootConstants toneMapRootConstants =
 	{
@@ -434,6 +434,11 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().SetRootConstants(&toneMapRootConstants);
 	GlobalGraphics().Draw(3);
 
+	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::PixelShading },
+									{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
+									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
+									FinalTextureResource);
+
 	if (ShouldAntiAlias())
 	{
 		GlobalGraphics().TextureBarrier({ BarrierStage::PixelShading, BarrierStage::None },
@@ -442,11 +447,21 @@ void Renderer::Update(const CameraController& cameraController)
 										AccumulationTexture.Resource);
 	}
 
+	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::RenderTarget },
+									{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
+									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
+									SwapChainTextureResources[GlobalDevice().GetFrameIndex()]);
+
+	GlobalGraphics().ClearRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
+	GlobalGraphics().SetRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
+
+	UI::Image(FinalTextureShaderResourceView, {});
+
 #if !RELEASE
 	UpdateFrameTimes(startCPUTime);
 #endif
 
-	DrawText::Get().Submit(screenDimensions.Width, screenDimensions.Height);
+	UI::Submit(screenDimensions.Width, screenDimensions.Height);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::None },
 									{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
@@ -545,17 +560,11 @@ void Renderer::UpdateFrameTimes(float64 startCPUTime)
 
 	char cpuTimeText[16] = {};
 	Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), AverageCPUTime * 1000.0);
-	DrawText::Get().Draw(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) },
-						 { .X = 0.0f, .Y = 0.0f },
-						 float32x3 { 1.0f, 1.0f, 1.0f },
-						 32.0f);
+	UI::DrawText(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) }, { 0.0f, 0.0f }, 32.0f, UI::White, 1);
 
 	char gpuTimeText[16] = {};
 	Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), AverageGPUTime * 1000.0);
-	DrawText::Get().Draw(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) },
-						 { .X = 0.0f, .Y = 32.0f },
-						 float32x3 { 1.0f, 1.0f, 1.0f },
-						 32.0f);
+	UI::DrawText(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, { 0.0f, 32.0f }, 32.0f, UI::White, 1);
 }
 #endif
 
@@ -1139,6 +1148,8 @@ void Renderer::CreatePipelines()
 											 true,
 											 false,
 											 ResourceFormat::RGBA8UNormSRGB);
+
+	UI::CreatePipeline();
 }
 
 void Renderer::DestroyPipelines()
@@ -1149,6 +1160,8 @@ void Renderer::DestroyPipelines()
 	GlobalDevice().Destroy(&LuminanceHistogramPipeline);
 	GlobalDevice().Destroy(&LuminanceAveragePipeline);
 	GlobalDevice().Destroy(&ToneMapPipeline);
+
+	UI::DestroyPipeline();
 }
 
 void Renderer::CreateScreenTextures(uint32 width, uint32 height)
@@ -1239,6 +1252,26 @@ void Renderer::CreateScreenTextures(uint32 width, uint32 height)
 	AccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);
 	PreviousAccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);
 
+	FinalTextureResource = GlobalDevice().Create(
+	{
+		.Type = ResourceType::Texture2D,
+		.Format = ResourceFormat::RGBA8UNormSRGB,
+		.Flags = ResourceFlags::RenderTarget,
+		.InitialLayout = BarrierLayout::RenderTarget,
+		.Dimensions = { width, height },
+		.Name = String("Final Texture"_view, RendererAllocator),
+	});
+	FinalTextureRenderTargetView = GlobalDevice().Create(
+	{
+		.Type = ViewType::RenderTarget,
+		.Resource = FinalTextureResource,
+	});
+	FinalTextureShaderResourceView = GlobalDevice().Create(
+	{
+		.Type = ViewType::ShaderResource,
+		.Resource = FinalTextureResource,
+	});
+
 	TemporalAntiAliasing.DiscardPreviousFrame = true;
 }
 
@@ -1266,4 +1299,8 @@ void Renderer::DestroyScreenTextures()
 	destroyWriteTexture(&HDRTexture);
 	destroyWriteTexture(&AccumulationTexture);
 	destroyWriteTexture(&PreviousAccumulationTexture);
+
+	GlobalDevice().Destroy(&FinalTextureResource);
+	GlobalDevice().Destroy(&FinalTextureRenderTargetView);
+	GlobalDevice().Destroy(&FinalTextureShaderResourceView);
 }

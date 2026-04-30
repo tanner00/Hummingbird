@@ -83,6 +83,10 @@ private:
 	WriteTexture AccumulationTexture;
 	WriteTexture PreviousAccumulationTexture;
 
+	RHI::Resource FinalTextureResource;
+	RHI::TextureView FinalTextureRenderTargetView;
+	RHI::TextureView FinalTextureShaderResourceView;
+
 	ReadBuffer SceneVertexBuffer;
 	ReadBuffer ScenePrimitiveBuffer;
 	ReadBuffer SceneNodeBuffer;
