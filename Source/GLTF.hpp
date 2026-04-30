@@ -9,7 +9,7 @@
 namespace GLTF
 {
 
-inline const Vector DefaultDirectionLS = { +0.0f, +0.0f, -1.0f };
+inline const Vector DefaultDirectionLS = { 0.0f, 0.0f, -1.0f };
 
 enum class TargetType : uint8
 {
@@ -25,6 +25,7 @@ enum class ComponentType : uint8
 	UInt16,
 	UInt32,
 	Float32,
+
 	Count,
 };
 
@@ -37,6 +38,7 @@ enum class AccessorType : uint8
 	Matrix2,
 	Matrix3,
 	Matrix4,
+
 	Count,
 };
 

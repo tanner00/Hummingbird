@@ -27,10 +27,10 @@ void CameraController::Update(float32 timeDelta)
 		float32 pitchDeltaRadians =       -static_cast<float32>(Platform::GetMouseY()) * RotationSpeedRadians * timeDelta;
 
 		PitchRadians += pitchDeltaRadians;
-		if (PitchRadians > +Pi / 2.0f)
+		if (PitchRadians > Pi / 2.0f)
 		{
 			pitchDeltaRadians -= (PitchRadians - Pi / 2.0f);
-			PitchRadians = +Pi / 2.0f;
+			PitchRadians = Pi / 2.0f;
 		}
 		else if (PitchRadians < -Pi / 2.0f)
 		{

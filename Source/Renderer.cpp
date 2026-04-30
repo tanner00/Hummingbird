@@ -60,7 +60,7 @@ static ReadBuffer CreateReadBuffer(ResourceUploader::Lifetime lifetime,
 	const BufferView view = GlobalDevice().Create(
 	{
 		.Type = type,
-		.Buffer =
+		.Buffer = Buffer
 		{
 			.Resource = buffer,
 			.Size = size,
@@ -246,31 +246,30 @@ void Renderer::Update(const CameraController& cameraController)
 	{
 		static constexpr float32x2 halton23Sequence[] =
 		{
-			{ .X = 0.500000f, .Y = 0.333333f },
-			{ .X = 0.250000f, .Y = 0.666667f },
-			{ .X = 0.750000f, .Y = 0.111111f },
-			{ .X = 0.125000f, .Y = 0.444444f },
-			{ .X = 0.625000f, .Y = 0.777778f },
-			{ .X = 0.375000f, .Y = 0.222222f },
-			{ .X = 0.875000f, .Y = 0.555556f },
-			{ .X = 0.062500f, .Y = 0.888889f },
-			{ .X = 0.562500f, .Y = 0.037037f },
-			{ .X = 0.312500f, .Y = 0.370370f },
-			{ .X = 0.812500f, .Y = 0.703704f },
-			{ .X = 0.187500f, .Y = 0.148148f },
-			{ .X = 0.687500f, .Y = 0.481481f },
-			{ .X = 0.437500f, .Y = 0.814815f },
-			{ .X = 0.937500f, .Y = 0.259259f },
-			{ .X = 0.031250f, .Y = 0.592593f },
+			{ 0.500000f, 0.333333f },
+			{ 0.250000f, 0.666667f },
+			{ 0.750000f, 0.111111f },
+			{ 0.125000f, 0.444444f },
+			{ 0.625000f, 0.777778f },
+			{ 0.375000f, 0.222222f },
+			{ 0.875000f, 0.555556f },
+			{ 0.062500f, 0.888889f },
+			{ 0.562500f, 0.037037f },
+			{ 0.312500f, 0.370370f },
+			{ 0.812500f, 0.703704f },
+			{ 0.187500f, 0.148148f },
+			{ 0.687500f, 0.481481f },
+			{ 0.437500f, 0.814815f },
+			{ 0.937500f, 0.259259f },
+			{ 0.031250f, 0.592593f },
 		};
 
-		const uint32 frameCount = TemporalAntiAliasing.FrameCount;
-		const float32x2 currentHalton = halton23Sequence[frameCount % ARRAY_COUNT(halton23Sequence)];
+		const float32x2 currentHalton = halton23Sequence[TemporalAntiAliasing.FrameCount % ARRAY_COUNT(halton23Sequence)];
 
 		currentJitterNDC = float32x2
 		{
-			.X = (currentHalton.X - 0.5f) * (2.0f / static_cast<float32>(screenDimensions.Width)),
-			.Y = (currentHalton.Y - 0.5f) * (2.0f / static_cast<float32>(screenDimensions.Height)),
+			(currentHalton.X - 0.5f) * (2.0f / static_cast<float32>(screenDimensions.Width)),
+			(currentHalton.Y - 0.5f) * (2.0f / static_cast<float32>(screenDimensions.Height)),
 		};
 	}
 
@@ -295,9 +294,9 @@ void Renderer::Update(const CameraController& cameraController)
 		.JitterWorldToClip = Matrix::Translation(currentJitterNDC.X, currentJitterNDC.Y, 0.0f) * worldToClip,
 		.ViewPositionWS = float32x3
 		{
-			.X = cameraController.GetPositionWS().X,
-			.Y = cameraController.GetPositionWS().Y,
-			.Z = cameraController.GetPositionWS().Z,
+			cameraController.GetPositionWS().X,
+			cameraController.GetPositionWS().Y,
+			cameraController.GetPositionWS().Z,
 		},
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
 		.PointLightsCount = ScenePointLightsBuffer.View.IsValid() ? static_cast<uint32>(Count(ScenePointLightsBuffer.View.Buffer)) : 0,
@@ -513,36 +512,33 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
 
 			GlobalGraphics().SetVertexBuffer(0,
-											 SubBuffer
-											 {
-												 .Resource = SceneVertexBuffer.Resource,
-												 .Size = primitive.PositionSize,
-												 .Stride = primitive.PositionStride,
-												 .Offset = primitive.PositionOffset,
-											 });
+			{
+				.Resource = SceneVertexBuffer.Resource,
+				.Size = primitive.PositionSize,
+				.Stride = primitive.PositionStride,
+				.Offset = primitive.PositionOffset,
+			});
 			GlobalGraphics().SetVertexBuffer(1,
-											 SubBuffer
-											 {
-												 .Resource = SceneVertexBuffer.Resource,
-												 .Size = primitive.TextureCoordinateSize,
-												 .Stride = primitive.TextureCoordinateStride,
-												 .Offset = primitive.TextureCoordinateOffset,
-											 });
+			{
+				.Resource = SceneVertexBuffer.Resource,
+				.Size = primitive.TextureCoordinateSize,
+				.Stride = primitive.TextureCoordinateStride,
+				.Offset = primitive.TextureCoordinateOffset,
+			});
 			GlobalGraphics().SetVertexBuffer(2,
-											 SubBuffer
-											 {
-												 .Resource = SceneVertexBuffer.Resource,
-												 .Size = primitive.NormalSize,
-												 .Stride = primitive.NormalStride,
-												 .Offset = primitive.NormalOffset,
-											 });
-			GlobalGraphics().SetIndexBuffer(SubBuffer
-											{
-												 .Resource = SceneVertexBuffer.Resource,
-												 .Size = primitive.IndexSize,
-												 .Stride = primitive.IndexStride,
-												 .Offset = primitive.IndexOffset,
-											});
+			{
+				.Resource = SceneVertexBuffer.Resource,
+				.Size = primitive.NormalSize,
+				.Stride = primitive.NormalStride,
+				.Offset = primitive.NormalOffset,
+			});
+			GlobalGraphics().SetIndexBuffer(
+			{
+				.Resource = SceneVertexBuffer.Resource,
+				.Size = primitive.IndexSize,
+				.Stride = primitive.IndexStride,
+				.Offset = primitive.IndexOffset,
+			});
 
 			GlobalGraphics().DrawIndexed(primitive.IndexSize / primitive.IndexStride);
 		}
@@ -978,7 +974,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			{
 				.Color = light.RGB,
 				.IntensityLux = light.Intensity,
-				.DirectionWS = { .X = directionWS.X, .Y = directionWS.Y, .Z = directionWS.Z },
+				.DirectionWS = { directionWS.X, directionWS.Y, directionWS.Z },
 			};
 		}
 		else if (light.Type == GLTF::LightType::Point)
@@ -987,7 +983,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			{
 				.RGB = light.RGB,
 				.IntensityCandela = light.Intensity,
-				.PositionWS = { .X = translationWS.X, .Y = translationWS.Y, .Z = translationWS.Z },
+				.PositionWS = { translationWS.X, translationWS.Y, translationWS.Z },
 			});
 		}
 	}
@@ -997,7 +993,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		{
 			.Color = { 1.0f, 1.0f, 1.0f },
 			.IntensityLux = 1.0f,
-			.DirectionWS = { .X = 0.0f, .Y = 1.0f, .Z = 0.0f },
+			.DirectionWS = { 0.0f, 1.0f, 0.0f },
 		};
 	}
 

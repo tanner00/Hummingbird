@@ -39,10 +39,10 @@ static float32x4 ToFloat4(const JSON::Array& float32Array)
 	VERIFY(float32Array.GetCount() == 3 || float32Array.GetCount() == 4, "Expected GLTF float array to have 3 or 4 components!");
 	return float32x4
 	{
-		.X = static_cast<float32>(float32Array[0].GetDecimal()),
-		.Y = static_cast<float32>(float32Array[1].GetDecimal()),
-		.Z = static_cast<float32>(float32Array[2].GetDecimal()),
-		.W = (float32Array.GetCount() == 4) ? static_cast<float32>(float32Array[3].GetDecimal()) : 0.0f,
+		static_cast<float32>(float32Array[0].GetDecimal()),
+		static_cast<float32>(float32Array[1].GetDecimal()),
+		static_cast<float32>(float32Array[2].GetDecimal()),
+		(float32Array.GetCount() == 4) ? static_cast<float32>(float32Array[3].GetDecimal()) : 0.0f,
 	};
 }
 
