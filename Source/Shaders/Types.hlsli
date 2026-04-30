@@ -162,24 +162,9 @@ struct PointLight
 	float32x3 PositionWS;
 };
 
-struct Character
+struct UIRootConstants
 {
-	float32x4 Color;
-
-	float32x2 PositionSS;
-
-	float32x2 AtlasPosition;
-	float32x2 AtlasSize;
-
-	float32x2 PlanePosition;
-	float32x2 PlaneSize;
-
-	float Scale;
-};
-
-struct TextRootConstants
-{
-	uint32 CharacterBufferIndex;
+	uint32 UIDrawBufferIndex;
 	uint32 FontTextureIndex;
 	uint32 LinearWrapSampler;
 
@@ -187,6 +172,37 @@ struct TextRootConstants
 
 	Matrix ScreenToClip;
 	float32x2 UnitRange;
+};
+
+enum class UIDrawType : uint32
+{
+	Rectangle,
+	Character,
+	Image,
+};
+
+struct UIDraw
+{
+	float32x2 PositionSS;
+	float32x2 SizeSS;
+
+	float32x4 RGBA;
+
+	UIDrawType Type;
+
+	float32x4 BorderRGBA;
+	float32 BorderSizeSS;
+	float32 CornerRadiusSS;
+
+	float32x2 AtlasPosition;
+	float32x2 AtlasSize;
+	float32x2 PlanePosition;
+	float32x2 PlaneSize;
+	float32 Scale;
+
+	uint32 ImageIndex;
+
+	uint32 Layer;
 };
 
 #define SHARED_OFF true
