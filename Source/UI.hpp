@@ -76,25 +76,27 @@ struct Description
 	} Style;
 };
 
+inline float32x4 RGB(float32 r, float32 g, float32 b)
+{
+	return float32x4 { r, g, b, 1.0f };
+}
+
+inline float32x4 RGB(float32x3 rgb)
+{
+	return RGB(rgb.X, rgb.Y, rgb.Z);
+}
+
 void Init();
 void Shutdown();
 
 void CreatePipeline();
 void DestroyPipeline();
 
-void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x3 rgb, usize layer = 0);
 void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer = 0);
-
-void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 cornerRadiusSS, float32x3 rgb, usize layer = 0);
 void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 cornerRadiusSS, float32x4 rgba, usize layer = 0);
-
-void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x3 rgb, float32x3 borderRGB, usize layer = 0);
 void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 rgba, float32x4 borderRGBA, usize layer = 0);
-
-void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32 cornerRadiusSS, float32x3 rgb, float32x3 borderRGB, usize layer = 0);
 void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32 cornerRadiusSS, float32x4 rgba, float32x4 borderRGBA, usize layer = 0);
 
-void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x3 rgb, usize layer = 0);
 void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rgba, usize layer = 0);
 
 void DrawImage(const RHI::TextureView& image, float32x2 positionSS, float32x2 sizeSS, usize layer = 0);
