@@ -26,10 +26,6 @@ struct Size
 	MinMax MinMax;
 };
 
-#define UI_SIZE_FIT(...) UI::Size { .Mode = UI::Mode::Fit, .MinMax = { __VA_ARGS__ } }
-#define UI_SIZE_GROW(...) UI::Size { .Mode = UI::Mode::Grow, .MinMax = { __VA_ARGS__ } }
-#define UI_SIZE_FIXED(sizeSS) UI_SIZE_FIT(sizeSS, sizeSS)
-
 enum class Direction : uint8
 {
 	Vertical,
@@ -100,6 +96,21 @@ void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x3 rg
 void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rgba, usize layer = 0);
 
 void DrawImage(const RHI::TextureView& image, float32x2 positionSS, float32x2 sizeSS, usize layer = 0);
+
+inline Size Fit(float32 minSS = 0.0f, float32 maxSS = 0.0f)
+{
+	return Size { Mode::Fit, { minSS, maxSS } };
+}
+
+inline Size Fixed(float32 sizeSS = 0.0f)
+{
+	return Size { Mode::Fit, { sizeSS, sizeSS } };
+}
+
+inline Size Grow(float32 minSS = 0.0f, float32 maxSS = 0.0f)
+{
+	return Size { Mode::Grow, { minSS, maxSS } };
+}
 
 float32 GetCharacterWidth(char c, float32 scale);
 float32 GetTextWidth(StringView text, float32 scale);
