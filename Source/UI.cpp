@@ -240,19 +240,9 @@ void DestroyPipeline()
 	GlobalDevice().Destroy(&Pipeline);
 }
 
-void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x3 rgb, usize layer)
-{
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, 0.0f, float32x4 { rgb.X, rgb.Y, rgb.Z, 1.0f }, float32x4 {}, layer);
-}
-
 void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer)
 {
 	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, 0.0f, rgba, float32x4 {}, layer);
-}
-
-void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 cornerRadiusSS, float32x3 rgb, usize layer)
-{
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, cornerRadiusSS, float32x4 { rgb.X, rgb.Y, rgb.Z, 1.0f }, float32x4 {}, layer);
 }
 
 void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 cornerRadiusSS, float32x4 rgba, usize layer)
@@ -260,31 +250,9 @@ void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 corner
 	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, cornerRadiusSS, rgba, float32x4 {}, layer);
 }
 
-void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x3 rgb, float32x3 borderRGB, usize layer)
-{
-	DrawBorderedRoundedRectangle(positionSS,
-								 sizeSS,
-								 borderSizeSS,
-								 0.0f,
-								 float32x4 { rgb.X, rgb.Y, rgb.Z, 1.0f },
-								 float32x4 { borderRGB.X, borderRGB.Y, borderRGB.Z, 1.0f },
-								 layer);
-}
-
 void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 rgba, float32x4 borderRGBA, usize layer)
 {
 	DrawBorderedRoundedRectangle(positionSS, sizeSS, borderSizeSS, 0.0f, rgba, borderRGBA, layer);
-}
-
-void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32 cornerRadiusSS, float32x3 rgb, float32x3 borderRGB, usize layer)
-{
-	DrawBorderedRoundedRectangle(positionSS,
-								 sizeSS,
-								 borderSizeSS,
-								 cornerRadiusSS,
-								 float32x4 { rgb.X, rgb.Y, rgb.Z, 1.0f },
-								 float32x4 { borderRGB.X, borderRGB.Y, borderRGB.Z, 1.0f },
-								 layer);
 }
 
 void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32 cornerRadiusSS, float32x4 rgba, float32x4 borderRGBA, usize layer)
@@ -303,11 +271,6 @@ void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float3
 		.Layer = static_cast<uint32>(layer),
 	};
 	++DrawIndex;
-}
-
-void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x3 rgb, usize layer)
-{
-	DrawText(text, positionSS, scale, float32x4 { rgb.X, rgb.Y, rgb.Z, 1.0f }, layer);
 }
 
 void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rgba, usize layer)
