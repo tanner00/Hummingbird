@@ -20,10 +20,6 @@ static ::Allocator* Allocator = &GlobalAllocator::Get();
 
 static constexpr usize MaxUIDrawsPerFrame = 8192;
 
-#define ID_NAME_HASH(idName) Hash<StringView>{}(idName)
-
-using ID = usize;
-
 struct ElementStorage
 {
 	ID ParentID;
@@ -382,12 +378,12 @@ float32x2 GetTextSize(StringView text, float32 scale)
 	return float32x2 { .X = GetTextWidth(text, scale), .Y = GetTextHeight(scale) };
 }
 
-void BeginElement(const Description& description)
+ID BeginElement(const Description& description)
 {
 	const bool hasParent = Elements.Contains(OpenElementID);
 
 	ID id;
-	if (description.IDName.IsEmpty())
+	if (description.ID == 0)
 	{
 		usize parentChildCount = 0;
 		if (hasParent)
@@ -399,7 +395,7 @@ void BeginElement(const Description& description)
 	}
 	else
 	{
-		id = ID_NAME_HASH(description.IDName);
+		id = description.ID;
 	}
 
 	CHECK(!Elements.Contains(id));
@@ -426,6 +422,8 @@ void BeginElement(const Description& description)
 	});
 
 	OpenElementID = id;
+
+	return id;
 }
 
 void EndElement()
@@ -436,32 +434,32 @@ void EndElement()
 	OpenElementID = element.ParentID;
 }
 
-bool Rectangle(const Description& description)
+ID Rectangle(const Description& description)
 {
-	BeginElement(description);
+	const ID id = BeginElement(description);
 	EndElement();
-	return false;
+	return id;
 }
 
-void Text(StringView text, float32 scale, const Description& description)
+ID Text(StringView text, float32 scale, const Description& description)
 {
-	BeginElement(description);
+	const ID id = BeginElement(description);
 	Elements[OpenElementID].Text = String(text, Allocator);
 	Elements[OpenElementID].TextScale = scale;
 	EndElement();
+	return id;
 }
 
-void Image(const TextureView& image, const Description& description)
+ID Image(const TextureView& image, const Description& description)
 {
-	BeginElement(description);
+	const ID id = BeginElement(description);
 	Elements[OpenElementID].Image = image;
 	EndElement();
+	return id;
 }
 
-float32 GetWidth(StringView idName)
+float32 GetWidth(ID id)
 {
-	const ID id = ID_NAME_HASH(idName);
-
 	if (!LastFrameElements.Contains(id))
 	{
 		return 0.0f;
@@ -470,10 +468,8 @@ float32 GetWidth(StringView idName)
 	return LastFrameElements[id].SizeSS.X;
 }
 
-float32 GetHeight(StringView idName)
+float32 GetHeight(ID id)
 {
-	const ID id = ID_NAME_HASH(idName);
-
 	if (!LastFrameElements.Contains(id))
 	{
 		return 0.0f;
@@ -482,9 +478,26 @@ float32 GetHeight(StringView idName)
 	return LastFrameElements[id].SizeSS.Y;
 }
 
-float32x2 GetSize(StringView idName)
+float32x2 GetSize(ID id)
 {
-	return float32x2 { .X = GetWidth(idName), .Y = GetHeight(idName) };
+	if (!LastFrameElements.Contains(id))
+	{
+		return float32x2 {};
+	}
+
+	const ElementStorage& element = LastFrameElements[id];
+	return float32x2 { element.SizeSS.X, element.SizeSS.Y };
+}
+
+float32x2 GetPosition(ID id)
+{
+	if (!LastFrameElements.Contains(id))
+	{
+		return float32x2 {};
+	}
+
+	const ElementStorage& element = LastFrameElements[id];
+	return float32x2 { element.PositionSS.X, element.PositionSS.Y };
 }
 
 static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float32 right, float32 top, float32 bottom, float32 cornerRadius)
@@ -498,10 +511,8 @@ static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float3
 	return (differenceX * differenceX + differenceY * differenceY) <= (cornerRadius * cornerRadius);
 }
 
-bool IsHovered(StringView idName)
+bool IsHovered(ID id)
 {
-	const ID id = ID_NAME_HASH(idName);
-
 	if (!LastFrameElements.Contains(id))
 	{
 		return false;
@@ -569,14 +580,14 @@ bool IsHovered(StringView idName)
 	return hovered && !higherHovered;
 }
 
-bool IsPressed(StringView idName)
+bool IsPressed(ID id)
 {
-	return IsHovered(idName) && Platform::IsMouseButtonPressed(Platform::MouseButton::Left);
+	return IsHovered(id) && Platform::IsMouseButtonPressed(Platform::MouseButton::Left);
 }
 
-bool IsPressedOnce(StringView idName)
+bool IsPressedOnce(ID id)
 {
-	return IsHovered(idName) && Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left);
+	return IsHovered(id) && Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left);
 }
 
 static bool IsSameDirection(bool x, Direction direction)

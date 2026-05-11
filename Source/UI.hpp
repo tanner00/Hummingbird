@@ -8,6 +8,8 @@ namespace UI
 inline float32x4 Black = { 0.0f, 0.0f, 0.0f, 1.0f };
 inline float32x4 White = { 1.0f, 1.0f, 1.0f, 1.0f };
 
+using ID = uint64;
+
 enum class Mode : uint8
 {
 	Fit,
@@ -45,7 +47,7 @@ enum class Alignment : uint8
 
 struct Description
 {
-	StringView IDName;
+	ID ID;
 
 	struct LayoutDescription
 	{
@@ -97,6 +99,34 @@ void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rg
 
 void DrawImage(const RHI::TextureView& image, float32x2 positionSS, float32x2 sizeSS, usize layer = 0);
 
+inline ID NameToID(StringView name)
+{
+	return Hash<StringView>{}(name);
+}
+
+inline ID NameCombine(ID id, StringView name)
+{
+	return HashCombine(id, NameToID(name));
+}
+
+template<typename... Args>
+ID NamesToID(const Args&... names)
+{
+	ID id = 0;
+	((id = NameCombine(id, names)), ...);
+	return id;
+}
+
+inline ID NamesToID(ArrayView<StringView> names)
+{
+	ID id = 0;
+	for (const StringView name : names)
+	{
+		id = NameCombine(id, name);
+	}
+	return id;
+}
+
 inline Size Fit(float32 minSS = 0.0f, float32 maxSS = 0.0f)
 {
 	return Size { Mode::Fit, { minSS, maxSS } };
@@ -117,28 +147,31 @@ float32 GetTextWidth(StringView text, float32 scale);
 float32 GetTextHeight(float32 scale);
 float32x2 GetTextSize(StringView text, float32 scale);
 
-void BeginElement(const Description& description);
+ID BeginElement(const Description& description);
 void EndElement();
 
 template<typename F>
-void Container(const Description& description, const F& children)
+ID Container(const Description& description, const F& children)
 {
-	BeginElement(description);
+	const ID id = BeginElement(description);
 	children();
 	EndElement();
+	return id;
 }
 
-bool Rectangle(const Description& description);
-void Text(StringView text, float32 scale, const Description& description);
-void Image(const RHI::TextureView& image, const Description& description);
+ID Rectangle(const Description& description);
+ID Text(StringView text, float32 scale, const Description& description);
+ID Image(const RHI::TextureView& image, const Description& description);
 
-float32 GetWidth(StringView idName);
-float32 GetHeight(StringView idName);
-float32x2 GetSize(StringView idName);
+float32 GetWidth(ID id);
+float32 GetHeight(ID id);
+float32x2 GetSize(ID id);
 
-bool IsHovered(StringView idName);
-bool IsPressed(StringView idName);
-bool IsPressedOnce(StringView idName);
+float32x2 GetPosition(ID id);
+
+bool IsHovered(ID id);
+bool IsPressed(ID id);
+bool IsPressedOnce(ID id);
 
 void Submit(uint32 screenWidth, uint32 screenHeight);
 
