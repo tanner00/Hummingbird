@@ -39,12 +39,12 @@ struct ElementStorage
 };
 
 static HashTable<ID, ElementStorage> Elements(32, Allocator);
-static Array<ID> RootElementIDs(Allocator);
+static Array<ID> RootIDs(Allocator);
 
 static HashTable<ID, ElementStorage> LastFrameElements(32, Allocator);
-static Array<ID> LastFrameRootElementIDs(Allocator);
+static Array<ID> LastFrameRootIDs(Allocator);
 
-static ID OpenElementID = INDEX_NONE;
+static ID OpenID = INDEX_NONE;
 
 namespace Font
 {
@@ -343,7 +343,7 @@ float32x2 GetTextSize(StringView text, float32 scale)
 
 ID BeginElement(const Description& description)
 {
-	const bool hasParent = Elements.Contains(OpenElementID);
+	const bool hasParent = Elements.Contains(OpenID);
 
 	ID id;
 	if (description.ID == 0)
@@ -351,10 +351,10 @@ ID BeginElement(const Description& description)
 		usize parentChildCount = 0;
 		if (hasParent)
 		{
-			const ElementStorage& parent = Elements[OpenElementID];
+			const ElementStorage& parent = Elements[OpenID];
 			parentChildCount += parent.ChildrenIDs.GetCount();
 		}
-		id = (HashCombine(Hash<ID>{}(OpenElementID), Hash<usize>{}(parentChildCount)));
+		id = (HashCombine(Hash<ID>{}(OpenID), Hash<usize>{}(parentChildCount)));
 	}
 	else
 	{
@@ -366,35 +366,35 @@ ID BeginElement(const Description& description)
 	usize layer = 0;
 	if (hasParent)
 	{
-		ElementStorage& parent = Elements[OpenElementID];
+		ElementStorage& parent = Elements[OpenID];
 		parent.ChildrenIDs.Add(id);
 
 		layer = parent.Layer + 1;
 	}
 	else
 	{
-		RootElementIDs.Add(id);
+		RootIDs.Add(id);
 	}
 
 	Elements.Add(id, ElementStorage
 	{
-		.ParentID = OpenElementID,
+		.ParentID = OpenID,
 		.ChildrenIDs = Array<ID>(Allocator),
 		.Layer = layer,
 		.Description = description,
 	});
 
-	OpenElementID = id;
+	OpenID = id;
 
 	return id;
 }
 
 void EndElement()
 {
-	CHECK(OpenElementID != INDEX_NONE);
-	const ElementStorage& element = Elements[OpenElementID];
+	CHECK(OpenID != INDEX_NONE);
+	const ElementStorage& element = Elements[OpenID];
 
-	OpenElementID = element.ParentID;
+	OpenID = element.ParentID;
 }
 
 ID Rectangle(const Description& description)
@@ -407,8 +407,8 @@ ID Rectangle(const Description& description)
 ID Text(StringView text, float32 scale, const Description& description)
 {
 	const ID id = BeginElement(description);
-	Elements[OpenElementID].Text = String(text, Allocator);
-	Elements[OpenElementID].TextScale = scale;
+	Elements[OpenID].Text = String(text, Allocator);
+	Elements[OpenID].TextScale = scale;
 	EndElement();
 	return id;
 }
@@ -416,7 +416,7 @@ ID Text(StringView text, float32 scale, const Description& description)
 ID Image(const TextureView& image, const Description& description)
 {
 	const ID id = BeginElement(description);
-	Elements[OpenElementID].Image = image;
+	Elements[OpenID].Image = image;
 	EndElement();
 	return id;
 }
@@ -502,10 +502,10 @@ bool IsHovered(ID id)
 	}
 
 	bool higherHovered = false;
-	for (const ID rootElementID : LastFrameRootElementIDs)
+	for (const ID rootID : LastFrameRootIDs)
 	{
 		Array<ID> breadthFirst(Allocator);
-		breadthFirst.Add(rootElementID);
+		breadthFirst.Add(rootID);
 
 		while (!breadthFirst.IsEmpty() && !higherHovered)
 		{
@@ -576,7 +576,7 @@ static float32 GetTextHeightForLineWidth(const String& text, float32 widthSS, fl
 	return positionLS.Y + GetTextHeight(scale);
 }
 
-static void LayoutSize(ID rootElementID, bool x)
+static void LayoutSize(ID rootID, bool x)
 {
 	struct ToVisit
 	{
@@ -585,7 +585,7 @@ static void LayoutSize(ID rootElementID, bool x)
 	};
 
 	Array<ToVisit> postOrderDepthFirst(Allocator);
-	postOrderDepthFirst.Add(ToVisit { .ID = rootElementID, .Visited = false });
+	postOrderDepthFirst.Add(ToVisit { .ID = rootID, .Visited = false });
 
 	while (!postOrderDepthFirst.IsEmpty())
 	{
@@ -657,7 +657,7 @@ static void LayoutSize(ID rootElementID, bool x)
 	}
 
 	Array<ID> breadthFirst(Allocator);
-	breadthFirst.Add(rootElementID);
+	breadthFirst.Add(rootID);
 
 	while (!breadthFirst.IsEmpty())
 	{
@@ -668,7 +668,7 @@ static void LayoutSize(ID rootElementID, bool x)
 		const Description::LayoutDescription& elementLayout = element.Description.Layout;
 
 		const Size& elementSize = x ? elementLayout.SizeX : elementLayout.SizeY;
-		if (currentID == rootElementID && elementSize.Mode == Mode::Grow)
+		if (currentID == rootID && elementSize.Mode == Mode::Grow)
 		{
 			ElementStorage& flexibleElement = Elements[currentID];
 			float32& flexibleElementSizeSS = x ? flexibleElement.SizeSS.X : flexibleElement.SizeSS.Y;
@@ -964,27 +964,27 @@ static void Draw(ID elementID)
 
 void Submit(uint32 screenWidth, uint32 screenHeight)
 {
-	CHECK(OpenElementID == INDEX_NONE);
+	CHECK(OpenID == INDEX_NONE);
 
-	for (const ID rootElementID : RootElementIDs)
+	for (const ID rootID : RootIDs)
 	{
-		LayoutSize(rootElementID, true);
+		LayoutSize(rootID, true);
 	}
-	for (const ID rootElementID : RootElementIDs)
+	for (const ID rootID : RootIDs)
 	{
-		LayoutSize(rootElementID, false);
+		LayoutSize(rootID, false);
 	}
-	for (const ID rootElementID : RootElementIDs)
+	for (const ID rootID : RootIDs)
 	{
-		LayoutPosition(rootElementID, true, 0.0f);
+		LayoutPosition(rootID, true, 0.0f);
 	}
-	for (const ID rootElementID : RootElementIDs)
+	for (const ID rootID : RootIDs)
 	{
-		LayoutPosition(rootElementID, false, 0.0f);
+		LayoutPosition(rootID, false, 0.0f);
 	}
-	for (const ID rootElementID : RootElementIDs)
+	for (const ID rootID : RootIDs)
 	{
-		Draw(rootElementID);
+		Draw(rootID);
 	}
 
 	RootConstants.ScreenToClip = Matrix::Orthographic(0.0f, static_cast<float32>(screenWidth), 0.0f, static_cast<float32>(screenHeight), 0.0f, 1.0f);
@@ -1008,12 +1008,12 @@ void Submit(uint32 screenWidth, uint32 screenHeight)
 	DrawIndex = 0;
 
 	LastFrameElements = Elements;
-	LastFrameRootElementIDs = RootElementIDs;
+	LastFrameRootIDs = RootIDs;
 
 	Elements.Clear();
-	RootElementIDs.Clear();
+	RootIDs.Clear();
 
-	OpenElementID = INDEX_NONE;
+	OpenID = INDEX_NONE;
 }
 
 }
