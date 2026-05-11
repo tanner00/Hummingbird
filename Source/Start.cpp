@@ -52,7 +52,7 @@ void Start()
 	CameraController cameraController;
 	SetScene(0, &renderer, &cameraController);
 
-	Platform::ShowWindow(window);
+	Platform::ShowWindow(window, false);
 	Platform::InstallResizeHandler([](Platform::Window*) -> void
 	{
 		NeedsResize = true;
