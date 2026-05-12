@@ -370,7 +370,7 @@ ID BeginElement(const Description& description)
 	if (hasParent)
 	{
 		ElementStorage& parent = Elements[OpenID];
-		if (description.Layout.Floating)
+		if (description.Layout.Floating || description.Layout.Absolute)
 		{
 			parent.FloatingChildrenIDs.Add(id);
 		}
@@ -913,6 +913,11 @@ static void LayoutPosition(ID id, bool x, float32 cursorSS)
 {
 	ElementStorage& element = Elements[id];
 	const Description::LayoutDescription& elementLayout = element.Description.Layout;
+
+	if (elementLayout.Absolute)
+	{
+		cursorSS = x ? elementLayout.AbsolutePositionSS.X : elementLayout.AbsolutePositionSS.Y;
+	}
 
 	float32& elementPositionSS = x ? element.PositionSS.X : element.PositionSS.Y;
 	elementPositionSS = cursorSS;

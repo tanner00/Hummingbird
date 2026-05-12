@@ -63,6 +63,9 @@ struct Description
 		float32 SpacingSS;
 
 		bool Floating;
+
+		bool Absolute;
+		float32x2 AbsolutePositionSS;
 	} Layout;
 
 	struct StyleDescription
