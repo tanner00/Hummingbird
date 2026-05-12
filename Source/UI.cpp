@@ -846,8 +846,8 @@ static void LayoutSize(ID rootID, bool x)
 					{
 						Description::LayoutDescription& flexibleElementLayout = flexibleElement.Description.Layout;
 
-						const float32 flexibleElementLimitSizeSS = grow ? (x ? flexibleElementLayout.SizeX.MinMax.Max : flexibleElementLayout.SizeY.MinMax.Max)
-																		: (x ? flexibleElementLayout.SizeX.MinMax.Min : flexibleElementLayout.SizeY.MinMax.Min);
+						const MinMax flexibleElementMinMax = x ? flexibleElementLayout.SizeX.MinMax : flexibleElementLayout.SizeY.MinMax;
+						const float32 flexibleElementLimitSizeSS = grow ? flexibleElementMinMax.Max : flexibleElementMinMax.Min;
 
 						const float32 newSizeSS = grow ? Min(flexibleElementSizeSS + distributeSS, flexibleElementLimitSizeSS)
 													   : Max(flexibleElementSizeSS + distributeSS, flexibleElementLimitSizeSS);
@@ -1079,7 +1079,7 @@ static void Draw(ID id)
 		if (!element.Text.IsEmpty())
 		{
 			float32x2 positionLS = float32x2 { 0.0f, 0.0f };
-			for (const String& piece : element.Text.Split(' ', Allocator))
+			for (const StringView piece : element.Text.Split(' ', Allocator))
 			{
 				const float32 pieceWidth = GetTextWidth(piece, element.TextScale);
 				if (positionLS.X + pieceWidth > element.SizeSS.X)

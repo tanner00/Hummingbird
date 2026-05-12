@@ -83,7 +83,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 		const float32 insideMask = 1.0f - smoothstep(0.0f, edgeSoftnessSS, distanceSS);
 		const float32 borderMask = 1.0f - smoothstep(draw.BorderSizeSS - borderSoftnessSS, draw.BorderSizeSS, abs(distanceSS));
 
-		color = lerp(draw.RGBA, draw.BorderRGBA, insideMask * borderMask);
+		color = lerp(draw.RGBA, draw.BorderRGBA, borderMask) * float32x4(1.0f, 1.0f, 1.0f, insideMask);
 		break;
 	}
 	case UIDrawType::Character:
@@ -97,7 +97,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 
 		const float32 insideMask = saturate(distanceSS + 0.5f);
 
-		color = float32x4(draw.RGBA.rgb, insideMask * draw.RGBA.a);
+		color = draw.RGBA * float32x4(1.0f, 1.0f, 1.0f, insideMask);
 		break;
 	}
 	case UIDrawType::Image:
