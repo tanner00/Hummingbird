@@ -454,7 +454,7 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().ClearRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
 	GlobalGraphics().SetRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
 
-	UI::Image(FinalTextureShaderResourceView, {});
+	UI::Image(FinalTextureShaderResourceView, { .Style = { UI::White } });
 
 #if !RELEASE
 	UpdateFrameTimes(startCPUTime);

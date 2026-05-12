@@ -304,7 +304,7 @@ void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rg
 	}
 }
 
-void DrawImage(const TextureView& image, float32x2 positionSS, float32x2 sizeSS, usize layer)
+void DrawImage(const TextureView& image, float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer)
 {
 	CHECK(DrawIndex + 1 <= MaxUIDrawsPerFrame);
 
@@ -312,6 +312,7 @@ void DrawImage(const TextureView& image, float32x2 positionSS, float32x2 sizeSS,
 	{
 		.PositionSS = positionSS,
 		.SizeSS = sizeSS,
+		.RGBA = rgba,
 		.Type = HLSL::UIDrawType::Image,
 		.ImageIndex = GlobalDevice().Get(image),
 		.Layer = static_cast<uint32>(layer),
@@ -1012,7 +1013,7 @@ static void Draw(ID id)
 
 	if (element.Image.IsValid())
 	{
-		DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Layer);
+		DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Description.Style.RGBA, element.Layer);
 	}
 
 	DrawChildren(element, element.ChildrenIDs);

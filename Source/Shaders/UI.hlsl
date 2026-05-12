@@ -98,7 +98,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 		const Texture2D<float32x4> imageTexture = ResourceDescriptorHeap[draw.ImageIndex];
 		const SamplerState linearWrapSampler = SamplerDescriptorHeap[RootConstants.LinearWrapSampler];
 
-		color = imageTexture.Sample(linearWrapSampler, input.UV);
+		color = imageTexture.Sample(linearWrapSampler, input.UV) * draw.RGBA;
 		break;
 	}
 	}
