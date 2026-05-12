@@ -1,45 +1,16 @@
 #include "CameraController.hpp"
-#include "GLTF.hpp"
+#include "Editor.hpp"
 #include "Renderer.hpp"
-
-static const StringView Scenes[] =
-{
-	"Assets/Scenes/Sponza/Sponza.gltf"_view,
-	"Assets/Scenes/Bistro/Bistro.gltf"_view,
-	"Assets/Scenes/EmeraldSquare/EmeraldSquare_Day.gltf"_view,
-	"Assets/Scenes/SunTemple/SunTemple.gltf"_view,
-};
-
-static bool NeedsResize = false;
-
-static void SetScene(usize sceneIndex, Renderer* renderer, CameraController* cameraController)
-{
-	const float64 start = Platform::GetTime();
-
-	GLTF::Scene scene = GLTF::LoadScene(Scenes[sceneIndex]);
-
-	const GLTF::Camera defaultCamera =
-	{
-		.LocalToWorld = Matrix::Identity,
-		.FieldOfViewYRadians = Pi / 3.0f,
-		.AspectRatio = 16.0f / 9.0f,
-		.NearZ = 0.1f,
-		.FarZ = 1000.0f,
-	};
-	const GLTF::Camera camera = scene.Cameras.IsEmpty() ? defaultCamera : scene.Cameras[0];
-
-	cameraController->SetCamera(camera);
-	renderer->SetScene(scene);
-
-	GLTF::UnloadScene(&scene);
-
-	const float64 end = Platform::GetTime();
-	Platform::LogFormatted("Scene took %.2fs to load\n", end - start);
-}
 
 void Start()
 {
 	Platform::Window* window = Platform::CreateWindow("Hummingbird"_view, 1920, 1080);
+
+	static bool needsResize = false;
+	Platform::InstallResizeHandler([](Platform::Window*) -> void
+	{
+		needsResize = true;
+	});
 
 #if DEBUG
 	const Array<String> arguments = Platform::GetCommandLineArguments();
@@ -50,13 +21,9 @@ void Start()
 
 	Renderer renderer(window, validation);
 	CameraController cameraController;
-	SetScene(0, &renderer, &cameraController);
+	Editor editor(window, &renderer, &cameraController);
 
-	Platform::ShowWindow(window, false);
-	Platform::InstallResizeHandler([](Platform::Window*) -> void
-	{
-		NeedsResize = true;
-	});
+	Platform::ShowWindow(window, true);
 
 	float64 timeLast = 0.0;
 
@@ -64,20 +31,15 @@ void Start()
 	{
 		Platform::ProcessEvents();
 
-		const bool setCaptured = Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left);
 		const bool setDefault = (Platform::IsKeyPressedOnce(Platform::Key::Escape) && Platform::GetInputMode() == Platform::InputMode::Captured) ||
 								!Platform::IsWindowFocused(window);
 		const bool quit = Platform::IsKeyPressedOnce(Platform::Key::Escape) && Platform::GetInputMode() == Platform::InputMode::Default;
 
-		if (setCaptured)
-		{
-			Platform::SetInputMode(window, Platform::InputMode::Captured);
-		}
-		else if (setDefault)
+		if (setDefault)
 		{
 			Platform::SetInputMode(window, Platform::InputMode::Default);
 		}
-		else if (quit)
+		if (quit)
 		{
 			break;
 		}
@@ -87,18 +49,10 @@ void Start()
 			continue;
 		}
 
-		if (NeedsResize)
+		if (needsResize)
 		{
-			renderer.Resize(window->DrawWidth, window->DrawHeight);
-			NeedsResize = false;
-		}
-
-		for (usize sceneIndex = 0; sceneIndex < ARRAY_COUNT(Scenes); ++sceneIndex)
-		{
-			if (Platform::IsKeyPressedOnce(static_cast<Platform::Key>(sceneIndex + static_cast<usize>(Platform::Key::One))))
-			{
-				SetScene(sceneIndex, &renderer, &cameraController);
-			}
+			renderer.ResizeSwapChain(window->DrawWidth, window->DrawHeight);
+			needsResize = false;
 		}
 
 		const float64 timeNow = Platform::GetTime();
@@ -106,7 +60,8 @@ void Start()
 		timeLast = timeNow;
 
 		cameraController.Update(static_cast<float32>(timeDelta));
-		renderer.Update(cameraController, static_cast<float32>(timeDelta));
+		editor.Update();
+		renderer.Update(cameraController, static_cast<float32>(timeDelta), timeNow);
 	}
 
 	Platform::DestroyWindow(window);
