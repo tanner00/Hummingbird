@@ -246,7 +246,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 	const ResourceDimensions viewportDimensions = FinalTextureResource.Dimensions;
 	GlobalGraphics().SetViewport(viewportDimensions.Width, viewportDimensions.Height);
 
-	float32x2 currentJitterNDC = { .X = 0.0f, .Y = 0.0f };
+	float32x2 currentJitterNDC = { 0.0f, 0.0f };
 	if (ShouldAntiAlias())
 	{
 		static constexpr float32x2 halton23Sequence[] =
