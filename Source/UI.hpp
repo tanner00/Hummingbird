@@ -5,8 +5,8 @@
 namespace UI
 {
 
-inline float32x4 Black = { 0.0f, 0.0f, 0.0f, 1.0f };
-inline float32x4 White = { 1.0f, 1.0f, 1.0f, 1.0f };
+inline constexpr float32x4 Black = { 0.0f, 0.0f, 0.0f, 1.0f };
+inline constexpr float32x4 White = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 using ID = uint64;
 

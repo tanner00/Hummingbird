@@ -19,11 +19,11 @@ static const StringView Scenes[] =
 namespace Theme
 {
 
-inline float32x4 Background = { 14 / 255.0f, 15 / 255.0f, 18 / 255.0f, 1.0f };
-inline float32x4 BackgroundWidget = { 35 / 255.0f, 38 / 255.0f, 46 / 255.0f, 1.0f };
-inline float32x4 Border = { 52 / 255.0f, 56 / 255.0f, 66 / 255.0f, 1.0f };
-inline float32x4 Text = { 226 / 255.0f, 228 / 255.0f, 236 / 255.0f, 1.0f };
-inline float32x4 Accent = { 77 / 255.0f, 156 / 255.0f, 232 / 255.0f, 1.0f };
+static constexpr float32x4 Background = { 14 / 255.0f, 15 / 255.0f, 18 / 255.0f, 1.0f };
+static constexpr float32x4 BackgroundWidget = { 35 / 255.0f, 38 / 255.0f, 46 / 255.0f, 1.0f };
+static constexpr float32x4 Border = { 52 / 255.0f, 56 / 255.0f, 66 / 255.0f, 1.0f };
+static constexpr float32x4 Text = { 226 / 255.0f, 228 / 255.0f, 236 / 255.0f, 1.0f };
+static constexpr float32x4 Accent = { 77 / 255.0f, 156 / 255.0f, 232 / 255.0f, 1.0f };
 
 }
 
