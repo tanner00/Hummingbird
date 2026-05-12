@@ -186,6 +186,9 @@ struct UIDraw
 	float32x2 PositionSS;
 	float32x2 SizeSS;
 
+	float32x2 ScissorMinSS;
+	float32x2 ScissorMaxSS;
+
 	float32x4 RGBA;
 
 	UIDrawType Type;

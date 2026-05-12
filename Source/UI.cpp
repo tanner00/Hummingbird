@@ -29,6 +29,13 @@ struct ElementStorage
 	float32x2 PositionSS;
 	float32x2 SizeSS;
 
+	float32x2 NaturalSizeLS;
+
+	float32 ScrollOffsetLS;
+
+	float32x2 ScissorMinSS;
+	float32x2 ScissorMaxSS;
+
 	usize Layer;
 
 	Description Description;
@@ -266,6 +273,7 @@ void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float3
 	{
 		.PositionSS = positionSS,
 		.SizeSS = sizeSS,
+		.ScissorMaxSS = { static_cast<float32>(INFINITY), static_cast<float32>(INFINITY) },
 		.RGBA = rgba,
 		.Type = HLSL::UIDrawType::Rectangle,
 		.BorderRGBA = borderRGBA,
@@ -289,6 +297,7 @@ void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rg
 		Draws[DrawIndex] = HLSL::UIDraw
 		{
 			.PositionSS = currentPositionSS,
+			.ScissorMaxSS = { static_cast<float32>(INFINITY), static_cast<float32>(INFINITY) },
 			.RGBA = rgba,
 			.Type = HLSL::UIDrawType::Character,
 			.AtlasPosition = glyph.AtlasPosition,
@@ -312,6 +321,7 @@ void DrawImage(const TextureView& image, float32x2 positionSS, float32x2 sizeSS,
 	{
 		.PositionSS = positionSS,
 		.SizeSS = sizeSS,
+		.ScissorMaxSS = { static_cast<float32>(INFINITY), static_cast<float32>(INFINITY) },
 		.RGBA = rgba,
 		.Type = HLSL::UIDrawType::Image,
 		.ImageIndex = GlobalDevice().Get(image),
@@ -504,7 +514,7 @@ static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float3
 	return (differenceX * differenceX + differenceY * differenceY) <= (cornerRadius * cornerRadius);
 }
 
-bool IsHovered(ID id, bool ignoreChildren)
+static bool IsIntersecting(ID id)
 {
 	if (!DoesExist(id))
 	{
@@ -520,17 +530,36 @@ bool IsHovered(ID id, bool ignoreChildren)
 
 	const float32x2 mousePositionSS = { static_cast<float32>(Platform::GetMouseX()), static_cast<float32>(Platform::GetMouseY()) };
 
-	const bool hovered = IsPointInRoundedRectangle(mousePositionSS.X,
-												   mousePositionSS.Y,
-												   element.PositionSS.X,
-												   element.PositionSS.X + element.SizeSS.X,
-												   element.PositionSS.Y,
-												   element.PositionSS.Y + element.SizeSS.Y,
-												   element.Description.Style.CornerRadiiSS);
-	if (!hovered)
+	const bool inside = (mousePositionSS.X >= element.ScissorMinSS.X) && (mousePositionSS.Y >= element.ScissorMinSS.Y) &&
+						(mousePositionSS.X <= element.ScissorMaxSS.X) && (mousePositionSS.Y <= element.ScissorMaxSS.Y);
+	if (!inside)
 	{
 		return false;
 	}
+
+	return IsPointInRoundedRectangle(mousePositionSS.X,
+									 mousePositionSS.Y,
+									 element.PositionSS.X,
+									 element.PositionSS.X + element.SizeSS.X,
+									 element.PositionSS.Y,
+									 element.PositionSS.Y + element.SizeSS.Y,
+									 element.Description.Style.CornerRadiiSS);
+}
+
+bool IsHovered(ID id, bool ignoreChildren)
+{
+	if (!DoesExist(id))
+	{
+		return false;
+	}
+
+	const bool intersecting = IsIntersecting(id);
+	if (!intersecting)
+	{
+		return false;
+	}
+
+	const ElementStorage& element = LastFrameElements[id];
 
 	bool higherHovered = false;
 	for (const ID rootID : LastFrameRootIDs)
@@ -538,7 +567,7 @@ bool IsHovered(ID id, bool ignoreChildren)
 		Array<ID> breadthFirst(Allocator);
 		breadthFirst.Add(rootID);
 
-		while (!breadthFirst.IsEmpty() && !higherHovered)
+		while (!breadthFirst.IsEmpty())
 		{
 			const ID currentID = breadthFirst.First();
 			breadthFirst.Remove(0);
@@ -559,19 +588,12 @@ bool IsHovered(ID id, bool ignoreChildren)
 				breadthFirst.Add(childID);
 			}
 
-			const bool ignore = currentID == id || currentElement.Layer <= element.Layer || !element.Text.IsEmpty();
-			if (ignore)
+			if (currentID == id || currentElement.Layer <= element.Layer)
 			{
 				continue;
 			}
 
-			higherHovered |= IsPointInRoundedRectangle(mousePositionSS.X,
-													   mousePositionSS.Y,
-													   currentElement.PositionSS.X,
-													   currentElement.PositionSS.X + currentElement.SizeSS.X,
-													   currentElement.PositionSS.Y,
-													   currentElement.PositionSS.Y + currentElement.SizeSS.Y,
-													   currentElement.Description.Style.CornerRadiiSS);
+			higherHovered |= IsIntersecting(currentID);
 		}
 
 		if (higherHovered)
@@ -580,7 +602,7 @@ bool IsHovered(ID id, bool ignoreChildren)
 		}
 	}
 
-	return hovered && !higherHovered;
+	return intersecting && !higherHovered;
 }
 
 bool IsPressed(ID id, bool ignoreChildren)
@@ -687,6 +709,8 @@ static void LayoutSize(ID rootID, bool x)
 			{
 				sizeSS += GetTextWidth(element.Text, element.TextScale);
 
+				minMax.Max = sizeSS;
+
 				float32 maxPieceWidthSS = 0.0f;
 				for (const StringView piece : element.Text.Split(' ', Allocator))
 				{
@@ -699,11 +723,6 @@ static void LayoutSize(ID rootID, bool x)
 				elementLayout.SizeY.MinMax.Min = Max(elementLayout.SizeY.MinMax.Min,
 													 GetTextHeightForLineWidth(element.Text, element.SizeSS.X, element.TextScale));
 			}
-		}
-
-		if (element.Image.IsValid())
-		{
-			sizeSS += x ? static_cast<float32>(element.Image.Resource.Dimensions.Width) : static_cast<float32>(element.Image.Resource.Dimensions.Height);
 		}
 
 		sizeSS = Min(Max(sizeSS, minMax.Min), minMax.Max);
@@ -852,18 +871,26 @@ static void LayoutSize(ID rootID, bool x)
 				}
 			}
 		}
+
+		float32& naturalSizeLS = x ? element.NaturalSizeLS.X : element.NaturalSizeLS.Y;
+		naturalSizeLS = GetChildrenSizeSS(element, x, elementLayout.Direction) + 2.0f * (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
 	}
 }
 
-static void LayoutPosition(ID id, bool x, float32 cursorSS);
+static void LayoutPosition(ID id, bool x, float32 timeDelta, float32 cursorSS);
 
-static void LayoutPositionChildren(const ElementStorage& element, bool x, float32 cursorSS, ArrayView<ID> childrenIDs)
+static void LayoutPositionChildren(const ElementStorage& element, bool x, float32 timeDelta, float32 cursorSS, ArrayView<ID> childrenIDs)
 {
 	const Description::LayoutDescription& elementLayout = element.Description.Layout;
 
 	const Alignment alignment = x ? elementLayout.AlignmentX : elementLayout.AlignmentY;
 
-	if (IsSameDirection(x, elementLayout.Direction))
+	const float32 sizeSS = x ? element.SizeSS.X : element.SizeSS.Y;
+	const float32 naturalSizeLS = x ? element.NaturalSizeLS.X : element.NaturalSizeLS.Y;
+
+	const bool noScroll = naturalSizeLS <= sizeSS;
+
+	if (IsSameDirection(x, elementLayout.Direction) && noScroll)
 	{
 		const float32 remainingSS = GetRemainingSizeSS(element, x, GetChildrenSizeSS(element, x, elementLayout.Direction));
 
@@ -885,7 +912,7 @@ static void LayoutPositionChildren(const ElementStorage& element, bool x, float3
 		const ElementStorage& childElement = Elements[childID];
 
 		float32 alignmentOffsetSS = 0.0f;
-		if (!IsSameDirection(x, elementLayout.Direction))
+		if (!IsSameDirection(x, elementLayout.Direction) && noScroll)
 		{
 			const float32 remainingSS = GetRemainingSizeSS(element, x, x ? childElement.SizeSS.X : childElement.SizeSS.Y);
 
@@ -901,7 +928,7 @@ static void LayoutPositionChildren(const ElementStorage& element, bool x, float3
 				break;
 			}
 		}
-		LayoutPosition(childID, x, cursorSS + alignmentOffsetSS);
+		LayoutPosition(childID, x, timeDelta, cursorSS + alignmentOffsetSS);
 
 		if (IsSameDirection(x, elementLayout.Direction))
 		{
@@ -910,7 +937,7 @@ static void LayoutPositionChildren(const ElementStorage& element, bool x, float3
 	}
 }
 
-static void LayoutPosition(ID id, bool x, float32 cursorSS)
+static void LayoutPosition(ID id, bool x, float32 timeDelta, float32 cursorSS)
 {
 	ElementStorage& element = Elements[id];
 	const Description::LayoutDescription& elementLayout = element.Description.Layout;
@@ -923,11 +950,25 @@ static void LayoutPosition(ID id, bool x, float32 cursorSS)
 	float32& elementPositionSS = x ? element.PositionSS.X : element.PositionSS.Y;
 	elementPositionSS = cursorSS;
 
+	if (DoesExist(id) && !x)
+	{
+		element.ScrollOffsetLS = LastFrameElements[id].ScrollOffsetLS;
+
+		if (IsHovered(id, true))
+		{
+			element.ScrollOffsetLS += static_cast<float32>(Platform::GetMouseScrollY()) * 12000.0f * timeDelta;
+		}
+
+		element.ScrollOffsetLS = Clamp(element.ScrollOffsetLS, 0.0f, Max(element.NaturalSizeLS.Y - element.SizeSS.Y, 0.0f));
+
+		cursorSS -= element.ScrollOffsetLS;
+	}
+
 	const float32 childrenCursorSS = cursorSS + (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
-	LayoutPositionChildren(element, x, childrenCursorSS, element.ChildrenIDs);
+	LayoutPositionChildren(element, x, timeDelta, childrenCursorSS, element.ChildrenIDs);
 
 	const float32 floatingChildrenCursorSS = cursorSS + (x ? 0.0f : element.SizeSS.Y);
-	LayoutPositionChildren(element, x, floatingChildrenCursorSS, element.FloatingChildrenIDs);
+	LayoutPositionChildren(element, x, timeDelta, floatingChildrenCursorSS, element.FloatingChildrenIDs);
 }
 
 static void Draw(ID id);
@@ -981,12 +1022,49 @@ static void DrawChildren(const ElementStorage& element, ArrayView<ID> childrenID
 
 static void Draw(ID id)
 {
-	const ElementStorage& element = Elements[id];
+	ElementStorage& element = Elements[id];
+
+	if (Elements.Contains(element.ParentID) && !element.Description.Layout.Floating)
+	{
+		const ElementStorage& parentElement = Elements[element.ParentID];
+
+		const float32 borderSizeSS = parentElement.Description.Style.BorderSizeSS;
+		const float32x2 overflowScissorSS =
+		{
+			parentElement.NaturalSizeLS.X > parentElement.SizeSS.X ? borderSizeSS : 0.0f,
+			parentElement.NaturalSizeLS.Y > parentElement.SizeSS.Y ? borderSizeSS : 0.0f,
+		};
+
+		element.ScissorMinSS =
+		{
+			Max(parentElement.ScissorMinSS.X + overflowScissorSS.X, element.PositionSS.X),
+			Max(parentElement.ScissorMinSS.Y + overflowScissorSS.Y, element.PositionSS.Y),
+		};
+		element.ScissorMaxSS =
+		{
+			Min(parentElement.ScissorMaxSS.X - overflowScissorSS.X, element.PositionSS.X + element.SizeSS.X),
+			Min(parentElement.ScissorMaxSS.Y - overflowScissorSS.Y, element.PositionSS.Y + element.SizeSS.Y),
+		};
+	}
+	else
+	{
+		element.ScissorMinSS =
+		{
+			element.PositionSS.X,
+			element.PositionSS.Y,
+		};
+		element.ScissorMaxSS =
+		{
+			element.PositionSS.X + element.SizeSS.X,
+			element.PositionSS.Y + element.SizeSS.Y,
+		};
+	}
 
 	const bool visible = element.Description.Style.RGBA.W != 0.0f || element.Description.Style.BorderRGBA.W != 0.0f;
-
 	if (visible)
 	{
+		const usize drawStart = DrawIndex;
+
 		if (element.Text.IsEmpty() && !element.Image.IsValid())
 		{
 			DrawBorderedRoundedRectangle(element.PositionSS,
@@ -1024,13 +1102,21 @@ static void Draw(ID id)
 		{
 			DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Description.Style.RGBA, element.Layer);
 		}
+
+		for (usize drawIndex = 0; drawIndex < DrawIndex - drawStart; ++drawIndex)
+		{
+			HLSL::UIDraw& draw = Draws[DrawIndex - drawIndex - 1];
+
+			draw.ScissorMinSS = element.ScissorMinSS;
+			draw.ScissorMaxSS = element.ScissorMaxSS;
+		}
 	}
 
 	DrawChildren(element, element.ChildrenIDs);
 	DrawChildren(element, element.FloatingChildrenIDs);
 }
 
-void Submit(uint32 screenWidth, uint32 screenHeight)
+void Submit(uint32 screenWidth, uint32 screenHeight, float32 timeDelta)
 {
 	CHECK(OpenID == INDEX_NONE);
 
@@ -1044,11 +1130,11 @@ void Submit(uint32 screenWidth, uint32 screenHeight)
 	}
 	for (const ID rootID : RootIDs)
 	{
-		LayoutPosition(rootID, true, 0.0f);
+		LayoutPosition(rootID, true, timeDelta, 0.0f);
 	}
 	for (const ID rootID : RootIDs)
 	{
-		LayoutPosition(rootID, false, 0.0f);
+		LayoutPosition(rootID, false, timeDelta, 0.0f);
 	}
 	for (const ID rootID : RootIDs)
 	{
