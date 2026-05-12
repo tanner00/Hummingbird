@@ -508,7 +508,7 @@ static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float3
 	return (differenceX * differenceX + differenceY * differenceY) <= (cornerRadius * cornerRadius);
 }
 
-bool IsHovered(ID id)
+bool IsHovered(ID id, bool ignoreChildren)
 {
 	if (!LastFrameElements.Contains(id))
 	{
@@ -547,6 +547,11 @@ bool IsHovered(ID id)
 			const ID currentID = breadthFirst.First();
 			breadthFirst.Remove(0);
 
+			if (currentID == id && ignoreChildren)
+			{
+				continue;
+			}
+
 			const ElementStorage& currentElement = LastFrameElements[currentID];
 
 			for (const ID childID : currentElement.ChildrenIDs)
@@ -582,14 +587,14 @@ bool IsHovered(ID id)
 	return hovered && !higherHovered;
 }
 
-bool IsPressed(ID id)
+bool IsPressed(ID id, bool ignoreChildren)
 {
-	return IsHovered(id) && Platform::IsMouseButtonPressed(Platform::MouseButton::Left);
+	return IsHovered(id, ignoreChildren) && Platform::IsMouseButtonPressed(Platform::MouseButton::Left);
 }
 
-bool IsPressedOnce(ID id)
+bool IsPressedOnce(ID id, bool ignoreChildren)
 {
-	return IsHovered(id) && Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left);
+	return IsHovered(id, ignoreChildren) && Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left);
 }
 
 static float32 GetTextHeightForLineWidth(const String& text, float32 widthSS, float32 scale)
