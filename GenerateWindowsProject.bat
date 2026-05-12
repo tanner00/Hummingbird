@@ -6,12 +6,5 @@ cd /D "%~dp0"
 
 mklink /J "Build\Assets" "Assets\"
 mklink /J "Build\Shaders" "Source\Shaders"
-mkdir "Build\Debug" 2>nul
-mkdir "Build\Profile" 2>nul
-mkdir "Build\Release" 2>nul
-mklink /J "Build\Debug\D3D12" "RHI\ThirdParty\D3D12"
-mklink /J "Build\Profile\D3D12" "RHI\ThirdParty\D3D12"
-mklink /J "Build\Release\D3D12" "RHI\ThirdParty\D3D12"
-mklink /J "Build\Debug\dxc" "RHI\ThirdParty\dxc"
-mklink /J "Build\Profile\dxc" "RHI\ThirdParty\dxc"
-mklink /J "Build\Release\dxc" "RHI\ThirdParty\dxc"
+
+call "%~dp0RHI\GenerateWindowsProject.bat" || exit /B 1
