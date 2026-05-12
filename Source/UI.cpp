@@ -24,6 +24,7 @@ struct ElementStorage
 {
 	ID ParentID;
 	Array<ID> ChildrenIDs;
+	Array<ID> FloatingChildrenIDs;
 
 	float32x2 PositionSS;
 	float32x2 SizeSS;
@@ -45,6 +46,8 @@ static HashTable<ID, ElementStorage> LastFrameElements(32, Allocator);
 static Array<ID> LastFrameRootIDs(Allocator);
 
 static ID OpenID = INDEX_NONE;
+
+static usize MaxLayer = 0;
 
 namespace Font
 {
@@ -348,13 +351,13 @@ ID BeginElement(const Description& description)
 	ID id;
 	if (description.ID == 0)
 	{
-		usize parentChildCount = 0;
+		usize parentChildrenCount = 0;
 		if (hasParent)
 		{
 			const ElementStorage& parent = Elements[OpenID];
-			parentChildCount += parent.ChildrenIDs.GetCount();
+			parentChildrenCount += parent.ChildrenIDs.GetCount() + parent.FloatingChildrenIDs.GetCount();
 		}
-		id = (HashCombine(Hash<ID>{}(OpenID), Hash<usize>{}(parentChildCount)));
+		id = (HashCombine(Hash<ID>{}(OpenID), Hash<usize>{}(parentChildrenCount)));
 	}
 	else
 	{
@@ -363,23 +366,46 @@ ID BeginElement(const Description& description)
 
 	CHECK(!Elements.Contains(id));
 
-	usize layer = 0;
+	usize layer;
 	if (hasParent)
 	{
 		ElementStorage& parent = Elements[OpenID];
-		parent.ChildrenIDs.Add(id);
+		if (description.Layout.Floating)
+		{
+			parent.FloatingChildrenIDs.Add(id);
+		}
+		else
+		{
+			parent.ChildrenIDs.Add(id);
+		}
 
-		layer = parent.Layer + 1;
+		static constexpr usize floatingLayerOffset = 1000000;
+
+		layer = parent.Layer;
+		if (description.Layout.Floating)
+		{
+			layer += floatingLayerOffset;
+		}
+		else
+		{
+			++layer;
+		}
 	}
 	else
 	{
+		CHECK(!description.Layout.Floating);
+
 		RootIDs.Add(id);
+
+		layer = MaxLayer + 1;
 	}
+	MaxLayer = Max(MaxLayer, layer);
 
 	Elements.Add(id, ElementStorage
 	{
 		.ParentID = OpenID,
 		.ChildrenIDs = Array<ID>(Allocator),
+		.FloatingChildrenIDs = Array<ID>(Allocator),
 		.Layer = layer,
 		.Description = description,
 	});
@@ -527,6 +553,10 @@ bool IsHovered(ID id)
 			{
 				breadthFirst.Add(childID);
 			}
+			for (const ID childID : currentElement.FloatingChildrenIDs)
+			{
+				breadthFirst.Add(childID);
+			}
 
 			const bool ignore = currentID == id || currentElement.Layer <= element.Layer || !element.Text.IsEmpty();
 			if (ignore)
@@ -634,6 +664,10 @@ static void LayoutSize(ID rootID, bool x)
 			{
 				postOrderDepthFirst.Add(ToVisit { .ID = element.ChildrenIDs[childIndicesIndex], .Visited = false });
 			}
+			for (usize childIndicesIndex = element.FloatingChildrenIDs.GetCount() - 1; childIndicesIndex != INDEX_NONE; --childIndicesIndex)
+			{
+				postOrderDepthFirst.Add(ToVisit { .ID = element.FloatingChildrenIDs[childIndicesIndex], .Visited = false });
+			}
 			continue;
 		}
 
@@ -698,6 +732,10 @@ static void LayoutSize(ID rootID, bool x)
 		}
 
 		for (const ID childID : element.ChildrenIDs)
+		{
+			breadthFirst.Add(childID);
+		}
+		for (const ID childID : element.FloatingChildrenIDs)
 		{
 			breadthFirst.Add(childID);
 		}
@@ -816,15 +854,11 @@ static void LayoutSize(ID rootID, bool x)
 	}
 }
 
-static void LayoutPosition(ID elementID, bool x, float32 cursorSS)
+static void LayoutPosition(ID id, bool x, float32 cursorSS);
+
+static void LayoutPositionChildren(const ElementStorage& element, bool x, float32 cursorSS, ArrayView<ID> childrenIDs)
 {
-	ElementStorage& element = Elements[elementID];
 	const Description::LayoutDescription& elementLayout = element.Description.Layout;
-
-	float32& elementPositionSS = x ? element.PositionSS.X : element.PositionSS.Y;
-	elementPositionSS = cursorSS;
-
-	cursorSS += x ? element.Description.Layout.PaddingSS.X : element.Description.Layout.PaddingSS.Y;
 
 	const Alignment alignment = x ? elementLayout.AlignmentX : elementLayout.AlignmentY;
 
@@ -845,7 +879,7 @@ static void LayoutPosition(ID elementID, bool x, float32 cursorSS)
 		}
 	}
 
-	for (const ID childID : element.ChildrenIDs)
+	for (const ID childID : childrenIDs)
 	{
 		const ElementStorage& childElement = Elements[childID];
 
@@ -870,16 +904,73 @@ static void LayoutPosition(ID elementID, bool x, float32 cursorSS)
 
 		if (IsSameDirection(x, elementLayout.Direction))
 		{
-			const float32 childElementSizeSS = x ? childElement.SizeSS.X : childElement.SizeSS.Y;
-
-			cursorSS += childElementSizeSS + elementLayout.SpacingSS;
+			cursorSS += (x ? childElement.SizeSS.X : childElement.SizeSS.Y) + elementLayout.SpacingSS;
 		}
 	}
 }
 
-static void Draw(ID elementID)
+static void LayoutPosition(ID id, bool x, float32 cursorSS)
 {
-	const ElementStorage& element = Elements[elementID];
+	ElementStorage& element = Elements[id];
+	const Description::LayoutDescription& elementLayout = element.Description.Layout;
+
+	float32& elementPositionSS = x ? element.PositionSS.X : element.PositionSS.Y;
+	elementPositionSS = cursorSS;
+
+	const float32 childrenCursorSS = cursorSS + (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
+	LayoutPositionChildren(element, x, childrenCursorSS, element.ChildrenIDs);
+
+	const float32 floatingChildrenCursorSS = cursorSS + (x ? 0.0f : element.SizeSS.Y);
+	LayoutPositionChildren(element, x, floatingChildrenCursorSS, element.FloatingChildrenIDs);
+}
+
+static void Draw(ID id);
+
+static void DrawChildren(const ElementStorage& element, ArrayView<ID> childrenIDs)
+{
+	for (const ID childID : childrenIDs)
+	{
+		Draw(childID);
+	}
+
+	const Description::StyleDescription& parentStyle = element.Description.Style;
+
+	const bool horizontal = element.Description.Layout.Direction == Direction::Horizontal;
+
+	for (usize childIDIndex = 0; childIDIndex + 1 < childrenIDs.GetCount(); ++childIDIndex)
+	{
+		const ID childID = childrenIDs[childIDIndex];
+		const ElementStorage& childElement = Elements[childID];
+
+		const ID nextChildID = childrenIDs[childIDIndex];
+		const ElementStorage& nextChildElement = Elements[nextChildID];
+
+		const float32 xCenterSS = childElement.PositionSS.X +
+								(childElement.SizeSS.X + nextChildElement.SizeSS.X) / 2.0f +
+								element.Description.Layout.SpacingSS / 2.0f -
+								parentStyle.BetweenSizeSS / 2.0f;
+		const float32 yCenterSS = childElement.PositionSS.Y +
+								(childElement.SizeSS.Y + nextChildElement.SizeSS.Y) / 2.0f +
+								element.Description.Layout.SpacingSS / 2.0f -
+								parentStyle.BetweenSizeSS / 2.0f;
+
+		const float32x2 betweenPositionSS =
+		{
+			horizontal ? xCenterSS : (element.PositionSS.X + parentStyle.BorderSizeSS),
+			horizontal ? (element.PositionSS.Y + parentStyle.BorderSizeSS) : yCenterSS,
+		};
+		const float32x2 betweenSizeSS =
+		{
+			horizontal ? parentStyle.BetweenSizeSS : (element.SizeSS.X - parentStyle.BorderSizeSS * 2.0f),
+			horizontal ? (element.SizeSS.Y - parentStyle.BorderSizeSS * 2.0f) : parentStyle.BetweenSizeSS,
+		};
+		DrawRectangle(betweenPositionSS, betweenSizeSS, parentStyle.BetweenRGBA, element.Layer);
+	}
+}
+
+static void Draw(ID id)
+{
+	const ElementStorage& element = Elements[id];
 
 	if (element.Text.IsEmpty() && !element.Image.IsValid())
 	{
@@ -919,43 +1010,8 @@ static void Draw(ID elementID)
 		DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Layer);
 	}
 
-	for (const ID childID : element.ChildrenIDs)
-	{
-		Draw(childID);
-	}
-
-	const bool horizontal = element.Description.Layout.Direction == Direction::Horizontal;
-	const Description::StyleDescription& parentStyle = element.Description.Style;
-
-	for (usize childIDIndex = 0; childIDIndex + 1 < element.ChildrenIDs.GetCount(); ++childIDIndex)
-	{
-		const ID childID = element.ChildrenIDs[childIDIndex];
-		const ElementStorage& childElement = Elements[childID];
-
-		const ID nextChildID = element.ChildrenIDs[childIDIndex];
-		const ElementStorage& nextChildElement = Elements[nextChildID];
-
-		const float32 xCenterSS = childElement.PositionSS.X +
-								  (childElement.SizeSS.X + nextChildElement.SizeSS.X) / 2.0f +
-								  element.Description.Layout.SpacingSS / 2.0f -
-								  parentStyle.BetweenSizeSS / 2.0f;
-		const float32 yCenterSS = childElement.PositionSS.Y +
-								  (childElement.SizeSS.Y + nextChildElement.SizeSS.Y) / 2.0f +
-								  element.Description.Layout.SpacingSS / 2.0f -
-								  parentStyle.BetweenSizeSS / 2.0f;
-
-		const float32x2 betweenPositionSS =
-		{
-			horizontal ? xCenterSS : (element.PositionSS.X + parentStyle.BorderSizeSS),
-			horizontal ? (element.PositionSS.Y + parentStyle.BorderSizeSS) : yCenterSS,
-		};
-		const float32x2 betweenSizeSS =
-		{
-			horizontal ? parentStyle.BetweenSizeSS : (element.SizeSS.X - parentStyle.BorderSizeSS * 2.0f),
-			horizontal ? (element.SizeSS.Y - parentStyle.BorderSizeSS * 2.0f) : parentStyle.BetweenSizeSS,
-		};
-		DrawRectangle(betweenPositionSS, betweenSizeSS, parentStyle.BetweenRGBA);
-	}
+	DrawChildren(element, element.ChildrenIDs);
+	DrawChildren(element, element.FloatingChildrenIDs);
 }
 
 void Submit(uint32 screenWidth, uint32 screenHeight)
@@ -1010,6 +1066,8 @@ void Submit(uint32 screenWidth, uint32 screenHeight)
 	RootIDs.Clear();
 
 	OpenID = INDEX_NONE;
+
+	MaxLayer = 0;
 }
 
 }
