@@ -13,42 +13,48 @@ static Allocator* Allocator = &GlobalAllocator::Get();
 
 struct PixelFormat
 {
-	int32 Size;
-	int32 Flags;
-	int32 CompressedOrCustomFormat;
-	int32 RgbBitCount;
-	int32 RedBitMask;
-	int32 GreenBitMask;
-	int32 BlueBitMask;
-	int32 AlphaBitMask;
+	uint32 Size;
+	uint32 Flags;
+	uint32 CompressedOrCustomFormat;
+	uint32 RgbBitCount;
+	uint32 RedBitMask;
+	uint32 GreenBitMask;
+	uint32 BlueBitMask;
+	uint32 AlphaBitMask;
 };
 
 struct Header
 {
-	int32 Size;
-	int32 Flags;
-	int32 Height;
-	int32 Width;
-	int32 PitchOrLinearSize;
-	int32 Depth;
-	int32 MipMapCount;
-	int32 Reserved1[11];
+	uint32 Size;
+	uint32 Flags;
+	uint32 Height;
+	uint32 Width;
+	uint32 PitchOrLinearSize;
+	uint32 Depth;
+	uint32 MipMapCount;
+	uint32 Reserved1[11];
 	PixelFormat Format;
-	int32 Caps[4];
-	int32 Reserved2;
+	uint32 Caps[4];
+	uint32 Reserved2;
+};
+
+enum class ResourceDimension : uint32
+{
+	Unknown = 0,
+	Buffer = 1,
+	Texture1D = 2,
+	Texture2D = 3,
+	Texture3D = 4,
 };
 
 struct ExtendedHeader
 {
 	DXGI_FORMAT DxgiFormat;
-	uint32 ResourceDimension;
+	ResourceDimension ResourceDimension;
 	uint32 MiscFlags1;
 	uint32 ArraySize;
 	uint32 MiscFlags2;
 };
-
-static constexpr usize BaseHeaderSize = sizeof(Header) + 4 * sizeof(char);
-static constexpr usize ExtendedHeaderSize = sizeof(ExtendedHeader);
 
 static RHI::ResourceFormat From(DXGI_FORMAT format)
 {
@@ -86,92 +92,24 @@ static RHI::ResourceFormat From(DXGI_FORMAT format)
 	return RHI::ResourceFormat::None;
 }
 
-static int32 Advance(usize* offset, usize count)
-{
-	CHECK(offset);
-	*offset += count;
-	return 0;
-}
-
-static uint32 ParseUInt32(StringView view, usize* offset)
-{
-	CHECK(offset);
-	const usize currentOffset = *offset;
-	VERIFY(currentOffset + sizeof(uint32) <= view.GetLength(), "Failed to parse integer!");
-
-	const uint32 value = (view[currentOffset + 0] << 0)  |
-						 (view[currentOffset + 1] << 8)  |
-						 (view[currentOffset + 2] << 16) |
-						 (view[currentOffset + 3] << 24);
-
-	*offset += sizeof(uint32);
-	return value;
-}
-
-static int32 ParseInt32(StringView view, usize* offset)
-{
-	CHECK(offset);
-	const usize currentOffset = *offset;
-	VERIFY(currentOffset + sizeof(uint32) <= view.GetLength(), "Failed to parse integer!");
-
-	const int32 value = (view[currentOffset + 0] << 0)  |
-						(view[currentOffset + 1] << 8)  |
-						(view[currentOffset + 2] << 16) |
-						(view[currentOffset + 3] << 24);
-
-	*offset += sizeof(uint32);
-	return value;
-}
-
 Image LoadImage(StringView filePath)
 {
+	static constexpr const char* InvalidMessage = "Invalid DDS file!";
+	static constexpr const char* UnexpectedMessage = "Unexpected DDS file!";
+
 	usize fileSize;
-	char* fileData = reinterpret_cast<char*>(Platform::ReadEntireFile(filePath, &fileSize, Allocator));
-	const StringView fileView = { fileData, fileSize };
+	uint8* fileData = Platform::ReadEntireFile(filePath, &fileSize, Allocator);
 
-	VERIFY(fileSize >= BaseHeaderSize, "Invalid DDS file!");
+	usize offset = 0;
 
-	const StringView formatSignature = "DDS "_view;
-	const StringView fileSignature(fileView.GetData(), formatSignature.GetLength());
-	VERIFY(fileSignature == formatSignature, "Unexpected image file format!");
+	VERIFY(offset + 4 <= fileSize, InvalidMessage);
+	VERIFY(StringView(reinterpret_cast<char*>(fileData), 4) == "DDS "_view, "Unexpected image file format!");
+	offset += 4;
 
-	usize offset = 4;
-
-	Header header =
-	{
-		.Size = ParseInt32(fileView, &offset),
-		.Flags = ParseInt32(fileView, &offset),
-		.Height = ParseInt32(fileView, &offset),
-		.Width = ParseInt32(fileView, &offset),
-		.PitchOrLinearSize = ParseInt32(fileView, &offset),
-		.Depth = ParseInt32(fileView, &offset),
-		.MipMapCount = ParseInt32(fileView, &offset),
-		.Reserved1 = { Advance(&offset, sizeof(Header::Reserved1)) },
-		.Format =
-		{
-			.Size = ParseInt32(fileView, &offset),
-			.Flags = ParseInt32(fileView, &offset),
-			.CompressedOrCustomFormat = ParseInt32(fileView, &offset),
-			.RgbBitCount = ParseInt32(fileView, &offset),
-			.RedBitMask = ParseInt32(fileView, &offset),
-			.GreenBitMask = ParseInt32(fileView, &offset),
-			.BlueBitMask = ParseInt32(fileView, &offset),
-			.AlphaBitMask = ParseInt32(fileView, &offset),
-		},
-		.Caps =
-		{
-			ParseInt32(fileView, &offset),
-			ParseInt32(fileView, &offset),
-			ParseInt32(fileView, &offset),
-			ParseInt32(fileView, &offset),
-		},
-		.Reserved2 = Advance(&offset, sizeof(Header::Reserved2)),
-	};
-	if (header.Height < 0)
-	{
-		header.Height = -header.Height;
-		Platform::Log("DDS::LoadImage: Flipped-Y is currently unsupported!\n");
-	}
+	VERIFY(offset + sizeof(Header) <= fileSize, InvalidMessage);
+	Header header;
+	Platform::MemoryCopy(&header, fileData + offset, sizeof(Header));
+	offset += sizeof(Header);
 
 	static constexpr uint32 headerCapsFlag = 0x1;
 	static constexpr uint32 headerHeightFlag = 0x2;
@@ -182,39 +120,30 @@ Image LoadImage(StringView filePath)
 
 	static constexpr uint32 capsTextureFlag = 0x1000;
 
-	VERIFY(header.Size == 124, "Invalid DDS file!");
-	VERIFY(header.Flags & headerCapsFlag, "Invalid DDS file!");
-	VERIFY(header.Flags & headerHeightFlag, "Invalid DDS file!");
-	VERIFY(header.Flags & headerWidthFlag, "Invalid DDS file!");
-	VERIFY(header.Flags & headerPixelFormatFlag, "Invalid DDS file!");
+	VERIFY(header.Size == sizeof(Header), InvalidMessage);
+	VERIFY(header.Flags & headerCapsFlag, InvalidMessage);
+	VERIFY(header.Flags & headerHeightFlag, InvalidMessage);
+	VERIFY(header.Flags & headerWidthFlag, InvalidMessage);
+	VERIFY(header.Flags & headerPixelFormatFlag, InvalidMessage);
 
-	VERIFY(header.Caps[0] & capsTextureFlag, "Invalid DDS file!");
+	VERIFY(header.Caps[0] & capsTextureFlag, InvalidMessage);
 
-	VERIFY(header.Format.Size == 32, "Invalid DDS file!");
-	VERIFY(header.Format.Flags & pixelFormatCompressedOrCustomFlag, "Unexpected DDS file type!");
+	VERIFY(header.Format.Size == 32, InvalidMessage);
+	VERIFY(header.Format.Flags & pixelFormatCompressedOrCustomFlag, UnexpectedMessage);
 
 	RHI::ResourceFormat format = RHI::ResourceFormat::None;
-	usize headerSize = BaseHeaderSize;
 
 	switch (header.Format.CompressedOrCustomFormat)
 	{
 	case DDS_FORMAT('D', 'X', '1', '0'):
 	{
-		headerSize += ExtendedHeaderSize;
+		VERIFY(offset + sizeof(ExtendedHeader) <= fileSize, InvalidMessage);
+		ExtendedHeader extendedHeader;
+		Platform::MemoryCopy(&extendedHeader, fileData + offset, sizeof(ExtendedHeader));
+		offset += sizeof(ExtendedHeader);
 
-		const ExtendedHeader extendedHeader =
-		{
-			.DxgiFormat = static_cast<DXGI_FORMAT>(ParseUInt32(fileView, &offset)),
-			.ResourceDimension = ParseUInt32(fileView, &offset),
-			.MiscFlags1 = ParseUInt32(fileView, &offset),
-			.ArraySize = ParseUInt32(fileView, &offset),
-			.MiscFlags2 = ParseUInt32(fileView, &offset),
-		};
-
-		static constexpr usize extendedHeaderRectangleTexture = 3;
-
-		VERIFY(extendedHeader.ResourceDimension == extendedHeaderRectangleTexture, "Unexpected DDS file type!");
-		VERIFY(extendedHeader.ArraySize == 1, "Unexpected DDS file type!");
+		VERIFY(extendedHeader.ResourceDimension == ResourceDimension::Texture2D, UnexpectedMessage);
+		VERIFY(extendedHeader.ArraySize == 1, UnexpectedMessage);
 
 		format = From(extendedHeader.DxgiFormat);
 		break;
@@ -229,20 +158,17 @@ Image LoadImage(StringView filePath)
 		format = From(DXGI_FORMAT_BC5_UNORM);
 		break;
 	default:
-		VERIFY(false, "Unexpected DDS file type!");
+		VERIFY(false, UnexpectedMessage);
 	}
-
-	uint8* imageData = reinterpret_cast<uint8*>(fileData + headerSize);
-	const usize imageDataSize = fileSize - headerSize;
 
 	return Image
 	{
-		.Data = imageData,
-		.DataSize = imageDataSize,
-		.HeaderSize = headerSize,
+		.Data = fileData + offset,
+		.DataSize = fileSize - offset,
+		.HeaderSize = offset,
 		.Format = format,
-		.Width = static_cast<uint32>(header.Width),
-		.Height = static_cast<uint32>(header.Height),
+		.Width = header.Width,
+		.Height = header.Height,
 		.MipMapCount = static_cast<uint16>(header.MipMapCount),
 	};
 }
