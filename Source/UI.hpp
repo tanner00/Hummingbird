@@ -104,7 +104,7 @@ void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float3
 
 void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rgba, usize layer = 0);
 
-void DrawImage(const RHI::TextureView& image, float32x2 positionSS, float32x2 sizeSS, usize layer = 0);
+void DrawImage(const RHI::TextureView& image, float32x2 positionSS, float32x2 sizeSS, float32x4 rgba = White, usize layer = 0);
 
 inline ID NameToID(StringView name)
 {
