@@ -553,11 +553,6 @@ bool IsPressedOnce(ID id)
 	return IsHovered(id) && Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left);
 }
 
-static bool IsSameDirection(bool x, Direction direction)
-{
-	return (direction == Direction::Horizontal && x) || (direction == Direction::Vertical && !x);
-}
-
 static float32 GetTextHeightForLineWidth(const String& text, float32 widthSS, float32 scale)
 {
 	float32x2 positionLS = float32x2 { .X = 0.0f, .Y = 0.0f };
@@ -574,6 +569,34 @@ static float32 GetTextHeightForLineWidth(const String& text, float32 widthSS, fl
 	}
 
 	return positionLS.Y + GetTextHeight(scale);
+}
+
+static bool IsSameDirection(bool x, Direction direction)
+{
+	return (direction == Direction::Horizontal && x) || (direction == Direction::Vertical && !x);
+}
+
+static float32 GetChildrenSizeSS(const ElementStorage& element, bool x, Direction direction)
+{
+	const usize count = element.ChildrenIDs.GetCount();
+
+	float32 sizeSS = (IsSameDirection(x, direction) && count > 0) ? element.Description.Layout.SpacingSS * static_cast<float32>(count - 1)
+																  : 0.0f;
+
+	for (const ID childID : element.ChildrenIDs)
+	{
+		const ElementStorage& childElement = Elements[childID];
+
+		const float32 childSizeSS = x ? childElement.SizeSS.X : childElement.SizeSS.Y;
+		sizeSS = IsSameDirection(x, direction) ? sizeSS + childSizeSS : Max(sizeSS, childSizeSS);
+	}
+	return sizeSS;
+}
+
+static float32 GetRemainingSizeSS(const ElementStorage& containerElement, bool x, float32 containedSizeSS)
+{
+	const float32x2 paddingSS = containerElement.Description.Layout.PaddingSS;
+	return (x ? containerElement.SizeSS.X : containerElement.SizeSS.Y) - 2.0f * (x ? paddingSS.X : paddingSS.Y) - containedSizeSS;
 }
 
 static void LayoutSize(ID rootID, bool x)
@@ -606,21 +629,7 @@ static void LayoutSize(ID rootID, bool x)
 		}
 
 		float32& sizeSS = x ? element.SizeSS.X : element.SizeSS.Y;
-
-		for (const ID childID : element.ChildrenIDs)
-		{
-			const ElementStorage& childElement = Elements[childID];
-
-			const float32 childElementSizeSS = x ? childElement.SizeSS.X : childElement.SizeSS.Y;
-
-			sizeSS = IsSameDirection(x, elementLayout.Direction) ? (sizeSS + childElementSizeSS) : Max(sizeSS, childElementSizeSS);
-		}
-
-		sizeSS += 2.0f * (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
-		if (IsSameDirection(x, elementLayout.Direction) && element.ChildrenIDs.GetCount() != 0)
-		{
-			sizeSS += elementLayout.SpacingSS * static_cast<float32>(element.ChildrenIDs.GetCount() - 1);
-		}
+		sizeSS = GetChildrenSizeSS(element, x, elementLayout.Direction) + 2.0f * (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
 
 		MinMax& minMax = x ? elementLayout.SizeX.MinMax : elementLayout.SizeY.MinMax;
 		if (minMax.Max == 0.0f)
@@ -684,12 +693,9 @@ static void LayoutSize(ID rootID, bool x)
 			breadthFirst.Add(childID);
 		}
 
-		float32 remainingSS = (x ? element.SizeSS.X : element.SizeSS.Y) -
-							  2.0f * (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
-		if (IsSameDirection(x, elementLayout.Direction) && element.ChildrenIDs.GetCount() != 0)
-		{
-			remainingSS -= elementLayout.SpacingSS * static_cast<float32>(element.ChildrenIDs.GetCount() - 1);
-		}
+		const float32 layoutDirectionSizeSS = IsSameDirection(x, elementLayout.Direction) ? GetChildrenSizeSS(element, x, elementLayout.Direction)
+																						  : 0.0f;
+		float32 remainingSizeSS = GetRemainingSizeSS(element, x, layoutDirectionSizeSS);
 
 		Array<ID> flexibleIDs(Allocator);
 
@@ -701,11 +707,6 @@ static void LayoutSize(ID rootID, bool x)
 			if (childSize.Mode == Mode::Grow || (x && !childElement.Text.IsEmpty()) || childElement.Image.IsValid())
 			{
 				flexibleIDs.Add(childID);
-			}
-
-			if (IsSameDirection(x, elementLayout.Direction))
-			{
-				remainingSS -= x ? childElement.SizeSS.X : childElement.SizeSS.Y;
 			}
 		}
 
@@ -719,20 +720,20 @@ static void LayoutSize(ID rootID, bool x)
 				const float32 flexibleElementMaxSizeSS = x ? flexibleElement.Description.Layout.SizeX.MinMax.Max
 														   : flexibleElement.Description.Layout.SizeY.MinMax.Max;
 
-				flexibleElementSizeSS = Min(remainingSS, flexibleElementMaxSizeSS);
+				flexibleElementSizeSS = Min(remainingSizeSS, flexibleElementMaxSizeSS);
 			}
 		}
 		else
 		{
 			static constexpr float32 epsilon = 1e-4f;
 
-			while (!IsAlmostEqual(remainingSS, 0.0f, epsilon) && !flexibleIDs.IsEmpty())
+			while (!IsAlmostEqual(remainingSizeSS, 0.0f, epsilon) && !flexibleIDs.IsEmpty())
 			{
-				const bool grow = remainingSS > 0.0f;
+				const bool grow = remainingSizeSS > 0.0f;
 
 				float32 firstFlexibleSS = grow ? static_cast<float32>(INFINITY) : 0.0f;
 				float32 secondFlexibleSS = firstFlexibleSS;
-				float32 distributeSS = remainingSS;
+				float32 distributeSS = remainingSizeSS;
 
 				for (usize flexibleIDsIndex = 0; flexibleIDsIndex < flexibleIDs.GetCount(); ++flexibleIDsIndex)
 				{
@@ -765,7 +766,7 @@ static void LayoutSize(ID rootID, bool x)
 					}
 				}
 
-				const float32 remainingEvenSplit = remainingSS / static_cast<float32>(flexibleIDs.GetCount());
+				const float32 remainingEvenSplit = remainingSizeSS / static_cast<float32>(flexibleIDs.GetCount());
 				distributeSS = grow ? Min(distributeSS, remainingEvenSplit) : Max(distributeSS, remainingEvenSplit);
 
 				bool distributed = false;
@@ -786,7 +787,7 @@ static void LayoutSize(ID rootID, bool x)
 
 						distributed |= !IsAlmostEqual(flexibleElementSizeSS, newSizeSS, epsilon);
 
-						remainingSS -= newSizeSS - flexibleElementSizeSS;
+						remainingSizeSS -= newSizeSS - flexibleElementSizeSS;
 						flexibleElementSizeSS = newSizeSS;
 
 						if (!grow && !flexibleElement.Text.IsEmpty())
@@ -820,19 +821,7 @@ static void LayoutPosition(ID elementID, bool x, float32 cursorSS)
 
 	if (IsSameDirection(x, elementLayout.Direction))
 	{
-		float32 remainingSS = (x ? element.SizeSS.X : element.SizeSS.Y) -
-							  2.0f * (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
-		if (element.ChildrenIDs.GetCount() != 0)
-		{
-			remainingSS -= elementLayout.SpacingSS * static_cast<float32>(element.ChildrenIDs.GetCount() - 1);
-		}
-
-		for (const ID childID : element.ChildrenIDs)
-		{
-			const ElementStorage& childElement = Elements[childID];
-
-			remainingSS -= x ? childElement.SizeSS.X : childElement.SizeSS.Y;
-		}
+		const float32 remainingSS = GetRemainingSizeSS(element, x, GetChildrenSizeSS(element, x, elementLayout.Direction));
 
 		switch (alignment)
 		{
@@ -854,9 +843,7 @@ static void LayoutPosition(ID elementID, bool x, float32 cursorSS)
 		float32 alignmentOffsetSS = 0.0f;
 		if (!IsSameDirection(x, elementLayout.Direction))
 		{
-			const float32 remainingSS = (x ? element.SizeSS.X : element.SizeSS.Y) -
-										2.0f * (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y) -
-										(x ? childElement.SizeSS.X : childElement.SizeSS.Y);
+			const float32 remainingSS = GetRemainingSizeSS(element, x, x ? childElement.SizeSS.X : childElement.SizeSS.Y);
 
 			switch (alignment)
 			{
