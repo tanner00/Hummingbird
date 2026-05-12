@@ -178,9 +178,9 @@ float32x2 GetSize(ID id);
 
 float32x2 GetPosition(ID id);
 
-bool IsHovered(ID id);
-bool IsPressed(ID id);
-bool IsPressedOnce(ID id);
+bool IsHovered(ID id, bool ignoreChildren = false);
+bool IsPressed(ID id, bool ignoreChildren = false);
+bool IsPressedOnce(ID id, bool ignoreChildren = false);
 
 void Submit(uint32 screenWidth, uint32 screenHeight);
 
