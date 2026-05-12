@@ -941,6 +941,11 @@ static void DrawChildren(const ElementStorage& element, ArrayView<ID> childrenID
 
 	const Description::StyleDescription& parentStyle = element.Description.Style;
 
+	if (parentStyle.BorderSizeSS == 0.0f)
+	{
+		return;
+	}
+
 	const bool horizontal = element.Description.Layout.Direction == Direction::Horizontal;
 
 	for (usize childIDIndex = 0; childIDIndex + 1 < childrenIDs.GetCount(); ++childIDIndex)
@@ -978,42 +983,47 @@ static void Draw(ID id)
 {
 	const ElementStorage& element = Elements[id];
 
-	if (element.Text.IsEmpty() && !element.Image.IsValid())
-	{
-		DrawBorderedRoundedRectangle(element.PositionSS,
-									 element.SizeSS,
-									 element.Description.Style.BorderSizeSS,
-									 element.Description.Style.CornerRadiiSS,
-									 element.Description.Style.RGBA,
-									 element.Description.Style.BorderRGBA,
-									 element.Layer);
-	}
+	const bool visible = element.Description.Style.RGBA.W != 0.0f || element.Description.Style.BorderRGBA.W != 0.0f;
 
-	if (!element.Text.IsEmpty())
+	if (visible)
 	{
-		float32x2 positionLS = float32x2 { 0.0f, 0.0f };
-		for (const String& piece : element.Text.Split(' ', Allocator))
+		if (element.Text.IsEmpty() && !element.Image.IsValid())
 		{
-			const float32 pieceWidth = GetTextWidth(piece, element.TextScale);
-			if (positionLS.X + pieceWidth > element.SizeSS.X)
-			{
-				positionLS.X = 0.0f;
-				positionLS.Y += GetTextHeight(element.TextScale);
-			}
-
-			DrawText(piece,
-					 float32x2 { element.PositionSS.X + positionLS.X, element.PositionSS.Y + positionLS.Y },
-					 element.TextScale,
-					 element.Description.Style.RGBA,
-					 element.Layer);
-
-			positionLS.X += pieceWidth + GetCharacterWidth(' ', element.TextScale);
+			DrawBorderedRoundedRectangle(element.PositionSS,
+										 element.SizeSS,
+										 element.Description.Style.BorderSizeSS,
+										 element.Description.Style.CornerRadiiSS,
+										 element.Description.Style.RGBA,
+										 element.Description.Style.BorderRGBA,
+										 element.Layer);
 		}
-	}
 
-	if (element.Image.IsValid())
-	{
-		DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Description.Style.RGBA, element.Layer);
+		if (!element.Text.IsEmpty())
+		{
+			float32x2 positionLS = float32x2 { 0.0f, 0.0f };
+			for (const String& piece : element.Text.Split(' ', Allocator))
+			{
+				const float32 pieceWidth = GetTextWidth(piece, element.TextScale);
+				if (positionLS.X + pieceWidth > element.SizeSS.X)
+				{
+					positionLS.X = 0.0f;
+					positionLS.Y += GetTextHeight(element.TextScale);
+				}
+
+				DrawText(piece,
+						 float32x2 { element.PositionSS.X + positionLS.X, element.PositionSS.Y + positionLS.Y },
+						 element.TextScale,
+						 element.Description.Style.RGBA,
+						 element.Layer);
+
+				positionLS.X += pieceWidth + GetCharacterWidth(' ', element.TextScale);
+			}
+		}
+
+		if (element.Image.IsValid())
+		{
+			DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Description.Style.RGBA, element.Layer);
+		}
 	}
 
 	DrawChildren(element, element.ChildrenIDs);
