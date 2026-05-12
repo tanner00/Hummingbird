@@ -3,6 +3,7 @@
 #include "RenderTypes.hpp"
 
 class CameraController;
+class Editor;
 
 namespace GLTF
 {
@@ -15,9 +16,10 @@ public:
 	Renderer(Platform::Window* window, bool validation);
 	~Renderer();
 
-	void Update(const CameraController& cameraController, float32 timeDelta);
+	void Update(const CameraController& cameraController, float32 timeDelta, float64 frameStartCPUTime);
 
-	void Resize(uint32 width, uint32 height);
+	void ResizeSwapChain(uint32 width, uint32 height);
+	void ResizeViewport(uint32 width, uint32 height);
 
 	void SetScene(const GLTF::Scene& scene)
 	{
@@ -25,10 +27,11 @@ public:
 	}
 
 private:
+	void UpdateViewport(const CameraController& cameraController);
 	void UpdateScene(const RHI::GraphicsPipeline& pipeline);
 
 #if !RELEASE
-	void UpdateFrameTimes(float64 startCPUTime);
+	void UpdateFrameTimes(float64 frameStartCPUTime);
 #endif
 
 	void LoadScene(const GLTF::Scene& scene);
@@ -36,9 +39,13 @@ private:
 
 	void CreatePipelines();
 	void DestroyPipelines();
+	void RecreatePipelines();
 
-	void CreateScreenTextures(uint32 width, uint32 height);
-	void DestroyScreenTextures();
+	void CreateSwapChainTextures(uint32 width, uint32 height);
+	void DestroySwapChainTextures();
+
+	void CreateViewportTextures(uint32 width, uint32 height);
+	void DestroyViewportTextures();
 
 	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit; }
 
@@ -113,4 +120,6 @@ private:
 	RHI::ComputePipeline LuminanceAveragePipeline;
 
 	RHI::GraphicsPipeline ToneMapPipeline;
+
+	friend Editor;
 };
