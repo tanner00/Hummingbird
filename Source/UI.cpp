@@ -516,6 +516,11 @@ static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float3
 
 static bool IsIntersecting(ID id)
 {
+	if (Platform::GetInputMode() != Platform::InputMode::Default)
+	{
+		return false;
+	}
+
 	if (!DoesExist(id))
 	{
 		return false;
