@@ -72,7 +72,7 @@ struct Description
 		float32x4 BetweenRGBA;
 		float32 BetweenSizeSS;
 
-		float32 CornerRadiusSS;
+		float32x4 CornerRadiiSS;
 	} Style;
 };
 
@@ -93,9 +93,9 @@ void CreatePipeline();
 void DestroyPipeline();
 
 void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer = 0);
-void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 cornerRadiusSS, float32x4 rgba, usize layer = 0);
+void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 cornerRadiiSS, float32x4 rgba, usize layer = 0);
 void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 rgba, float32x4 borderRGBA, usize layer = 0);
-void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32 cornerRadiusSS, float32x4 rgba, float32x4 borderRGBA, usize layer = 0);
+void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 cornerRadiiSS, float32x4 rgba, float32x4 borderRGBA, usize layer = 0);
 
 void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rgba, usize layer = 0);
 
@@ -142,6 +142,11 @@ inline Size Fixed(float32 sizeSS = 0.0f)
 inline Size Grow(float32 minSS = 0.0f, float32 maxSS = 0.0f)
 {
 	return Size { Mode::Grow, { minSS, maxSS } };
+}
+
+inline float32x4 CornerRadius(float32 cornerRadiusSS)
+{
+	return float32x4 { cornerRadiusSS, cornerRadiusSS, cornerRadiusSS, cornerRadiusSS };
 }
 
 float32 GetCharacterWidth(char c, float32 scale);

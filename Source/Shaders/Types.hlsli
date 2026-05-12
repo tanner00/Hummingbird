@@ -192,7 +192,7 @@ struct UIDraw
 
 	float32x4 BorderRGBA;
 	float32 BorderSizeSS;
-	float32 CornerRadiusSS;
+	float32x4 CornerRadiiSS;
 
 	float32x2 AtlasPosition;
 	float32x2 AtlasSize;
