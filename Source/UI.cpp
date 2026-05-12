@@ -242,20 +242,20 @@ void DestroyPipeline()
 
 void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer)
 {
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, 0.0f, rgba, float32x4 {}, layer);
+	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, float32x4 {}, rgba, float32x4 {}, layer);
 }
 
-void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 cornerRadiusSS, float32x4 rgba, usize layer)
+void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 cornerRadiiSS, float32x4 rgba, usize layer)
 {
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, cornerRadiusSS, rgba, float32x4 {}, layer);
+	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, cornerRadiiSS, rgba, float32x4 {}, layer);
 }
 
 void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 rgba, float32x4 borderRGBA, usize layer)
 {
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, borderSizeSS, 0.0f, rgba, borderRGBA, layer);
+	DrawBorderedRoundedRectangle(positionSS, sizeSS, borderSizeSS, float32x4 {}, rgba, borderRGBA, layer);
 }
 
-void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32 cornerRadiusSS, float32x4 rgba, float32x4 borderRGBA, usize layer)
+void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 cornerRadiiSS, float32x4 rgba, float32x4 borderRGBA, usize layer)
 {
 	CHECK(DrawIndex + 1 <= MaxUIDrawsPerFrame);
 
@@ -267,7 +267,7 @@ void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float3
 		.Type = HLSL::UIDrawType::Rectangle,
 		.BorderRGBA = borderRGBA,
 		.BorderSizeSS = borderSizeSS,
-		.CornerRadiusSS = cornerRadiusSS,
+		.CornerRadiiSS = cornerRadiiSS,
 		.Layer = static_cast<uint32>(layer),
 	};
 	++DrawIndex;
@@ -463,8 +463,16 @@ float32x2 GetPosition(ID id)
 	return float32x2 { element.PositionSS.X, element.PositionSS.Y };
 }
 
-static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float32 right, float32 top, float32 bottom, float32 cornerRadius)
+static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float32 right, float32 top, float32 bottom, float32x4 cornerRadii)
 {
+	const float32x2 center =
+	{
+		(left + right) * 0.5f,
+		(top + bottom) * 0.5f,
+	};
+	const float32 cornerRadius = x > center.X ? (y > center.Y ? cornerRadii.W : cornerRadii.Y)
+											  : (y > center.Y ? cornerRadii.Z : cornerRadii.X);
+
 	const float32 rectangleX = Clamp(x, left + cornerRadius, right - cornerRadius);
 	const float32 rectangleY = Clamp(y, top + cornerRadius, bottom - cornerRadius);
 
@@ -496,7 +504,7 @@ bool IsHovered(ID id)
 												   element.PositionSS.X + element.SizeSS.X,
 												   element.PositionSS.Y,
 												   element.PositionSS.Y + element.SizeSS.Y,
-												   element.Description.Style.CornerRadiusSS);
+												   element.Description.Style.CornerRadiiSS);
 	if (!hovered)
 	{
 		return false;
@@ -532,7 +540,7 @@ bool IsHovered(ID id)
 													   currentElement.PositionSS.X + currentElement.SizeSS.X,
 													   currentElement.PositionSS.Y,
 													   currentElement.PositionSS.Y + currentElement.SizeSS.Y,
-													   currentElement.Description.Style.CornerRadiusSS);
+													   currentElement.Description.Style.CornerRadiiSS);
 		}
 
 		if (higherHovered)
@@ -878,7 +886,7 @@ static void Draw(ID elementID)
 		DrawBorderedRoundedRectangle(element.PositionSS,
 									 element.SizeSS,
 									 element.Description.Style.BorderSizeSS,
-									 element.Description.Style.CornerRadiusSS,
+									 element.Description.Style.CornerRadiiSS,
 									 element.Description.Style.RGBA,
 									 element.Description.Style.BorderRGBA,
 									 element.Layer);
