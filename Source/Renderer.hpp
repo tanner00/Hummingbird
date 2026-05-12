@@ -15,7 +15,7 @@ public:
 	Renderer(Platform::Window* window, bool validation);
 	~Renderer();
 
-	void Update(const CameraController& cameraController);
+	void Update(const CameraController& cameraController, float32 timeDelta);
 
 	void Resize(uint32 width, uint32 height);
 

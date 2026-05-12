@@ -200,7 +200,7 @@ Renderer::~Renderer()
 	DestroyRenderContext();
 }
 
-void Renderer::Update(const CameraController& cameraController)
+void Renderer::Update(const CameraController& cameraController, float32 timeDelta)
 {
 #if !RELEASE
 	const float64 startCPUTime = Platform::GetTime();
@@ -454,13 +454,22 @@ void Renderer::Update(const CameraController& cameraController)
 	GlobalGraphics().ClearRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
 	GlobalGraphics().SetRenderTarget(SwapChainTextureViews[GlobalDevice().GetFrameIndex()]);
 
-	UI::Image(FinalTextureShaderResourceView, { .Style = { UI::White } });
+	UI::Image(FinalTextureShaderResourceView,
+	{
+		.Layout =
+		{
+			.SizeX = UI::Fixed(static_cast<float32>(screenDimensions.Width)),
+			.SizeY = UI::Fixed(static_cast<float32>(screenDimensions.Height)),
+		},
+		.Style = { UI::White },
+	});
+
 
 #if !RELEASE
 	UpdateFrameTimes(startCPUTime);
 #endif
 
-	UI::Submit(screenDimensions.Width, screenDimensions.Height);
+	UI::Submit(screenDimensions.Width, screenDimensions.Height, timeDelta);
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::None },
 									{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },

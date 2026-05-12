@@ -106,7 +106,7 @@ void Start()
 		timeLast = timeNow;
 
 		cameraController.Update(static_cast<float32>(timeDelta));
-		renderer.Update(cameraController);
+		renderer.Update(cameraController, static_cast<float32>(timeDelta));
 	}
 
 	Platform::DestroyWindow(window);
