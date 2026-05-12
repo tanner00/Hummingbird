@@ -39,8 +39,8 @@ PixelInput VertexStart(uint32 vertexID : SV_VertexID)
 	case UIDrawType::Rectangle:
 	case UIDrawType::Image:
 	{
-		const float32x2 positionSS = draw.PositionSS + (draw.SizeSS * vertices[vertexIndex]);
-		result.PositionCS = TransformScreenToClip(positionSS, RootConstants.ScreenToClip);
+		const float32x2 positionSnappedSS = round(draw.PositionSS + draw.SizeSS * vertices[vertexIndex]);
+		result.PositionCS = TransformScreenToClip(positionSnappedSS, RootConstants.ScreenToClip);
 		result.UV = vertices[vertexIndex];
 		break;
 	}
