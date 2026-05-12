@@ -108,10 +108,10 @@ void Init()
 		const JSON::Object& glyphObject = glyphValue.GetObject();
 
 		const float32 advance = static_cast<float32>(glyphObject["advance"_view].GetDecimal());
-		float32x2 atlasPosition = { .X = 0.0f, .Y = 0.0f };
-		float32x2 atlasSize = { .X = 0.0f, .Y = 0.0f };
-		float32x2 planePosition = { .X = 0.0f, .Y = 0.0f };
-		float32x2 planeSize = { .X = 0.0f, .Y = 0.0f };
+		float32x2 atlasPosition = { 0.0f, 0.0f };
+		float32x2 atlasSize = { 0.0f, 0.0f };
+		float32x2 planePosition = { 0.0f, 0.0f };
+		float32x2 planeSize = { 0.0f, 0.0f };
 
 		if (glyphObject.HasKey("atlasBounds"_view))
 		{
@@ -277,7 +277,7 @@ void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rg
 {
 	CHECK(DrawIndex + text.GetLength() <= MaxUIDrawsPerFrame);
 
-	float32x2 currentPositionSS = { .X = positionSS.X, .Y = positionSS.Y - Font::Ascender * scale };
+	float32x2 currentPositionSS = { positionSS.X, positionSS.Y - Font::Ascender * scale };
 	for (usize textIndex = 0; textIndex < text.GetLength(); ++textIndex)
 	{
 		const char c = text[textIndex];
@@ -338,7 +338,7 @@ float32 GetTextHeight(float32 scale)
 
 float32x2 GetTextSize(StringView text, float32 scale)
 {
-	return float32x2 { .X = GetTextWidth(text, scale), .Y = GetTextHeight(scale) };
+	return float32x2 { GetTextWidth(text, scale), GetTextHeight(scale) };
 }
 
 ID BeginElement(const Description& description)
@@ -481,13 +481,14 @@ bool IsHovered(ID id)
 		return false;
 	}
 
-	const float32x2 mousePositionSS = float32x2 { .X = static_cast<float32>(Platform::GetMouseX()), .Y = static_cast<float32>(Platform::GetMouseY()) };
-
 	const ElementStorage& element = LastFrameElements[id];
+
 	if (!element.Text.IsEmpty())
 	{
 		return false;
 	}
+
+	const float32x2 mousePositionSS = { static_cast<float32>(Platform::GetMouseX()), static_cast<float32>(Platform::GetMouseY()) };
 
 	const bool hovered = IsPointInRoundedRectangle(mousePositionSS.X,
 												   mousePositionSS.Y,
@@ -555,8 +556,8 @@ bool IsPressedOnce(ID id)
 
 static float32 GetTextHeightForLineWidth(const String& text, float32 widthSS, float32 scale)
 {
-	float32x2 positionLS = float32x2 { .X = 0.0f, .Y = 0.0f };
-	for (const String& piece : text.Split(' ', Allocator))
+	float32x2 positionLS = float32x2 { 0.0f, 0.0f };
+	for (const StringView piece : text.Split(' ', Allocator))
 	{
 		const float32 pieceWidth = GetTextWidth(piece, scale);
 		if (positionLS.X + pieceWidth > widthSS)
@@ -644,7 +645,7 @@ static void LayoutSize(ID rootID, bool x)
 				sizeSS += GetTextWidth(element.Text, element.TextScale);
 
 				float32 maxPieceWidthSS = 0.0f;
-				for (const String& piece : element.Text.Split(' ', Allocator))
+				for (const StringView piece : element.Text.Split(' ', Allocator))
 				{
 					maxPieceWidthSS = Max(maxPieceWidthSS, GetTextWidth(piece, element.TextScale));
 				}
@@ -885,7 +886,7 @@ static void Draw(ID elementID)
 
 	if (!element.Text.IsEmpty())
 	{
-		float32x2 positionLS = float32x2 { .X = 0.0f, .Y = 0.0f };
+		float32x2 positionLS = float32x2 { 0.0f, 0.0f };
 		for (const String& piece : element.Text.Split(' ', Allocator))
 		{
 			const float32 pieceWidth = GetTextWidth(piece, element.TextScale);
@@ -896,7 +897,7 @@ static void Draw(ID elementID)
 			}
 
 			DrawText(piece,
-					 float32x2 { .X = element.PositionSS.X + positionLS.X, .Y = element.PositionSS.Y + positionLS.Y },
+					 float32x2 { element.PositionSS.X + positionLS.X, element.PositionSS.Y + positionLS.Y },
 					 element.TextScale,
 					 element.Description.Style.RGBA,
 					 element.Layer);
@@ -937,13 +938,13 @@ static void Draw(ID elementID)
 
 		const float32x2 betweenPositionSS =
 		{
-			.X = horizontal ? xCenterSS : (element.PositionSS.X + parentStyle.BorderSizeSS),
-			.Y = horizontal ? (element.PositionSS.Y + parentStyle.BorderSizeSS) : yCenterSS,
+			horizontal ? xCenterSS : (element.PositionSS.X + parentStyle.BorderSizeSS),
+			horizontal ? (element.PositionSS.Y + parentStyle.BorderSizeSS) : yCenterSS,
 		};
 		const float32x2 betweenSizeSS =
 		{
-			.X = horizontal ? parentStyle.BetweenSizeSS : (element.SizeSS.X - parentStyle.BorderSizeSS * 2.0f),
-			.Y = horizontal ? (element.SizeSS.Y - parentStyle.BorderSizeSS * 2.0f) : parentStyle.BetweenSizeSS,
+			horizontal ? parentStyle.BetweenSizeSS : (element.SizeSS.X - parentStyle.BorderSizeSS * 2.0f),
+			horizontal ? (element.SizeSS.Y - parentStyle.BorderSizeSS * 2.0f) : parentStyle.BetweenSizeSS,
 		};
 		DrawRectangle(betweenPositionSS, betweenSizeSS, parentStyle.BetweenRGBA);
 	}
