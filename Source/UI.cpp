@@ -92,9 +92,9 @@ static GraphicsPipeline Pipeline = GraphicsPipeline::Invalid();
 
 void Init()
 {
-	DDS::Image fontImage = DDS::LoadImage("Assets/Fonts/RobotoMSDF.dds"_view);
+	DDS::Image fontImage = DDS::LoadImage("Assets/UI/Fonts/RobotoMSDF.dds"_view);
 
-	const JSON::Object fontDescription = JSON::Load("Assets/Fonts/RobotoMSDF.json"_view);
+	const JSON::Object fontDescription = JSON::Load("Assets/UI/Fonts/RobotoMSDF.json"_view);
 
 	const JSON::Object& fontAtlasDescription = fontDescription["atlas"_view].GetObject();
 
