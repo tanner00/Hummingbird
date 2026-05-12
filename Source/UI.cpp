@@ -447,29 +447,24 @@ ID Image(const TextureView& image, const Description& description)
 	return id;
 }
 
+bool DoesExist(ID id)
+{
+	return LastFrameElements.Contains(id);
+}
+
 float32 GetWidth(ID id)
 {
-	if (!LastFrameElements.Contains(id))
-	{
-		return 0.0f;
-	}
-
-	return LastFrameElements[id].SizeSS.X;
+	return DoesExist(id) ? LastFrameElements[id].SizeSS.X : 0.0f;
 }
 
 float32 GetHeight(ID id)
 {
-	if (!LastFrameElements.Contains(id))
-	{
-		return 0.0f;
-	}
-
-	return LastFrameElements[id].SizeSS.Y;
+	return DoesExist(id) ? LastFrameElements[id].SizeSS.Y : 0.0f;
 }
 
 float32x2 GetSize(ID id)
 {
-	if (!LastFrameElements.Contains(id))
+	if (!DoesExist(id))
 	{
 		return float32x2 {};
 	}
@@ -480,7 +475,7 @@ float32x2 GetSize(ID id)
 
 float32x2 GetPosition(ID id)
 {
-	if (!LastFrameElements.Contains(id))
+	if (!DoesExist(id))
 	{
 		return float32x2 {};
 	}
@@ -510,7 +505,7 @@ static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float3
 
 bool IsHovered(ID id, bool ignoreChildren)
 {
-	if (!LastFrameElements.Contains(id))
+	if (!DoesExist(id))
 	{
 		return false;
 	}

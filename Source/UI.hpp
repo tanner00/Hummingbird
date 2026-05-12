@@ -172,6 +172,8 @@ ID Rectangle(const Description& description);
 ID Text(StringView text, float32 scale, const Description& description);
 ID Image(const RHI::TextureView& image, const Description& description);
 
+bool DoesExist(ID id);
+
 float32 GetWidth(ID id);
 float32 GetHeight(ID id);
 float32x2 GetSize(ID id);
