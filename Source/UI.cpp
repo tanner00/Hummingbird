@@ -986,9 +986,9 @@ static void DrawChildren(const Element& element, ArrayView<ID> childrenIDs)
 		Draw(childID);
 	}
 
-	const Description::StyleDescription& parentElementStyle = element.Description.Style;
+	const Description::StyleDescription& elementStyle = element.Description.Style;
 
-	if (parentElementStyle.BorderSizeSS == 0.0f)
+	if (elementStyle.BorderSizeSS == 0.0f)
 	{
 		return;
 	}
@@ -1000,29 +1000,19 @@ static void DrawChildren(const Element& element, ArrayView<ID> childrenIDs)
 		const ID childID = childrenIDs[childIDIndex];
 		const Element& childElement = Elements[childID];
 
-		const ID nextChildID = childrenIDs[childIDIndex];
-		const Element& nextChildElement = Elements[nextChildID];
-
-		const float32 xCenterSS = childElement.PositionSS.X +
-								  (childElement.SizeSS.X + nextChildElement.SizeSS.X) / 2.0f +
-								  element.Description.Layout.SpacingSS / 2.0f -
-								  parentElementStyle.BetweenSizeSS / 2.0f;
-		const float32 yCenterSS = childElement.PositionSS.Y +
-								  (childElement.SizeSS.Y + nextChildElement.SizeSS.Y) / 2.0f +
-								  element.Description.Layout.SpacingSS / 2.0f -
-								  parentElementStyle.BetweenSizeSS / 2.0f;
-
 		const float32x2 betweenPositionSS =
 		{
-			horizontal ? xCenterSS : (element.PositionSS.X + parentElementStyle.BorderSizeSS),
-			horizontal ? (element.PositionSS.Y + parentElementStyle.BorderSizeSS) : yCenterSS,
+			horizontal ? childElement.PositionSS.X + childElement.SizeSS.X + (element.Description.Layout.SpacingSS - elementStyle.BetweenSizeSS) * 0.5f
+					   : element.PositionSS.X + elementStyle.BorderSizeSS,
+			horizontal ? element.PositionSS.Y + elementStyle.BorderSizeSS
+					   : childElement.PositionSS.Y + childElement.SizeSS.Y + (element.Description.Layout.SpacingSS - elementStyle.BetweenSizeSS) * 0.5f,
 		};
 		const float32x2 betweenSizeSS =
 		{
-			horizontal ? parentElementStyle.BetweenSizeSS : (element.SizeSS.X - parentElementStyle.BorderSizeSS * 2.0f),
-			horizontal ? (element.SizeSS.Y - parentElementStyle.BorderSizeSS * 2.0f) : parentElementStyle.BetweenSizeSS,
+			horizontal ? elementStyle.BetweenSizeSS : (element.SizeSS.X - elementStyle.BorderSizeSS * 2.0f),
+			horizontal ? (element.SizeSS.Y - elementStyle.BorderSizeSS * 2.0f) : elementStyle.BetweenSizeSS,
 		};
-		DrawRectangle(betweenPositionSS, betweenSizeSS, parentElementStyle.BetweenRGBA, element.Layer);
+		DrawRectangle(betweenPositionSS, betweenSizeSS, elementStyle.BetweenRGBA, element.Layer);
 	}
 }
 
