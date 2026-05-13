@@ -16,9 +16,9 @@ float32 NDFTrowbridgeReitzGGX(float32x3 normal, float32x3 halfwayDirection, floa
 
 float32 GeometrySchlickGGX(float32x3 normal, float32x3 direction, float32 roughness)
 {
-	const float32 k = (roughness * roughness) / 2.0f;
+	const float32 kDirectLight = (roughness + 1.0f) * (roughness + 1.0f) / 8.0f;
 	const float32 nDotRay = saturate(dot(normal, direction));
-	return nDotRay / max(nDotRay * (1.0f - k) + k, 0.0001f);
+	return nDotRay / max(nDotRay * (1.0f - kDirectLight) + kDirectLight, 0.0001f);
 }
 
 float32 GeometrySmith(float32x3 viewDirection, float32x3 lightDirection, float32x3 normal, float32 roughness)
