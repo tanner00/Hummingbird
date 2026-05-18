@@ -431,7 +431,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		.HDRTextureIndex = ShouldAntiAlias() ? GlobalDevice().Get(AccumulationTexture.ShaderResourceView)
 											 : GlobalDevice().Get(HDRTexture.ShaderResourceView),
 		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-		.LinearWrapSamplerIndex = GlobalDevice().Get(RenderContext.LinearWrapSampler),
+		.LinearClampSamplerIndex = GlobalDevice().Get(RenderContext.LinearClampSampler),
 		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
 	};
 

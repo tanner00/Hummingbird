@@ -6,7 +6,7 @@ struct RenderContext
 {
 	RHI::Device* Device;
 	RHI::GraphicsContext Graphics;
-	RHI::Sampler LinearWrapSampler;
+	RHI::Sampler LinearClampSampler;
 };
 
 inline RenderContext RenderContext = {};
@@ -31,7 +31,7 @@ inline void CreateRenderContext(Platform::Window* window, bool validation)
 	});
 
 	RenderContext.Graphics = GlobalDevice().Create(RHI::GraphicsContextDescription {});
-	RenderContext.LinearWrapSampler = GlobalDevice().Create(
+	RenderContext.LinearClampSampler = GlobalDevice().Create(
 	{
 		.MinificationFilter = RHI::SamplerFilter::Linear,
 		.MagnificationFilter = RHI::SamplerFilter::Linear,
@@ -43,7 +43,7 @@ inline void CreateRenderContext(Platform::Window* window, bool validation)
 inline void DestroyRenderContext()
 {
 	GlobalDevice().Destroy(&RenderContext.Graphics);
-	GlobalDevice().Destroy(&RenderContext.LinearWrapSampler);
+	GlobalDevice().Destroy(&RenderContext.LinearClampSampler);
 
 	GlobalAllocator::Get().Destroy(RenderContext.Device);
 }

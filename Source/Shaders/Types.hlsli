@@ -72,7 +72,7 @@ struct ToneMapRootConstants
 {
 	uint32 HDRTextureIndex;
 	uint32 LuminanceBufferIndex;
-	uint32 LinearWrapSamplerIndex;
+	uint32 LinearClampSamplerIndex;
 
 	bool32 DebugViewMode;
 };
@@ -166,7 +166,7 @@ struct UIRootConstants
 {
 	uint32 UIDrawBufferIndex;
 	uint32 FontTextureIndex;
-	uint32 LinearWrapSampler;
+	uint32 LinearClampSamplerIndex;
 
 	PAD(4);
 
