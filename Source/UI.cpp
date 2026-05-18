@@ -1140,7 +1140,7 @@ void Submit(uint32 screenWidth, uint32 screenHeight, float32 timeDelta)
 
 	RootConstants.UIDrawBufferIndex = GlobalDevice().Get(DrawBufferViews[GlobalDevice().GetFrameIndex()]);
 	RootConstants.FontTextureIndex = GlobalDevice().Get(Font::TextureView);
-	RootConstants.LinearWrapSampler = GlobalDevice().Get(RenderContext.LinearWrapSampler);
+	RootConstants.LinearClampSamplerIndex = GlobalDevice().Get(RenderContext.LinearClampSampler);
 
 	SortStable(Draws.GetData(), DrawIndex, Allocator, [](const HLSL::UIDraw& a, const HLSL::UIDraw& b) -> bool
 	{

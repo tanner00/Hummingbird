@@ -89,9 +89,9 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 	case UIDrawType::Character:
 	{
 		const Texture2D<float32x3> fontTexture = ResourceDescriptorHeap[RootConstants.FontTextureIndex];
-		const SamplerState linearWrapSampler = SamplerDescriptorHeap[RootConstants.LinearWrapSampler];
+		const SamplerState linearClampSampler = SamplerDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
-		const float32x3 multiChannelSignedDistance = fontTexture.Sample(linearWrapSampler, input.UV);
+		const float32x3 multiChannelSignedDistance = fontTexture.Sample(linearClampSampler, input.UV);
 		const float32 signedDistance = Median(multiChannelSignedDistance);
 		const float32 distanceSS = CalculateDistanceFieldRangeSS(input.UV, RootConstants.UnitRange) * (signedDistance - 0.5f);
 
@@ -103,9 +103,9 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 	case UIDrawType::Image:
 	{
 		const Texture2D<float32x4> imageTexture = ResourceDescriptorHeap[draw.ImageIndex];
-		const SamplerState linearWrapSampler = SamplerDescriptorHeap[RootConstants.LinearWrapSampler];
+		const SamplerState linearClampSampler = SamplerDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
-		color = imageTexture.Sample(linearWrapSampler, input.UV) * draw.RGBA;
+		color = imageTexture.Sample(linearClampSampler, input.UV) * draw.RGBA;
 		break;
 	}
 	}
