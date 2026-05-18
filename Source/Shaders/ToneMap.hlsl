@@ -28,15 +28,15 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 
 	if (RootConstants.DebugViewMode)
 	{
-		const float32x3 ldrColor = hdrTexture.Sample(linearClampSampler, input.UV);
-		return float32x4(ldrColor, 1.0f);
+		const float32x3 ldrRGB = hdrTexture.Sample(linearClampSampler, input.UV);
+		return float32x4(ldrRGB, 1.0f);
 	}
 
-	const float32x3 hdrColor = hdrTexture.Sample(linearClampSampler, input.UV);
+	const float32x3 hdrRGB = hdrTexture.Sample(linearClampSampler, input.UV);
 
-	RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
+	const RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 	const float32 averageLuminance = luminanceBuffer.Load<float32>(LuminanceHistogramBinsCount * sizeof(uint32));
 
-	const float32x3 exposed = hdrColor * ConvertEv100ToExposure(ConvertAverageLuminanceToEv100(averageLuminance));
-	return float32x4(ToneMapACES(exposed), 1.0f);
+	const float32x3 exposedRGB = hdrRGB * ConvertEv100ToExposure(ConvertAverageLuminanceToEv100(averageLuminance));
+	return float32x4(ToneMapACES(exposedRGB), 1.0f);
 }

@@ -146,7 +146,7 @@ struct Material
 
 struct DirectionalLight
 {
-	float32x3 Color;
+	float32x3 RGB;
 	float32 IntensityLux;
 
 	float32x3 DirectionWS;
@@ -189,11 +189,11 @@ struct UIDraw
 	float32x2 ScissorMinSS;
 	float32x2 ScissorMaxSS;
 
-	float32x4 RGBA;
+	float32x4 SRGBA;
 
 	UIDrawType Type;
 
-	float32x4 BorderRGBA;
+	float32x4 BorderSRGBA;
 	float32 BorderSizeSS;
 	float32x4 CornerRadiiSS;
 

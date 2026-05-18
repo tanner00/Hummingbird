@@ -36,7 +36,7 @@ uint32 Hash(uint32 x)
 	return x;
 }
 
-float32x3 ToColor(uint32 x)
+float32x3 ToRGB(uint32 x)
 {
 	return float32x3(float32((x >>  0) & 0xff) / 255.0f,
 					 float32((x >>  8) & 0xff) / 255.0f,
@@ -47,4 +47,10 @@ template<typename T>
 T SRGBToLinear(T x)
 {
 	return select(x < 0.04045f, x / 12.92f, pow((x + 0.055f) / 1.055f, 2.4f));
+}
+
+template<typename T>
+T LinearToSRGB(T x)
+{
+	return select(x <= 0.0031308f, x * 12.92f, 1.055f * pow(x, 1.0f / 2.4f) - 0.055f);
 }

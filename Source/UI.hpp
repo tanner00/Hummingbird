@@ -70,25 +70,20 @@ struct Description
 
 	struct StyleDescription
 	{
-		float32x4 RGBA;
+		float32x4 SRGBA;
 
-		float32x4 BorderRGBA;
+		float32x4 BorderSRGBA;
 		float32 BorderSizeSS;
-		float32x4 BetweenRGBA;
+		float32x4 BetweenSRGBA;
 		float32 BetweenSizeSS;
 
 		float32x4 CornerRadiiSS;
 	} Style;
 };
 
-inline float32x4 RGB(float32 r, float32 g, float32 b)
+inline float32x4 SRGB(float32 r, float32 g, float32 b)
 {
 	return float32x4 { r, g, b, 1.0f };
-}
-
-inline float32x4 RGB(float32x3 rgb)
-{
-	return RGB(rgb.X, rgb.Y, rgb.Z);
 }
 
 void Init();
@@ -97,14 +92,14 @@ void Shutdown();
 void CreatePipeline();
 void DestroyPipeline();
 
-void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer = 0);
-void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 cornerRadiiSS, float32x4 rgba, usize layer = 0);
-void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 rgba, float32x4 borderRGBA, usize layer = 0);
-void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 cornerRadiiSS, float32x4 rgba, float32x4 borderRGBA, usize layer = 0);
+void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 srgba, usize layer = 0);
+void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 cornerRadiiSS, float32x4 srgba, usize layer = 0);
+void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 srgba, float32x4 borderSRGBA, usize layer = 0);
+void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 cornerRadiiSS, float32x4 srgba, float32x4 borderSRGBA, usize layer = 0);
 
-void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rgba, usize layer = 0);
+void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 srgba, usize layer = 0);
 
-void DrawImage(const RHI::TextureView& image, float32x2 positionSS, float32x2 sizeSS, float32x4 rgba = White, usize layer = 0);
+void DrawImage(const RHI::TextureView& image, float32x2 positionSS, float32x2 sizeSS, float32x4 srgba = White, usize layer = 0);
 
 inline ID NameToID(StringView name)
 {

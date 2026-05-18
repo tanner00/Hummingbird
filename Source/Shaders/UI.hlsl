@@ -67,7 +67,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 		return 0.0f;
 	}
 
-	float32x4 color = 0.0f;
+	float32x4 srgba = 0.0f;
 	switch (draw.Type)
 	{
 	case UIDrawType::Rectangle:
@@ -83,7 +83,10 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 		const float32 insideMask = 1.0f - smoothstep(0.0f, edgeSoftnessSS, distanceSS);
 		const float32 borderMask = 1.0f - smoothstep(draw.BorderSizeSS - borderSoftnessSS, draw.BorderSizeSS, abs(distanceSS));
 
-		color = lerp(draw.RGBA, draw.BorderRGBA, borderMask) * float32x4(1.0f, 1.0f, 1.0f, insideMask);
+		const float32x3 rgb = SRGBToLinear(draw.SRGBA.rgb);
+		const float32x3 borderRGB = SRGBToLinear(draw.BorderSRGBA.rgb);
+
+		srgba = float32x4(LinearToSRGB(lerp(rgb, borderRGB, borderMask)), insideMask * lerp(draw.SRGBA.a, draw.BorderSRGBA.a, borderMask));
 		break;
 	}
 	case UIDrawType::Character:
@@ -97,7 +100,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 
 		const float32 insideMask = saturate(distanceSS + 0.5f);
 
-		color = draw.RGBA * float32x4(1.0f, 1.0f, 1.0f, insideMask);
+		srgba = float32x4(draw.SRGBA.rgb, draw.SRGBA.a * insideMask);
 		break;
 	}
 	case UIDrawType::Image:
@@ -105,15 +108,12 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 		const Texture2D<float32x4> imageTexture = ResourceDescriptorHeap[draw.ImageIndex];
 		const SamplerState linearClampSampler = SamplerDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
-		color = imageTexture.Sample(linearClampSampler, input.UV) * draw.RGBA;
+		const float32x4 rgba = float32x4(SRGBToLinear(draw.SRGBA.rgb), draw.SRGBA.a);
+
+		srgba = LinearToSRGB(imageTexture.Sample(linearClampSampler, input.UV) * rgba);
 		break;
 	}
 	}
 
-	if (draw.Type != UIDrawType::Image)
-	{
-		color = float32x4(SRGBToLinear(color.rgb), color.a);
-	}
-
-	return color;
+	return SRGBToLinear(srgba);
 }

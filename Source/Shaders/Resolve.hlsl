@@ -77,26 +77,26 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	const Texture2D<float32x3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
 
-	const float32x3 currentColor = hdrTexture.Load(uint32x3(dispatchThreadID.xy, 0));
-	const float32x3 previousColor = SampleTextureCatmullRom(previousAccumulationTexture, hdrTextureDimensions, reprojectedUV);
+	const float32x3 currentRGB = hdrTexture.Load(uint32x3(dispatchThreadID.xy, 0));
+	const float32x3 previousRGB = SampleTextureCatmullRom(previousAccumulationTexture, hdrTextureDimensions, reprojectedUV);
 
-	float32x3 minColor = Infinity;
-	float32x3 maxColor = -Infinity;
+	float32x3 minRGB = Infinity;
+	float32x3 maxRGB = -Infinity;
 	for (int32 x = -1; x <= 1; ++x)
 	{
 		for (int32 y = -1; y <= 1; ++y)
 		{
-			const float32x3 color = hdrTexture.Load(uint32x3(dispatchThreadID.xy + int32x2(x, y), 0));
-			minColor = min(minColor, color);
-			maxColor = max(maxColor, color);
+			const float32x3 rgb = hdrTexture.Load(uint32x3(dispatchThreadID.xy + int32x2(x, y), 0));
+			minRGB = min(minRGB, rgb);
+			maxRGB = max(maxRGB, rgb);
 		}
 	}
 
-	const float32x3 previousColorClamped = clamp(previousColor, minColor, maxColor);
+	const float32x3 previousClampedRGB = clamp(previousRGB, minRGB, maxRGB);
 
 	const float32 reprojectedFactor = frac(length(velocityUV * hdrTextureDimensions));
 	const float32 currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : lerp(0.05f, 0.5f, reprojectedFactor);
 
-	const float32x3 resolvedColor = InverseToneMapReinhard(lerp(ToneMapReinhard(previousColorClamped), ToneMapReinhard(currentColor), currentFactor));
-	accumulationTexture[dispatchThreadID.xy] = resolvedColor;
+	const float32x3 resolvedRGB = InverseToneMapReinhard(lerp(ToneMapReinhard(previousClampedRGB), ToneMapReinhard(currentRGB), currentFactor));
+	accumulationTexture[dispatchThreadID.xy] = resolvedRGB;
 }

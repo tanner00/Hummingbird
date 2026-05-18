@@ -58,10 +58,10 @@ float32x4 Shade(Scene scene,
 
 	const float32x4 baseColorFactor = material.IsSpecularGlossiness ? 0.0f : material.BaseColorOrDiffuseFactor;
 	const float32x4 diffuseFactor = material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
-	const float32x4 baseColor = baseColorFactor * baseColorOrDiffuse;
-	const float32x4 diffuse = diffuseFactor * baseColorOrDiffuse;
+	const float32x4 baseColorRGB = baseColorFactor * baseColorOrDiffuse;
+	const float32x4 diffuseRGB = diffuseFactor * baseColorOrDiffuse;
 
-	const float32x3 unlitColor = material.IsSpecularGlossiness ? diffuse.rgb : baseColor.rgb;
+	const float32x3 unlitRGB = material.IsSpecularGlossiness ? diffuseRGB.rgb : baseColorRGB.rgb;
 
 	const Texture2D<float32x3> normalMapTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.NormalMapTextureIndex)];
 	float32x3 normalTS = normalMapTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV).xyz * 2.0f - 1.0f;
@@ -80,9 +80,9 @@ float32x4 Shade(Scene scene,
 	switch (viewMode)
 	{
 	case ViewMode::Unlit:
-		return float32x4(unlitColor, alpha);
+		return float32x4(unlitRGB, alpha);
 	case ViewMode::Geometry:
-		return float32x4(ToColor(Hash(primitiveID)), alpha);
+		return float32x4(ToRGB(Hash(primitiveID)), alpha);
 	case ViewMode::Normal:
 		return float32x4(SRGBToLinear(shadeNormalWS * 0.5f + 0.5f), 1.0f);
 	default:
@@ -106,7 +106,7 @@ float32x4 Shade(Scene scene,
 
 	const float32x3 viewDirectionWS = normalize(scene.ViewPositionWS - positionWS);
 
-	float32x3 finalColor = 0.0f;
+	float32x3 finalRGB = 0.0f;
 
 	for (uint32 pointLightIndex = 0; pointLightIndex < scene.PointLightsCount; ++pointLightIndex)
 	{
@@ -117,51 +117,51 @@ float32x4 Shade(Scene scene,
 
 		const float32 attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
 
-		const float32x3 contribution = PBR(baseColor.rgb,
-										   diffuse.rgb,
-										   metallic,
-										   specular,
-										   roughness,
-										   glossiness,
-										   shadeNormalWS,
-										   viewDirectionWS,
-										   pointLightDirectionWS,
-										   attenuation * pointLight.IntensityCandela * pointLight.RGB,
-										   material.IsSpecularGlossiness);
-		finalColor += contribution * CastShadowRay(positionWS,
-												   pointLightDirectionWS,
-												   objectToLightDistance,
-												   accelerationStructure,
-												   vertexBuffer,
-												   primitiveBuffer,
-												   materialBuffer,
-												   anisotropicWrapSampler);
+		const float32x3 pointLightRGB = PBR(baseColorRGB.rgb,
+											diffuseRGB.rgb,
+											metallic,
+											specular,
+											roughness,
+											glossiness,
+											shadeNormalWS,
+											viewDirectionWS,
+											pointLightDirectionWS,
+											attenuation * pointLight.IntensityCandela * pointLight.RGB,
+											material.IsSpecularGlossiness);
+		finalRGB += pointLightRGB * CastShadowRay(positionWS,
+												  pointLightDirectionWS,
+												  objectToLightDistance,
+												  accelerationStructure,
+												  vertexBuffer,
+												  primitiveBuffer,
+												  materialBuffer,
+												  anisotropicWrapSampler);
 	}
 
 	const float32x3 directionalLightDirectionWS = normalize(directionalLightBuffer.DirectionWS);
 
-	const float32x3 directionalLightContribution = PBR(baseColor.rgb,
-													   diffuse.rgb,
-													   metallic,
-													   specular,
-													   roughness,
-													   glossiness,
-													   shadeNormalWS,
-													   viewDirectionWS,
-													   directionalLightDirectionWS,
-													   directionalLightBuffer.IntensityLux * directionalLightBuffer.Color,
-													   material.IsSpecularGlossiness);
-	finalColor += directionalLightContribution * CastShadowRay(positionWS,
-															   directionalLightDirectionWS,
-															   Infinity,
-															   accelerationStructure,
-															   vertexBuffer,
-															   primitiveBuffer,
-															   materialBuffer,
-															   anisotropicWrapSampler);
+	const float32x3 directionalLightRGB = PBR(baseColorRGB.rgb,
+											  diffuseRGB.rgb,
+											  metallic,
+											  specular,
+											  roughness,
+											  glossiness,
+											  shadeNormalWS,
+											  viewDirectionWS,
+											  directionalLightDirectionWS,
+											  directionalLightBuffer.IntensityLux * directionalLightBuffer.RGB,
+											  material.IsSpecularGlossiness);
+	finalRGB += directionalLightRGB * CastShadowRay(positionWS,
+													directionalLightDirectionWS,
+													Infinity,
+													accelerationStructure,
+													vertexBuffer,
+													primitiveBuffer,
+													materialBuffer,
+													anisotropicWrapSampler);
 
-	const float32x3 ambientLightContribution = 0.05f * directionalLightBuffer.IntensityLux * unlitColor;
-	finalColor += ambientLightContribution;
+	const float32x3 ambientLightRGB = 0.05f * directionalLightBuffer.IntensityLux * unlitRGB;
+	finalRGB += ambientLightRGB;
 
-	return float32x4(finalColor, alpha);
+	return float32x4(finalRGB, alpha);
 }

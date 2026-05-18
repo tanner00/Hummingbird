@@ -950,7 +950,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 
 			directionalLight = HLSL::DirectionalLight
 			{
-				.Color = light.RGB,
+				.RGB = light.RGB,
 				.IntensityLux = light.Intensity,
 				.DirectionWS = { directionWS.X, directionWS.Y, directionWS.Z },
 			};
@@ -969,7 +969,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	{
 		directionalLight = HLSL::DirectionalLight
 		{
-			.Color = { 1.0f, 1.0f, 1.0f },
+			.RGB = { 1.0f, 1.0f, 1.0f },
 			.IntensityLux = 1.0f,
 			.DirectionWS = { 0.0f, 1.0f, 0.0f },
 		};
@@ -1213,7 +1213,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.Flags = ResourceFlags::DepthStencil,
 		.InitialLayout = BarrierLayout::DepthStencilWrite,
 		.Dimensions = { width, height },
-		.DepthClear = 0.0f,
+		.ClearDepth = 0.0f,
 		.Name = String("Depth Texture"_view, RendererAllocator),
 	});
 	DepthTextureView = GlobalDevice().Create(
