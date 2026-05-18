@@ -19,11 +19,11 @@ static const StringView Scenes[] =
 namespace Theme
 {
 
-static constexpr float32x4 Background = { 14 / 255.0f, 15 / 255.0f, 18 / 255.0f, 1.0f };
-static constexpr float32x4 BackgroundWidget = { 35 / 255.0f, 38 / 255.0f, 46 / 255.0f, 1.0f };
-static constexpr float32x4 Border = { 52 / 255.0f, 56 / 255.0f, 66 / 255.0f, 1.0f };
-static constexpr float32x4 Text = { 226 / 255.0f, 228 / 255.0f, 236 / 255.0f, 1.0f };
-static constexpr float32x4 Accent = { 77 / 255.0f, 156 / 255.0f, 232 / 255.0f, 1.0f };
+static constexpr float32x4 BackgroundSRGBA = { 14 / 255.0f, 15 / 255.0f, 18 / 255.0f, 1.0f };
+static constexpr float32x4 BackgroundWidgetSRGBA = { 35 / 255.0f, 38 / 255.0f, 46 / 255.0f, 1.0f };
+static constexpr float32x4 BorderSRGBA = { 52 / 255.0f, 56 / 255.0f, 66 / 255.0f, 1.0f };
+static constexpr float32x4 TextSRGBA = { 226 / 255.0f, 228 / 255.0f, 236 / 255.0f, 1.0f };
+static constexpr float32x4 AccentSRGBA = { 77 / 255.0f, 156 / 255.0f, 232 / 255.0f, 1.0f };
 
 }
 
@@ -44,14 +44,14 @@ static bool CheckButton(StringView label, bool* state)
 		},
 		.Style =
 		{
-			.RGBA = *state || IsHovered(id) ? Theme::Accent : Theme::BackgroundWidget,
-			.BorderRGBA = Theme::Border,
+			.SRGBA = *state || IsHovered(id) ? Theme::AccentSRGBA : Theme::BackgroundWidgetSRGBA,
+			.BorderSRGBA = Theme::BorderSRGBA,
 			.BorderSizeSS = 2.0f,
 		},
 	},
 	[label]
 	{
-		Text(label, 24.0f, { .Style = { .RGBA = Theme::Text } });
+		Text(label, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 	});
 
 	const bool pressed = IsPressedOnce(id);
@@ -90,14 +90,14 @@ static bool DropDown(ArrayView<StringView> items, usize* selectedIndex)
 			},
 			.Style =
 			{
-				.RGBA = open || IsHovered(id, true) ? Theme::Accent : Theme::BackgroundWidget,
-				.BorderRGBA = Theme::Border,
+				.SRGBA = open || IsHovered(id, true) ? Theme::AccentSRGBA : Theme::BackgroundWidgetSRGBA,
+				.BorderSRGBA = Theme::BorderSRGBA,
 				.BorderSizeSS = 2.0f,
 			},
 		},
 		[items, selectedIndex]
 		{
-			Text(items[*selectedIndex], 24.0f, { .Style = { .RGBA = Theme::Text } });
+			Text(items[*selectedIndex], 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 		});
 
 		for (usize itemIndex = 0; itemIndex < items.GetCount(); ++itemIndex)
@@ -130,10 +130,10 @@ static bool DropDown(ArrayView<StringView> items, usize* selectedIndex)
 			},
 			.Style =
 			{
-				.RGBA = Theme::BackgroundWidget,
-				.BorderRGBA = Theme::Border,
+				.SRGBA = Theme::BackgroundWidgetSRGBA,
+				.BorderSRGBA = Theme::BorderSRGBA,
 				.BorderSizeSS = 2.0f,
-				.BetweenRGBA = Theme::Border,
+				.BetweenSRGBA = Theme::BorderSRGBA,
 				.BetweenSizeSS = 2.0f,
 			},
 		},
@@ -153,12 +153,12 @@ static bool DropDown(ArrayView<StringView> items, usize* selectedIndex)
 					},
 					.Style =
 					{
-						.RGBA = IsHovered(itemID) ? Theme::Accent : Theme::BackgroundWidget,
+						.SRGBA = IsHovered(itemID) ? Theme::AccentSRGBA : Theme::BackgroundWidgetSRGBA,
 					}
 				},
 				[item]
 				{
-					Text(item, 24.0f, { .Style = { .RGBA = Theme::Text } });
+					Text(item, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 				});
 			}
 		});
@@ -196,7 +196,7 @@ void Editor::Update()
 			},
 			.Style =
 			{
-				.RGBA = Theme::Background,
+				.SRGBA = Theme::BackgroundSRGBA,
 			},
 		},
 		[this]
@@ -224,11 +224,11 @@ void Editor::Update()
 			Container({}, [this]
 			{
 				char cpuTimeText[16] = {};
-				Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), Renderer->AverageTimeCPU * 1000.0);
+				Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), Renderer->AverageCPUTime * 1000.0);
 				Text(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 
 				char gpuTimeText[16] = {};
-				Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), Renderer->AverageTimeGPU * 1000.0);
+				Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), Renderer->AverageGPUTime * 1000.0);
 				Text(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 			});
 #endif

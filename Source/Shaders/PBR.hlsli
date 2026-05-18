@@ -51,7 +51,7 @@ float32x3 BRDFCookTorrance(float32x3 cDiffuse,
 	return (diffuseBRDF + specularBRDF) * lightRadiance * nDotL;
 }
 
-float32x3 PBRMetallicRoughness(float32x3 baseColor,
+float32x3 PBRMetallicRoughness(float32x3 rgb,
 							   float32 metallic,
 							   float32 roughness,
 							   float32x3 normal,
@@ -59,12 +59,12 @@ float32x3 PBRMetallicRoughness(float32x3 baseColor,
 							   float32x3 lightDirection,
 							   float32x3 lightRadiance)
 {
-	const float32x3 cDiffuse = lerp(baseColor.rgb, 0.0f, metallic);
-	const float32x3 f0 = lerp(DielectricSpecular, baseColor.rgb, metallic);
+	const float32x3 cDiffuse = lerp(rgb, 0.0f, metallic);
+	const float32x3 f0 = lerp(DielectricSpecular, rgb, metallic);
 	return BRDFCookTorrance(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }
 
-float32x3 PBRSpecularGlossiness(float32x3 diffuse,
+float32x3 PBRSpecularGlossiness(float32x3 diffuseRGB,
 								float32x3 specular,
 								float32 glossiness,
 								float32x3 normal,
@@ -72,14 +72,14 @@ float32x3 PBRSpecularGlossiness(float32x3 diffuse,
 								float32x3 lightDirection,
 								float32x3 lightRadiance)
 {
-	const float32x3 cDiffuse = lerp(diffuse, 0.0f, max(specular.r, max(specular.g, specular.b)));
+	const float32x3 cDiffuse = lerp(diffuseRGB, 0.0f, max(specular.r, max(specular.g, specular.b)));
 	const float32x3 f0 = specular;
 	const float32 roughness = 1.0f - glossiness;
 	return BRDFCookTorrance(cDiffuse, f0, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }
 
-float32x3 PBR(float32x3 baseColor,
-			  float32x3 diffuse,
+float32x3 PBR(float32x3 baseColorRGB,
+			  float32x3 diffuseRGB,
 			  float32 metallic,
 			  float32x3 specular,
 			  float32 roughness,
@@ -90,6 +90,6 @@ float32x3 PBR(float32x3 baseColor,
 			  float32x3 lightRadiance,
 			  bool isSpecularGlossiness)
 {
-	return isSpecularGlossiness ? PBRSpecularGlossiness(diffuse.rgb, specular, glossiness, normal, viewDirection, lightDirection, lightRadiance)
-								: PBRMetallicRoughness(baseColor.rgb, metallic, roughness, normal, viewDirection, lightDirection, lightRadiance);
+	return isSpecularGlossiness ? PBRSpecularGlossiness(diffuseRGB, specular, glossiness, normal, viewDirection, lightDirection, lightRadiance)
+								: PBRMetallicRoughness(baseColorRGB, metallic, roughness, normal, viewDirection, lightDirection, lightRadiance);
 }

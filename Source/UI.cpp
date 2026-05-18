@@ -250,22 +250,22 @@ void DestroyPipeline()
 	GlobalDevice().Destroy(&Pipeline);
 }
 
-void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer)
+void DrawRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 srgba, usize layer)
 {
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, float32x4 {}, rgba, float32x4 {}, layer);
+	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, float32x4 {}, srgba, float32x4 {}, layer);
 }
 
-void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 cornerRadiiSS, float32x4 rgba, usize layer)
+void DrawRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32x4 cornerRadiiSS, float32x4 srgba, usize layer)
 {
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, cornerRadiiSS, rgba, float32x4 {}, layer);
+	DrawBorderedRoundedRectangle(positionSS, sizeSS, 0.0f, cornerRadiiSS, srgba, float32x4 {}, layer);
 }
 
-void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 rgba, float32x4 borderRGBA, usize layer)
+void DrawBorderedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 srgba, float32x4 borderSRGBA, usize layer)
 {
-	DrawBorderedRoundedRectangle(positionSS, sizeSS, borderSizeSS, float32x4 {}, rgba, borderRGBA, layer);
+	DrawBorderedRoundedRectangle(positionSS, sizeSS, borderSizeSS, float32x4 {}, srgba, borderSRGBA, layer);
 }
 
-void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 cornerRadiiSS, float32x4 rgba, float32x4 borderRGBA, usize layer)
+void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float32 borderSizeSS, float32x4 cornerRadiiSS, float32x4 srgba, float32x4 borderSRGBA, usize layer)
 {
 	CHECK(DrawIndex + 1 <= MaxDrawsPerFrame);
 
@@ -274,9 +274,9 @@ void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float3
 		.PositionSS = positionSS,
 		.SizeSS = sizeSS,
 		.ScissorMaxSS = { static_cast<float32>(INFINITY), static_cast<float32>(INFINITY) },
-		.RGBA = rgba,
+		.SRGBA = srgba,
 		.Type = HLSL::UIDrawType::Rectangle,
-		.BorderRGBA = borderRGBA,
+		.BorderSRGBA = borderSRGBA,
 		.BorderSizeSS = borderSizeSS,
 		.CornerRadiiSS = cornerRadiiSS,
 		.Layer = static_cast<uint32>(layer),
@@ -284,7 +284,7 @@ void DrawBorderedRoundedRectangle(float32x2 positionSS, float32x2 sizeSS, float3
 	++DrawIndex;
 }
 
-void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rgba, usize layer)
+void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 srgba, usize layer)
 {
 	CHECK(DrawIndex + text.GetLength() <= MaxDrawsPerFrame);
 
@@ -298,7 +298,7 @@ void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rg
 		{
 			.PositionSS = currentPositionSS,
 			.ScissorMaxSS = { static_cast<float32>(INFINITY), static_cast<float32>(INFINITY) },
-			.RGBA = rgba,
+			.SRGBA = srgba,
 			.Type = HLSL::UIDrawType::Character,
 			.AtlasPosition = glyph.AtlasPosition,
 			.AtlasSize = glyph.AtlasSize,
@@ -313,7 +313,7 @@ void DrawText(StringView text, float32x2 positionSS, float32 scale, float32x4 rg
 	}
 }
 
-void DrawImage(const TextureView& image, float32x2 positionSS, float32x2 sizeSS, float32x4 rgba, usize layer)
+void DrawImage(const TextureView& image, float32x2 positionSS, float32x2 sizeSS, float32x4 srgba, usize layer)
 {
 	CHECK(DrawIndex + 1 <= MaxDrawsPerFrame);
 
@@ -322,7 +322,7 @@ void DrawImage(const TextureView& image, float32x2 positionSS, float32x2 sizeSS,
 		.PositionSS = positionSS,
 		.SizeSS = sizeSS,
 		.ScissorMaxSS = { static_cast<float32>(INFINITY), static_cast<float32>(INFINITY) },
-		.RGBA = rgba,
+		.SRGBA = srgba,
 		.Type = HLSL::UIDrawType::Image,
 		.ImageIndex = GlobalDevice().Get(image),
 		.Layer = static_cast<uint32>(layer),
@@ -1011,7 +1011,7 @@ static void DrawChildren(const Element& element, ArrayView<ID> childrenIDs)
 			horizontal ? elementStyle.BetweenSizeSS : (element.SizeSS.X - elementStyle.BorderSizeSS * 2.0f),
 			horizontal ? (element.SizeSS.Y - elementStyle.BorderSizeSS * 2.0f) : elementStyle.BetweenSizeSS,
 		};
-		DrawRectangle(betweenPositionSS, betweenSizeSS, elementStyle.BetweenRGBA, element.Layer);
+		DrawRectangle(betweenPositionSS, betweenSizeSS, elementStyle.BetweenSRGBA, element.Layer);
 	}
 }
 
@@ -1055,7 +1055,7 @@ static void Draw(ID id)
 		};
 	}
 
-	const bool visible = element.Description.Style.RGBA.W != 0.0f || element.Description.Style.BorderRGBA.W != 0.0f;
+	const bool visible = element.Description.Style.SRGBA.W != 0.0f || element.Description.Style.BorderSRGBA.W != 0.0f;
 	if (visible)
 	{
 		const usize drawStart = DrawIndex;
@@ -1066,8 +1066,8 @@ static void Draw(ID id)
 										 element.SizeSS,
 										 element.Description.Style.BorderSizeSS,
 										 element.Description.Style.CornerRadiiSS,
-										 element.Description.Style.RGBA,
-										 element.Description.Style.BorderRGBA,
+										 element.Description.Style.SRGBA,
+										 element.Description.Style.BorderSRGBA,
 										 element.Layer);
 		}
 
@@ -1086,7 +1086,7 @@ static void Draw(ID id)
 				DrawText(piece,
 						 float32x2 { element.PositionSS.X + positionLS.X, element.PositionSS.Y + positionLS.Y },
 						 element.TextScale,
-						 element.Description.Style.RGBA,
+						 element.Description.Style.SRGBA,
 						 element.Layer);
 
 				positionLS.X += pieceWidth + GetCharacterWidth(' ', element.TextScale);
@@ -1095,7 +1095,7 @@ static void Draw(ID id)
 
 		if (element.Image.IsValid())
 		{
-			DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Description.Style.RGBA, element.Layer);
+			DrawImage(element.Image, element.PositionSS, element.SizeSS, element.Description.Style.SRGBA, element.Layer);
 		}
 
 		for (usize drawIndex = 0; drawIndex < DrawIndex - drawStart; ++drawIndex)

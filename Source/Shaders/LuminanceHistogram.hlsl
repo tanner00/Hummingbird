@@ -20,9 +20,9 @@ void ComputeStart(uint32 groupIndex : SV_GroupIndex, uint32x3 dispatchThreadID :
 
 	if (all(dispatchThreadID.xy < hdrTextureDimensions))
 	{
-		const float32x3 hdrColor = hdrTexture.Load(uint32x3(dispatchThreadID.xy, 0));
+		const float32x3 hdrRGB = hdrTexture.Load(uint32x3(dispatchThreadID.xy, 0));
 
-		const uint32 binIndex = HDRToHistogramBin(hdrColor);
+		const uint32 binIndex = HDRToHistogramBin(hdrRGB);
 		InterlockedAdd(HistogramShared[binIndex], 1);
 	}
 

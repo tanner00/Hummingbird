@@ -111,13 +111,11 @@ Scene LoadScene(StringView filePath)
 			{
 				const JSON::Object& lightObject = light.GetObject();
 
-				const float32 intensity = lightObject.HasKey("intensity"_view)
-									  ? static_cast<float32>(lightObject["intensity"_view].GetDecimal())
-									  : 1.0f;
+				const float32 intensity = lightObject.HasKey("intensity"_view) ? static_cast<float32>(lightObject["intensity"_view].GetDecimal())
+																			   : 1.0f;
 
-				const float32x4 color = lightObject.HasKey("color"_view)
-								   ? ToFloat4(lightObject["color"_view].GetArray())
-								   : float32x4 { 1.0f, 1.0f, 1.0f, 1.0f };
+				const float32x4 color = lightObject.HasKey("color"_view) ? ToFloat4(lightObject["color"_view].GetArray())
+																		 : float32x4 { 1.0f, 1.0f, 1.0f, 1.0f };
 
 				LightType type = LightType::Directional;
 
