@@ -77,26 +77,29 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	const Texture2D<float32x3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
 
-	const float32x3 currentRGB = hdrTexture.Load(uint32x3(dispatchThreadID.xy, 0));
-	const float32x3 previousRGB = SampleTextureCatmullRom(previousAccumulationTexture, hdrTextureDimensions, reprojectedUV);
+	const float32x3 currentYCoCg = RGBToYCoCg(hdrTexture.Load(uint32x3(dispatchThreadID.xy, 0)));
+	const float32x3 previousYCoCg = RGBToYCoCg(SampleTextureCatmullRom(previousAccumulationTexture, hdrTextureDimensions, reprojectedUV));
 
-	float32x3 minRGB = Infinity;
-	float32x3 maxRGB = -Infinity;
+	float32x3 minYCoCg = Infinity;
+	float32x3 maxYCoCg = -Infinity;
 	for (int32 x = -1; x <= 1; ++x)
 	{
 		for (int32 y = -1; y <= 1; ++y)
 		{
-			const float32x3 rgb = hdrTexture.Load(uint32x3(dispatchThreadID.xy + int32x2(x, y), 0));
-			minRGB = min(minRGB, rgb);
-			maxRGB = max(maxRGB, rgb);
+			const float32x3 ycocg = RGBToYCoCg(hdrTexture.Load(uint32x3(dispatchThreadID.xy + int32x2(x, y), 0)));
+			minYCoCg = min(minYCoCg, ycocg);
+			maxYCoCg = max(maxYCoCg, ycocg);
 		}
 	}
 
-	const float32x3 previousClampedRGB = clamp(previousRGB, minRGB, maxRGB);
+	const float32x3 previousClampedYCoCg = clamp(previousYCoCg, minYCoCg, maxYCoCg);
 
-	const float32 reprojectedFactor = frac(length(velocityUV * hdrTextureDimensions));
-	const float32 currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : lerp(0.05f, 0.5f, reprojectedFactor);
+	const float32 neighborhoodDistanceLuma = min(abs(minYCoCg.x - previousYCoCg.x), abs(maxYCoCg.x - previousYCoCg.x));
+	const float32 contrastLuma = maxYCoCg.x - minYCoCg.x;
+	const float32 reduceFlicker = neighborhoodDistanceLuma / (neighborhoodDistanceLuma + contrastLuma);
 
-	const float32x3 resolvedRGB = InverseToneMapReinhard(lerp(ToneMapReinhard(previousClampedRGB), ToneMapReinhard(currentRGB), currentFactor));
-	accumulationTexture[dispatchThreadID.xy] = resolvedRGB;
+	const float32 currentFactor = RootConstants.DiscardPreviousFrame ? 1.0f : saturate(0.15f * reduceFlicker);
+
+	const float32x3 resolvedYCoCg = InverseToneMapReinhardYCoCg(lerp(ToneMapReinhardYCoCg(previousClampedYCoCg), ToneMapReinhardYCoCg(currentYCoCg), currentFactor));
+	accumulationTexture[dispatchThreadID.xy] = max(YCoCgToRGB(resolvedYCoCg), 0.0f);
 }
