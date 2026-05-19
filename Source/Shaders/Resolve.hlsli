@@ -34,12 +34,22 @@ float32x3 SampleTextureCatmullRom(Texture2D<float32x3> texture, uint2 textureDim
 	return sample;
 }
 
-float32x3 ToneMapReinhard(float32x3 x)
+float32x3 RGBToYCoCg(float32x3 x)
 {
-	return x / (1.0f + x);
+	return float32x3(x.r * 0.25f + x.g * 0.5f + x.b * 0.25f, x.r * 0.5f - x.b * 0.5f, -x.r * 0.25f + x.g * 0.5f - x.b * 0.25f);
 }
 
-float32x3 InverseToneMapReinhard(float32x3 x)
+float32x3 YCoCgToRGB(float32x3 x)
 {
-	return x / (1.0f - x);
+	return float32x3(x.x + x.y - x.z, x.x + x.z, x.x - x.y - x.z);
+}
+
+float32x3 ToneMapReinhardYCoCg(float32x3 x)
+{
+	return float32x3(x.x / (1.0f + x.x), x.y, x.z);
+}
+
+float32x3 InverseToneMapReinhardYCoCg(float32x3 x)
+{
+	return float32x3(x.x / (1.0f - x.x), x.y, x.z);
 }
