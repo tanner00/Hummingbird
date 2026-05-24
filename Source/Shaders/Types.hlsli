@@ -141,6 +141,10 @@ struct Material
 
 	uint32 NormalMapTextureIndex;
 
+	uint32 EmissiveTextureIndex;
+	float32x3 EmissiveFactor;
+	float32 EmissiveStrength;
+
 	float32 AlphaCutoff;
 };
 

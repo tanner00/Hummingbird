@@ -163,5 +163,9 @@ float32x4 Shade(Scene scene,
 	const float32x3 ambientLightRGB = 0.05f * directionalLightBuffer.IntensityLux * unlitRGB;
 	finalRGB += ambientLightRGB;
 
+	const Texture2D<float32x3> emissiveTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.EmissiveTextureIndex)];
+	const float32x3 emissiveLightRGB = material.EmissiveStrength * material.EmissiveFactor * emissiveTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
+	finalRGB += emissiveLightRGB;
+
 	return float32x4(finalRGB, alpha);
 }

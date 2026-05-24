@@ -180,6 +180,10 @@ struct Material
 
 	usize NormalMapTexture;
 
+	usize EmissiveTexture;
+	float32x3 EmissiveFactor;
+	float32 EmissiveStrength;
+
 	AlphaMode AlphaMode;
 	float32 AlphaCutoff;
 };
