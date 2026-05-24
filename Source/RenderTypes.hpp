@@ -89,6 +89,10 @@ struct Material
 
 	ReadTexture NormalMapTexture;
 
+	ReadTexture EmissiveTexture;
+	float32x3 EmissiveFactor;
+	float32 EmissiveStrength;
+
 	bool Translucent;
 	float32 AlphaCutoff;
 };

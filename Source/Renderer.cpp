@@ -850,6 +850,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		{
 			.IsSpecularGlossiness = gltfMaterial.IsSpecularGlossiness,
 			.NormalMapTexture = convertTexture(scene, gltfMaterial.NormalMapTexture, "Scene Normal Map Texture"_view),
+			.EmissiveTexture = convertTexture(scene, gltfMaterial.EmissiveTexture, "Scene Emissive Texture"_view),
+			.EmissiveFactor = gltfMaterial.EmissiveFactor,
+			.EmissiveStrength = gltfMaterial.EmissiveStrength,
 			.Translucent = gltfMaterial.AlphaMode != GLTF::AlphaMode::Opaque,
 			.AlphaCutoff = gltfMaterial.AlphaCutoff,
 		};
@@ -920,6 +923,9 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 										 : material.MetallicRoughness.RoughnessFactor,
 			.IsSpecularGlossiness = material.IsSpecularGlossiness,
 			.NormalMapTextureIndex = GlobalDevice().Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
+			.EmissiveTextureIndex = GlobalDevice().Get(material.EmissiveTexture.View.IsValid() ? material.EmissiveTexture.View : WhiteTexture.View),
+			.EmissiveFactor = material.EmissiveFactor,
+			.EmissiveStrength = material.EmissiveStrength,
 			.AlphaCutoff = material.AlphaCutoff,
 		});
 	}
@@ -1022,7 +1028,6 @@ void Renderer::UnloadScene()
 
 	for (Material& material : SceneMaterials)
 	{
-		DestroyReadTexture(&material.NormalMapTexture);
 		if (material.IsSpecularGlossiness)
 		{
 			DestroyReadTexture(&material.SpecularGlossiness.DiffuseTexture);
@@ -1033,6 +1038,8 @@ void Renderer::UnloadScene()
 			DestroyReadTexture(&material.MetallicRoughness.BaseColorTexture);
 			DestroyReadTexture(&material.MetallicRoughness.MetallicRoughnessTexture);
 		}
+		DestroyReadTexture(&material.NormalMapTexture);
+		DestroyReadTexture(&material.EmissiveTexture);
 	}
 
 	SceneMeshes.Clear();

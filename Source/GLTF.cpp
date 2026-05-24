@@ -34,15 +34,26 @@ static Matrix InternalCalculateLocalToWorld(ArrayView<Node> nodes, usize nodeInd
 	return InternalCalculateLocalToWorld(nodes, node.Parent) * node.LocalToWorld;
 }
 
-static float32x4 ToFloat4(const JSON::Array& float32Array)
+static float32x3 ToFloat3(const JSON::Array& floatArray)
 {
-	VERIFY(float32Array.GetCount() == 3 || float32Array.GetCount() == 4, "Expected GLTF float array to have 3 or 4 components!");
+	VERIFY(floatArray.GetCount() == 3, "Expected GLTF float array to have 3 components!");
+	return float32x3
+	{
+		static_cast<float32>(floatArray[0].GetDecimal()),
+		static_cast<float32>(floatArray[1].GetDecimal()),
+		static_cast<float32>(floatArray[2].GetDecimal()),
+	};
+}
+
+static float32x4 ToFloat4(const JSON::Array& floatArray)
+{
+	VERIFY(floatArray.GetCount() == 4, "Expected GLTF float array to have 4 components!");
 	return float32x4
 	{
-		static_cast<float32>(float32Array[0].GetDecimal()),
-		static_cast<float32>(float32Array[1].GetDecimal()),
-		static_cast<float32>(float32Array[2].GetDecimal()),
-		(float32Array.GetCount() == 4) ? static_cast<float32>(float32Array[3].GetDecimal()) : 0.0f,
+		static_cast<float32>(floatArray[0].GetDecimal()),
+		static_cast<float32>(floatArray[1].GetDecimal()),
+		static_cast<float32>(floatArray[2].GetDecimal()),
+		static_cast<float32>(floatArray[3].GetDecimal()),
 	};
 }
 
@@ -114,8 +125,8 @@ Scene LoadScene(StringView filePath)
 				const float32 intensity = lightObject.HasKey("intensity"_view) ? static_cast<float32>(lightObject["intensity"_view].GetDecimal())
 																			   : 1.0f;
 
-				const float32x4 color = lightObject.HasKey("color"_view) ? ToFloat4(lightObject["color"_view].GetArray())
-																		 : float32x4 { 1.0f, 1.0f, 1.0f, 1.0f };
+				const float32x3 color = lightObject.HasKey("color"_view) ? ToFloat3(lightObject["color"_view].GetArray())
+																		 : float32x3 { 1.0f, 1.0f, 1.0f };
 
 				LightType type = LightType::Directional;
 
@@ -137,7 +148,7 @@ Scene LoadScene(StringView filePath)
 				{
 					.Type = type,
 					.Intensity = intensity,
-					.RGB = { color.X, color.Y, color.Z },
+					.RGB = color,
 				});
 			}
 		}
@@ -437,6 +448,8 @@ Scene LoadScene(StringView filePath)
 		Material material =
 		{
 			.NormalMapTexture = INDEX_NONE,
+			.EmissiveTexture = INDEX_NONE,
+			.EmissiveStrength = 1.0f,
 			.AlphaMode = AlphaMode::Opaque,
 			.AlphaCutoff = 0.0f,
 		};
@@ -521,8 +534,7 @@ Scene LoadScene(StringView filePath)
 				if (pbrSpecularGlossinessObject.HasKey("specularFactor"_view))
 				{
 					const JSON::Array& specularFactorArray = pbrSpecularGlossinessObject["specularFactor"_view].GetArray();
-					const float32x4 specularFactor = ToFloat4(specularFactorArray);
-					material.SpecularGlossiness.SpecularFactor = { specularFactor.X, specularFactor.Y, specularFactor.Z };
+					material.SpecularGlossiness.SpecularFactor = ToFloat3(specularFactorArray);
 				}
 				if (pbrSpecularGlossinessObject.HasKey("roughnessFactor"_view))
 				{
@@ -551,12 +563,33 @@ Scene LoadScene(StringView filePath)
 					material.MetallicRoughness.MetallicRoughnessTexture = static_cast<usize>(specularTextureObject["index"_view].GetDecimal());
 				}
 			}
+
+			if (extensionsObject.HasKey("KHR_materials_emissive_strength"_view))
+			{
+				const JSON::Object& khrMaterialsEmissiveStrengthObject = extensionsObject["KHR_materials_emissive_strength"_view].GetObject();
+
+				if (khrMaterialsEmissiveStrengthObject.HasKey("emissiveStrength"_view))
+				{
+					material.EmissiveStrength = static_cast<float32>(khrMaterialsEmissiveStrengthObject["emissiveStrength"_view].GetDecimal());
+				}
+			}
 		}
 
 		if (materialObject.HasKey("normalTexture"_view))
 		{
 			const JSON::Object& normalTextureObject = materialObject["normalTexture"_view].GetObject();
 			material.NormalMapTexture = static_cast<usize>(normalTextureObject["index"_view].GetDecimal());
+		}
+
+		if (materialObject.HasKey("emissiveTexture"_view))
+		{
+			const JSON::Object& emissiveTextureObject = materialObject["emissiveTexture"_view].GetObject();
+			material.EmissiveTexture = static_cast<usize>(emissiveTextureObject["index"_view].GetDecimal());
+		}
+		if (materialObject.HasKey("emissiveFactor"_view))
+		{
+			const JSON::Array& emissiveFactorArray = materialObject["emissiveFactor"_view].GetArray();
+			material.EmissiveFactor = ToFloat3(emissiveFactorArray);
 		}
 
 		if (materialObject.HasKey("alphaMode"_view))
