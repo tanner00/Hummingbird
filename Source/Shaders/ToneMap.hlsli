@@ -18,14 +18,22 @@ float32 ConvertEv100ToExposure(float32 ev100)
 	return 1.0f / maxLuminance;
 }
 
-float32x3 ToneMapACES(float32x3 x)
+float32x3 ToneMapACES(float32x3 hdrRGB)
 {
-	static const float32 a = 2.51f;
-	static const float32 b = 0.03f;
-	static const float32 c = 2.43f;
-	static const float32 d = 0.59f;
-	static const float32 e = 0.14f;
+	static const float32x3x3 RGBToXYZToD65ToD60ToAP1ToRRTSAT =
+	{
+		{ 0.59719f, 0.35458f, 0.04823f },
+		{ 0.07600f, 0.90834f, 0.01566f },
+		{ 0.02840f, 0.13383f, 0.83777f },
+	};
+	static const float32x3x3 ODTSATToXYZToD60ToD65ToRGB =
+	{
+		{ 1.604750f, -0.531080f, -0.07367f },
+		{ -0.10208f, 1.1081300f, -0.00605f },
+		{ -0.00327f, -0.072760f, 1.076020f },
+	};
 
-	x *= 0.6f;
-	return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+	const float32x3 aces = mul(RGBToXYZToD65ToD60ToAP1ToRRTSAT, hdrRGB);
+	const float32x3 curvedACES = (aces * (aces + 0.0245786f) - 0.000090537f) / (aces * (0.983729f * aces + 0.4329510f) + 0.238081f);
+	return mul(ODTSATToXYZToD60ToD65ToRGB, curvedACES);
 }
