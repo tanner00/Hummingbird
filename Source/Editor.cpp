@@ -184,55 +184,64 @@ void Editor::Update()
 {
 	Container({ .Layout = { .SizeX = Fixed(static_cast<float32>(Window->DrawWidth)), .SizeY = Fixed(static_cast<float32>(Window->DrawHeight)) } }, [this]
 	{
-		Container(
+		static bool previewMode = false;
+		if (Platform::IsKeyPressedOnce(Platform::Key::P))
 		{
-			.Layout =
-			{
-				.SizeX = Grow(),
-				.Direction = Direction::Horizontal,
-				.AlignmentY = Alignment::Center,
-				.PaddingSS = { 10.0f, 10.0f },
-				.SpacingSS = 10.0f,
-			},
-			.Style =
-			{
-				.SRGBA = Theme::BackgroundSRGBA,
-			},
-		},
-		[this]
+			previewMode = !previewMode;
+		}
+
+		if (!previewMode)
 		{
-			static usize sceneIndex = 0;
-			if (DropDown({ "Sponza"_view, "Bistro"_view, "Emerald Square"_view, "Sun Temple"_view }, &sceneIndex))
+			Container(
 			{
-				SetScene(sceneIndex);
-			}
+				.Layout =
+				{
+					.SizeX = Grow(),
+					.Direction = Direction::Horizontal,
+					.AlignmentY = Alignment::Center,
+					.PaddingSS = { 10.0f, 10.0f },
+					.SpacingSS = 10.0f,
+				},
+				.Style =
+				{
+					.SRGBA = Theme::BackgroundSRGBA,
+				},
+			},
+			[this]
+			{
+				static usize sceneIndex = 0;
+				if (DropDown({ "Sponza"_view, "Bistro"_view, "Emerald Square"_view, "Sun Temple"_view }, &sceneIndex))
+				{
+					SetScene(sceneIndex);
+				}
 
-			static usize viewModeIndex = 0;
-			if (DropDown({ "Lit"_view, "Unlit"_view, "Geometry"_view, "Normal"_view }, &viewModeIndex))
-			{
-				Renderer->ViewMode = static_cast<HLSL::ViewMode>(viewModeIndex);
-			}
+				static usize viewModeIndex = 0;
+				if (DropDown({ "Lit"_view, "Unlit"_view, "Geometry"_view, "Normal"_view }, &viewModeIndex))
+				{
+					Renderer->ViewMode = static_cast<HLSL::ViewMode>(viewModeIndex);
+				}
 
-			if (CheckButton("TAA"_view, &Renderer->TemporalAntiAliasing.Enabled))
-			{
-				Renderer->TemporalAntiAliasing.DiscardPreviousFrame = true;
-			}
+				if (CheckButton("TAA"_view, &Renderer->TemporalAntiAliasing.Enabled))
+				{
+					Renderer->TemporalAntiAliasing.DiscardPreviousFrame = true;
+				}
 
 #if !RELEASE
-			Rectangle({ .Layout = { .SizeX = Grow() } });
+				Rectangle({ .Layout = { .SizeX = Grow() } });
 
-			Container({}, [this]
-			{
-				char cpuTimeText[16] = {};
-				Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), Renderer->AverageCPUTime * 1000.0);
-				Text(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+				Container({}, [this]
+				{
+					char cpuTimeText[16] = {};
+					Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), Renderer->AverageCPUTime * 1000.0);
+					Text(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 
-				char gpuTimeText[16] = {};
-				Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), Renderer->AverageGPUTime * 1000.0);
-				Text(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
-			});
+					char gpuTimeText[16] = {};
+					Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), Renderer->AverageGPUTime * 1000.0);
+					Text(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+				});
 #endif
-		});
+			});
+		}
 
 		Container({ .Layout = { .SizeX = Grow(), .SizeY = Grow(), .Direction = Direction::Horizontal } }, [this]
 		{
