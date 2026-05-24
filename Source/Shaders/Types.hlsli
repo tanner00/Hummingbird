@@ -14,11 +14,11 @@ enum class ViewMode : uint32
 
 struct SceneRootConstants
 {
-	uint32 AnisotropicWrapSamplerIndex;
-
 	uint32 DrawCallIndex;
 	uint32 PrimitiveIndex;
 	uint32 NodeIndex;
+
+	uint32 AnisotropicWrapSamplerIndex;
 
 	ViewMode ViewMode;
 

@@ -38,8 +38,8 @@ uint32 Hash(uint32 x)
 
 float32x3 ToRGB(uint32 x)
 {
-	return float32x3(float32((x >>  0) & 0xff) / 255.0f,
-					 float32((x >>  8) & 0xff) / 255.0f,
+	return float32x3(float32((x >> 0) & 0xff) / 255.0f,
+					 float32((x >> 8) & 0xff) / 255.0f,
 					 float32((x >> 16) & 0xff) / 255.0f);
 }
 
