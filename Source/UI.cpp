@@ -49,8 +49,8 @@ struct Element
 static HashTable<ID, Element> Elements(32, Allocator);
 static Array<ID> RootIDs(Allocator);
 
-static HashTable<ID, Element> LastFrameElements(32, Allocator);
-static Array<ID> LastFrameRootIDs(Allocator);
+static HashTable<ID, Element> PreviousElements(32, Allocator);
+static Array<ID> PreviousRootIDs(Allocator);
 
 static ID OpenID = INDEX_NONE;
 
@@ -189,6 +189,7 @@ void Init()
 	{
 		DrawBufferResources[frameIndex] = GlobalDevice().Create(
 		{
+			.Type = ResourceType::Buffer,
 			.Format = ResourceFormat::None,
 			.Flags = ResourceFlags::Upload,
 			.InitialLayout = BarrierLayout::Undefined,
@@ -460,17 +461,17 @@ ID Image(const TextureView& image, const Description& description)
 
 bool DoesExist(ID id)
 {
-	return LastFrameElements.Contains(id);
+	return PreviousElements.Contains(id);
 }
 
 float32 GetWidth(ID id)
 {
-	return DoesExist(id) ? LastFrameElements[id].SizeSS.X : 0.0f;
+	return DoesExist(id) ? PreviousElements[id].SizeSS.X : 0.0f;
 }
 
 float32 GetHeight(ID id)
 {
-	return DoesExist(id) ? LastFrameElements[id].SizeSS.Y : 0.0f;
+	return DoesExist(id) ? PreviousElements[id].SizeSS.Y : 0.0f;
 }
 
 float32x2 GetSize(ID id)
@@ -480,7 +481,7 @@ float32x2 GetSize(ID id)
 		return float32x2 {};
 	}
 
-	const Element& element = LastFrameElements[id];
+	const Element& element = PreviousElements[id];
 	return float32x2 { element.SizeSS.X, element.SizeSS.Y };
 }
 
@@ -491,7 +492,7 @@ float32x2 GetPosition(ID id)
 		return float32x2 {};
 	}
 
-	const Element& element = LastFrameElements[id];
+	const Element& element = PreviousElements[id];
 	return float32x2 { element.PositionSS.X, element.PositionSS.Y };
 }
 
@@ -526,7 +527,7 @@ static bool IsIntersecting(ID id)
 		return false;
 	}
 
-	const Element& element = LastFrameElements[id];
+	const Element& element = PreviousElements[id];
 
 	if (!element.Text.IsEmpty())
 	{
@@ -564,10 +565,10 @@ bool IsHovered(ID id, bool ignoreChildren)
 		return false;
 	}
 
-	const Element& element = LastFrameElements[id];
+	const Element& element = PreviousElements[id];
 
 	bool higherHovered = false;
-	for (const ID rootID : LastFrameRootIDs)
+	for (const ID rootID : PreviousRootIDs)
 	{
 		Array<ID> breadthFirst(Allocator);
 		breadthFirst.Add(rootID);
@@ -582,7 +583,7 @@ bool IsHovered(ID id, bool ignoreChildren)
 				continue;
 			}
 
-			const Element& currentElement = LastFrameElements[currentID];
+			const Element& currentElement = PreviousElements[currentID];
 
 			for (const ID childID : currentElement.ChildrenIDs)
 			{
@@ -957,7 +958,7 @@ static void LayoutPosition(ID id, bool x, float32 timeDelta, float32 cursorSS)
 
 	if (DoesExist(id) && !x)
 	{
-		element.ScrollOffsetLS = LastFrameElements[id].ScrollOffsetLS;
+		element.ScrollOffsetLS = PreviousElements[id].ScrollOffsetLS;
 
 		if (IsHovered(id, true))
 		{
@@ -1156,8 +1157,8 @@ void Submit(uint32 screenWidth, uint32 screenHeight, float32 timeDelta)
 
 	DrawIndex = 0;
 
-	LastFrameElements = Elements;
-	LastFrameRootIDs = RootIDs;
+	PreviousElements = Elements;
+	PreviousRootIDs = RootIDs;
 
 	Elements.Clear();
 	RootIDs.Clear();

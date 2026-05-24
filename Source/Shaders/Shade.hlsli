@@ -58,10 +58,10 @@ float32x4 Shade(Scene scene,
 
 	const float32x4 baseColorFactor = material.IsSpecularGlossiness ? 0.0f : material.BaseColorOrDiffuseFactor;
 	const float32x4 diffuseFactor = material.IsSpecularGlossiness ? material.BaseColorOrDiffuseFactor : 0.0f;
-	const float32x4 baseColorRGB = baseColorFactor * baseColorOrDiffuse;
-	const float32x4 diffuseRGB = diffuseFactor * baseColorOrDiffuse;
+	const float32x3 baseColorRGB = baseColorFactor.rgb * baseColorOrDiffuse.rgb;
+	const float32x3 diffuseRGB = diffuseFactor.rgb * baseColorOrDiffuse.rgb;
 
-	const float32x3 unlitRGB = material.IsSpecularGlossiness ? diffuseRGB.rgb : baseColorRGB.rgb;
+	const float32x3 unlitRGB = material.IsSpecularGlossiness ? diffuseRGB : baseColorRGB;
 
 	const Texture2D<float32x3> normalMapTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.NormalMapTextureIndex)];
 	float32x3 normalTS = normalMapTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV).xyz * 2.0f - 1.0f;
@@ -117,8 +117,8 @@ float32x4 Shade(Scene scene,
 
 		const float32 attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
 
-		const float32x3 pointLightRGB = PBR(baseColorRGB.rgb,
-											diffuseRGB.rgb,
+		const float32x3 pointLightRGB = PBR(baseColorRGB,
+											diffuseRGB,
 											metallic,
 											specular,
 											roughness,
@@ -140,8 +140,8 @@ float32x4 Shade(Scene scene,
 
 	const float32x3 directionalLightDirectionWS = normalize(directionalLightBuffer.DirectionWS);
 
-	const float32x3 directionalLightRGB = PBR(baseColorRGB.rgb,
-											  diffuseRGB.rgb,
+	const float32x3 directionalLightRGB = PBR(baseColorRGB,
+											  diffuseRGB,
 											  metallic,
 											  specular,
 											  roughness,

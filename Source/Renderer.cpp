@@ -475,10 +475,10 @@ void Renderer::UpdateScene(const GraphicsPipeline& pipeline)
 		{
 			const HLSL::SceneRootConstants rootConstants =
 			{
-				.AnisotropicWrapSamplerIndex = GlobalDevice().Get(AnisotropicWrapSampler),
 				.DrawCallIndex = static_cast<uint32>(drawCallIndex),
 				.PrimitiveIndex = static_cast<uint32>(primitive.GlobalIndex),
 				.NodeIndex = static_cast<uint32>(nodeIndex),
+				.AnisotropicWrapSamplerIndex = GlobalDevice().Get(AnisotropicWrapSampler),
 				.ViewMode = ViewMode,
 				.NormalLocalToWorld = normalLocalToWorld,
 			};
@@ -1285,8 +1285,8 @@ void Renderer::DestroyViewportTextures()
 		GlobalDevice().Destroy(&writeTexture->UnorderedAccessView);
 	};
 
-	GlobalDevice().Destroy(&DepthTextureView);
 	GlobalDevice().Destroy(&DepthTextureResource);
+	GlobalDevice().Destroy(&DepthTextureView);
 
 	GlobalDevice().Destroy(&VisibilityTextureResource);
 	GlobalDevice().Destroy(&VisibilityTextureRenderTargetView);
