@@ -20,7 +20,7 @@ static ReadTexture CreateReadTexture(ResourceUploader::Lifetime lifetime,
 									 uint16 mipMapCount,
 									 ResourceFormat format,
 									 const void* data,
-									 StringView name)
+									 StringView debugName)
 {
 	const Resource texture = ResourceUploader::Upload(lifetime, data,
 	{
@@ -30,7 +30,7 @@ static ReadTexture CreateReadTexture(ResourceUploader::Lifetime lifetime,
 		.InitialLayout = BarrierLayout::GraphicsQueueCommon,
 		.Dimensions = dimensions,
 		.MipMapCount = mipMapCount,
-		.Name = String(name, RendererAllocator),
+		.DebugName = debugName,
 	});
 	const TextureView view = GlobalDevice().Create(
 	{
@@ -47,7 +47,7 @@ static ReadBuffer CreateReadBuffer(ResourceUploader::Lifetime lifetime,
 								   ResourceFlags flags,
 								   ViewType type,
 								   const void* data,
-								   StringView name)
+								   StringView debugName)
 {
 	const Resource buffer = ResourceUploader::Upload(lifetime, data,
 	{
@@ -55,7 +55,7 @@ static ReadBuffer CreateReadBuffer(ResourceUploader::Lifetime lifetime,
 		.Flags = flags,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size,
-		.Name = String(name, RendererAllocator),
+		.DebugName = debugName,
 	});
 	const BufferView view = GlobalDevice().Create(
 	{
@@ -132,7 +132,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 			.Flags = ResourceFlags::Upload,
 			.InitialLayout = BarrierLayout::Undefined,
 			.Size = sizeof(HLSL::Scene),
-			.Name = String("Scene Buffer"_view, RendererAllocator),
+			.DebugName = "Scene Buffer"_view,
 		});
 		SceneBufferViews[frameIndex] = GlobalDevice().Create(
 		{
@@ -152,7 +152,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 		.Flags = ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = HLSL::LuminanceHistogramBinsCount * sizeof(uint32) + sizeof(float32),
-		.Name = String("Scene Luminance Buffer"_view, RendererAllocator),
+		.DebugName = "Scene Luminance Buffer"_view,
 	});
 	SceneLuminanceBufferView = GlobalDevice().Create(
 	{
@@ -679,7 +679,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Flags = ResourceFlags::UnorderedAccess,
 				.InitialLayout = BarrierLayout::Undefined,
 				.Size = size.ScratchSize,
-				.Name = String("Scratch Primitive Acceleration Structure"_view, RendererAllocator),
+				.DebugName = "Scratch Primitive Acceleration Structure"_view,
 			});
 			transientResources.Add(scratchResource);
 			const Resource resultResource = GlobalDevice().Create(
@@ -689,7 +689,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.Flags = ResourceFlags::RayTracingAccelerationStructure | ResourceFlags::UnorderedAccess,
 				.InitialLayout = BarrierLayout::Undefined,
 				.Size = size.ResultSize,
-				.Name = String("Primitive Acceleration Structure"_view, RendererAllocator),
+				.DebugName = "Primitive Acceleration Structure"_view,
 			});
 			GlobalGraphics().BuildRayTracingAccelerationStructure(geometry, scratchResource, resultResource);
 
@@ -750,7 +750,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Flags = ResourceFlags::Upload,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = instances.GetCount() * GlobalDevice().GetRayTracingAccelerationStructureInstanceSize(),
-		.Name = String("Scene Acceleration Structure Instances"_view, RendererAllocator),
+		.DebugName = "Scene Acceleration Structure Instances"_view,
 	});
 	transientResources.Add(instancesResource);
 	GlobalDevice().Write(&instancesResource, instances.GetData());
@@ -770,7 +770,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Flags = ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size.ScratchSize,
-		.Name = String("Scratch Scene Acceleration Structure"_view, RendererAllocator),
+		.DebugName = "Scratch Scene Acceleration Structure"_view,
 	});
 	transientResources.Add(scratchResource);
 	SceneAccelerationStructureResource = GlobalDevice().Create(
@@ -780,7 +780,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		.Flags = ResourceFlags::RayTracingAccelerationStructure | ResourceFlags::UnorderedAccess,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = size.ResultSize,
-		.Name = String("Scene Acceleration Structure"_view, RendererAllocator),
+		.DebugName = "Scene Acceleration Structure"_view,
 	});
 	GlobalGraphics().BuildRayTracingAccelerationStructure(instancesBuffer, scratchResource, SceneAccelerationStructureResource);
 
@@ -1049,7 +1049,7 @@ void Renderer::UnloadScene()
 
 void Renderer::CreatePipelines()
 {
-	const auto createGraphicsPipeline = [](StringView name,
+	const auto createGraphicsPipeline = [](StringView debugName,
 										   StringView path,
 										   bool pixelShader,
 										   bool depth,
@@ -1079,7 +1079,7 @@ void Renderer::CreatePipelines()
 			.DepthStencilFormat = depth ? ResourceFormat::Depth32 : ResourceFormat::None,
 			.AlphaBlend = false,
 			.ReverseDepth = true,
-			.Name = String(name, RendererAllocator),
+			.DebugName = debugName,
 		});
 
 		GlobalDevice().Destroy(&vertex);
@@ -1090,7 +1090,7 @@ void Renderer::CreatePipelines()
 
 		return pipeline;
 	};
-	const auto createComputePipeline = [](StringView name, StringView path) -> ComputePipeline
+	const auto createComputePipeline = [](StringView debugName, StringView path) -> ComputePipeline
 	{
 		Shader compute = GlobalDevice().Create(
 		{
@@ -1101,7 +1101,7 @@ void Renderer::CreatePipelines()
 		const ComputePipeline pipeline = GlobalDevice().Create(
 		{
 			.Stage = compute,
-			.Name = String(name, RendererAllocator),
+			.DebugName = debugName,
 		});
 		GlobalDevice().Destroy(&compute);
 
@@ -1165,7 +1165,7 @@ void Renderer::CreateSwapChainTextures(uint32 width, uint32 height)
 			.InitialLayout = BarrierLayout::RenderTarget,
 			.Dimensions = { width, height },
 			.SwapChainIndex = static_cast<uint8>(frameIndex),
-			.Name = String("SwapChain Texture"_view, RendererAllocator),
+			.DebugName = "SwapChain Texture"_view,
 		});
 		SwapChainTextureViews[frameIndex] = GlobalDevice().Create(
 		{
@@ -1186,7 +1186,7 @@ void Renderer::DestroySwapChainTextures()
 
 void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 {
-	const auto createWriteTexture = [width, height](ResourceFormat format, StringView textureName) -> WriteTexture
+	const auto createWriteTexture = [width, height](ResourceFormat format, StringView debugName) -> WriteTexture
 	{
 		const Resource resource = GlobalDevice().Create(
 		{
@@ -1195,7 +1195,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 			.Flags = ResourceFlags::UnorderedAccess,
 			.InitialLayout = BarrierLayout::GraphicsQueueUnorderedAccess,
 			.Dimensions = { width, height },
-			.Name = String(textureName, RendererAllocator),
+			.DebugName = debugName,
 		});
 		return WriteTexture
 		{
@@ -1221,7 +1221,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.InitialLayout = BarrierLayout::DepthStencilWrite,
 		.Dimensions = { width, height },
 		.ClearDepth = 0.0f,
-		.Name = String("Depth Texture"_view, RendererAllocator),
+		.DebugName = "Depth Texture"_view,
 	});
 	DepthTextureView = GlobalDevice().Create(
 	{
@@ -1236,7 +1236,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.Flags = ResourceFlags::RenderTarget,
 		.InitialLayout = BarrierLayout::RenderTarget,
 		.Dimensions = { width, height },
-		.Name = String("Visibility Texture"_view, RendererAllocator),
+		.DebugName = "Visibility Texture"_view,
 	});
 	VisibilityTextureRenderTargetView = GlobalDevice().Create(
 	{
@@ -1260,7 +1260,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.Flags = ResourceFlags::RenderTarget,
 		.InitialLayout = BarrierLayout::GraphicsQueueShaderResource,
 		.Dimensions = { width, height },
-		.Name = String("Final Texture"_view, RendererAllocator),
+		.DebugName = "Final Texture"_view,
 	});
 	FinalTextureRenderTargetView = GlobalDevice().Create(
 	{
