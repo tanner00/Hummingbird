@@ -174,7 +174,7 @@ void Init()
 		.InitialLayout = BarrierLayout::GraphicsQueueCommon,
 		.Dimensions = { fontImage.Width, fontImage.Height },
 		.MipMapCount = fontImage.MipMapCount,
-		.Name = String("Font Texture"_view, Allocator),
+		.DebugName = "Font Texture"_view,
 	});
 	Font::TextureView = GlobalDevice().Create(
 	{
@@ -194,7 +194,7 @@ void Init()
 			.Flags = ResourceFlags::Upload,
 			.InitialLayout = BarrierLayout::Undefined,
 			.Size = MaxDrawsPerFrame * sizeof(HLSL::UIDraw),
-			.Name = String("UI Draw Buffer"_view, Allocator),
+			.DebugName = "UI Draw Buffer"_view,
 		});
 		DrawBufferViews[frameIndex] = GlobalDevice().Create(
 		{
@@ -240,7 +240,7 @@ void CreatePipeline()
 		.RenderTargetFormats = { ResourceFormat::RGBA8UNormSRGB },
 		.DepthStencilFormat = ResourceFormat::None,
 		.AlphaBlend = true,
-		.Name = String("UI Pipeline"_view, Allocator),
+		.DebugName = "UI Pipeline"_view,
 	});
 	GlobalDevice().Destroy(&vertex);
 	GlobalDevice().Destroy(&pixel);

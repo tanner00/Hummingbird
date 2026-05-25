@@ -120,7 +120,7 @@ Resource Upload(Lifetime lifetime, const void* data, const ResourceDescription& 
 			.Offset = UploadHeap.Offset,
 		},
 		.Size = resourceUploadSize,
-		.Name = String("Upload Buffer"_view),
+		.DebugName = "Upload Buffer"_view,
 	});
 	UploadBuffers.Add(uploadBuffer);
 
