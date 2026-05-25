@@ -1258,7 +1258,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.Type = ResourceType::Texture2D,
 		.Format = ResourceFormat::RGBA8UNormSRGB,
 		.Flags = ResourceFlags::RenderTarget,
-		.InitialLayout = BarrierLayout::RenderTarget,
+		.InitialLayout = BarrierLayout::GraphicsQueueShaderResource,
 		.Dimensions = { width, height },
 		.Name = String("Final Texture"_view, RendererAllocator),
 	});
