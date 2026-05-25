@@ -98,8 +98,13 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const float32 contrastLuma = maxYCoCg.x - minYCoCg.x;
 	const float32 reduceFlicker = neighborhoodDistanceLuma / ToSafeDenominator(neighborhoodDistanceLuma + contrastLuma);
 
-	const bool outOfBoundsPrevious = any(reprojectedUV < 0.0f) || any(reprojectedUV > 1.0f);
-	const float32 currentFactor = RootConstants.DiscardPreviousFrame || outOfBoundsPrevious ? 1.0f : saturate(0.15f * reduceFlicker);
+	const float32x2 subPixelOffset = frac(reprojectedUV * hdrTextureDimensions);
+	const float32 reduceSubPixelMovementBlur = smoothstep(0.0f, sqrt(0.5f), distance(subPixelOffset, float32x2(0.5f, 0.5f)));
+
+	const bool discardPrevious = RootConstants.DiscardPreviousFrame || (any(reprojectedUV < 0.0f) || any(reprojectedUV > 1.0f));
+
+	static const float32 baseFactor = 0.15f;
+	const float32 currentFactor = discardPrevious ? 1.0f : saturate(lerp(baseFactor, 1.0f, reduceSubPixelMovementBlur) * reduceFlicker);
 
 	const float32x3 resolvedYCoCg = InverseToneMapReinhardYCoCg(lerp(ToneMapReinhardYCoCg(previousClampedYCoCg), ToneMapReinhardYCoCg(currentYCoCg), currentFactor));
 	accumulationTexture[dispatchThreadID.xy] = max(YCoCgToRGB(resolvedYCoCg), 0.0f);
