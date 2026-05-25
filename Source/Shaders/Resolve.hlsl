@@ -96,7 +96,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float32 neighborhoodDistanceLuma = min(abs(minYCoCg.x - previousYCoCg.x), abs(maxYCoCg.x - previousYCoCg.x));
 	const float32 contrastLuma = maxYCoCg.x - minYCoCg.x;
-	const float32 reduceFlicker = neighborhoodDistanceLuma / (neighborhoodDistanceLuma + contrastLuma);
+	const float32 reduceFlicker = neighborhoodDistanceLuma / ToSafeDenominator(neighborhoodDistanceLuma + contrastLuma);
 
 	const bool outOfBoundsPrevious = any(reprojectedUV < 0.0f) || any(reprojectedUV > 1.0f);
 	const float32 currentFactor = RootConstants.DiscardPreviousFrame || outOfBoundsPrevious ? 1.0f : saturate(0.15f * reduceFlicker);

@@ -11,14 +11,14 @@ float32 NDFTrowbridgeReitzGGX(float32x3 normal, float32x3 halfwayDirection, floa
 {
 	const float32 alphaSquared = max(roughness * roughness * roughness * roughness, 1e-5f);
 	const float32 nDotH = dot(normal, halfwayDirection);
-	return alphaSquared / (Pi * pow(max((nDotH * nDotH) * (alphaSquared - 1.0f) + 1.0f, 1e-4f), 2.0f));
+	return alphaSquared / ToSafeDenominator(Pi * pow((nDotH * nDotH) * (alphaSquared - 1.0f) + 1.0f, 2.0f));
 }
 
 float32 GeometrySchlickGGX(float32x3 normal, float32x3 direction, float32 roughness)
 {
 	const float32 kDirectLight = (roughness + 1.0f) * (roughness + 1.0f) / 8.0f;
 	const float32 nDotRay = saturate(dot(normal, direction));
-	return nDotRay / max(nDotRay * (1.0f - kDirectLight) + kDirectLight, 1e-4f);
+	return nDotRay / ToSafeDenominator(nDotRay * (1.0f - kDirectLight) + kDirectLight);
 }
 
 float32 GeometrySmith(float32x3 viewDirection, float32x3 lightDirection, float32x3 normal, float32 roughness)
@@ -45,7 +45,7 @@ float32x3 BRDFCookTorrance(float32x3 cDiffuse,
 	const float32x3 f = FresnelSchlick(f0, halfwayDirection, viewDirection);
 	const float32 g = GeometrySmith(viewDirection, lightDirection, normal, roughness);
 
-	const float32x3 specularBRDF = (d * f * g) / max(4.0f * nDotV * nDotL, 1e-4f);
+	const float32x3 specularBRDF = (d * f * g) / ToSafeDenominator(4.0f * nDotV * nDotL);
 	const float32x3 diffuseBRDF = (1.0f - f) * (cDiffuse / Pi);
 
 	return (diffuseBRDF + specularBRDF) * lightRadiance * nDotL;
