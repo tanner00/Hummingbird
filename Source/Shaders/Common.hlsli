@@ -54,3 +54,9 @@ T LinearToSRGB(T x)
 {
 	return select(x <= 0.0031308f, x * 12.92f, 1.055f * pow(x, 1.0f / 2.4f) - 0.055f);
 }
+
+template<typename T>
+T ToSafeDenominator(T x, float32 epsilon = 1e-6)
+{
+	return x + ((x >= 0.0) ? epsilon : -epsilon);
+}
