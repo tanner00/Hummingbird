@@ -72,8 +72,8 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float32x2 currentPositionUV = TransformClipToUV(currentPositionCS);
 	const float32x2 previousPositionUV = TransformClipToUV(previousPositionCS);
-	const float32x2 velocityUV = previousPositionUV - currentPositionUV;
-	const float32x2 reprojectedUV = TransformTexelToUV(dispatchThreadID.xy, hdrTextureDimensions) + velocityUV;
+	const float32x2 velocityUV = currentPositionUV - previousPositionUV;
+	const float32x2 reprojectedUV = TransformTexelToUV(dispatchThreadID.xy, hdrTextureDimensions) - velocityUV;
 
 	const Texture2D<float32x3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
 
