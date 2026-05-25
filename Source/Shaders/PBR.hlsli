@@ -11,7 +11,7 @@ float32 NDFTrowbridgeReitzGGX(float32x3 normal, float32x3 halfwayDirection, floa
 {
 	const float32 alphaSquared = max(roughness * roughness * roughness * roughness, 1e-5f);
 	const float32 nDotH = dot(normal, halfwayDirection);
-	return alphaSquared / ToSafeDenominator(Pi * pow((nDotH * nDotH) * (alphaSquared - 1.0f) + 1.0f, 2.0f));
+	return (alphaSquared * step(0.0f, nDotH)) / ToSafeDenominator(Pi * pow((nDotH * nDotH) * (alphaSquared - 1.0f) + 1.0f, 2.0f));
 }
 
 float32 GeometrySchlickGGX(float32x3 normal, float32x3 direction, float32 roughness)
