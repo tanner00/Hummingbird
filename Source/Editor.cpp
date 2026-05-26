@@ -226,6 +226,11 @@ void Editor::Update()
 					Renderer->TemporalAntiAliasing.DiscardPreviousFrame = true;
 				}
 
+				if (CheckButton("Path Trace"_view, &Renderer->PathTrace))
+				{
+					Renderer->TemporalAntiAliasing.DiscardPreviousFrame = true;
+				}
+
 #if !RELEASE
 				Rectangle({ .Layout = { .SizeX = Grow() } });
 

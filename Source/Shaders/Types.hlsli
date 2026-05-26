@@ -77,6 +77,11 @@ struct ToneMapRootConstants
 	bool32 DebugViewMode;
 };
 
+struct PathTraceRootConstants
+{
+	uint32 HDRTextureIndex;
+};
+
 struct Scene
 {
 	uint32 VertexBufferIndex;
@@ -89,6 +94,7 @@ struct Scene
 	uint32 AccelerationStructureIndex;
 
 	Matrix WorldToClip;
+	Matrix ClipToWorld;
 	Matrix JitterWorldToClip;
 	float32x3 ViewPositionWS;
 
@@ -96,7 +102,7 @@ struct Scene
 
 	uint32 PointLightsCount;
 
-	PAD(76);
+	PAD(12);
 };
 
 struct Primitive

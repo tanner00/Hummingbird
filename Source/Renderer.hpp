@@ -28,7 +28,8 @@ public:
 
 private:
 	void UpdateViewport(const CameraController& cameraController);
-	void UpdateScene(const RHI::GraphicsPipeline& pipeline);
+	void UpdateRasterization(const Matrix& worldToClip);
+	void UpdatePathTracing();
 
 #if !RELEASE
 	void UpdateFrameTimes(float64 frameStartCPUTime);
@@ -47,7 +48,7 @@ private:
 	void CreateViewportTextures(uint32 width, uint32 height);
 	void DestroyViewportTextures();
 
-	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit; }
+	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit && !PathTrace; }
 
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;
@@ -65,6 +66,8 @@ private:
 
 		uint32 FrameCount;
 	} TemporalAntiAliasing;
+
+	bool PathTrace;
 
 #if !RELEASE
 	float64 AverageCPUTime;
@@ -120,6 +123,8 @@ private:
 	RHI::ComputePipeline LuminanceAveragePipeline;
 
 	RHI::GraphicsPipeline ToneMapPipeline;
+
+	RHI::ComputePipeline PathTracePipeline;
 
 	friend Editor;
 };
