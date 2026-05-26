@@ -14,7 +14,7 @@ float32x4 TransformLocalPositionToWorld(float32x3 positionLS, float32x4x4 localT
 
 float32x3 TransformLocalDirectionToWorld(float32x3 directionLS, float32x4x4 localToWorld)
 {
-	return mul((float3x3)localToWorld, directionLS);
+	return mul((float32x3x3)localToWorld, directionLS);
 }
 
 float32x4 TransformWorldToClip(float32x4 positionWS, float32x4x4 worldToClip)
@@ -52,7 +52,7 @@ float32x4 TransformUVToClip(float32x2 uv)
 	return float32x4(uv * float32x2(2.0f, -2.0f) + float32x2(-1.0f, 1.0f), 0.0f, 1.0f);
 }
 
-float32x2 TransformTexelToUV(uint2 texel, uint2 textureDimensions)
+float32x2 TransformTexelToUV(uint32x2 texel, uint32x2 textureDimensions)
 {
 	return (texel + 0.5f) / textureDimensions;
 }

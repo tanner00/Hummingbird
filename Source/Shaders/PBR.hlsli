@@ -88,7 +88,7 @@ float32x3 PBR(float32x3 baseColorRGB,
 			  float32x3 viewDirection,
 			  float32x3 lightDirection,
 			  float32x3 lightRadiance,
-			  bool isSpecularGlossiness)
+			  bool32 isSpecularGlossiness)
 {
 	return isSpecularGlossiness ? PBRSpecularGlossiness(diffuseRGB, specular, glossiness, normal, viewDirection, lightDirection, lightRadiance)
 								: PBRMetallicRoughness(baseColorRGB, metallic, roughness, normal, viewDirection, lightDirection, lightRadiance);

@@ -63,7 +63,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 		TransformWorldToClip(positionsWS[1], Scene.WorldToClip),
 		TransformWorldToClip(positionsWS[2], Scene.WorldToClip),
 	};
-	const float32x4 jitterPositionsCS[] =
+	const float32x4 jitteredPositionsCS[] =
 	{
 		TransformWorldToClip(positionsWS[0], Scene.JitterWorldToClip),
 		TransformWorldToClip(positionsWS[1], Scene.JitterWorldToClip),
@@ -80,27 +80,27 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const float32x2 ddxUV = LerpBarycentrics(ddxWeights, uvs[0], uvs[1], uvs[2]);
 	const float32x2 ddyUV = LerpBarycentrics(ddyWeights, uvs[0], uvs[1], uvs[2]);
 
-	float32x3 jitterWeights;
-	float32x3 ddxJitterWeights;
-	float32x3 ddyJitterWeights;
-	CalculateBarycentrics(jitterPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, jitterWeights, ddxJitterWeights, ddyJitterWeights);
+	float32x3 jitteredWeights;
+	float32x3 ddxJitteredWeights;
+	float32x3 ddyJitteredWeights;
+	CalculateBarycentrics(jitteredPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, jitteredWeights, ddxJitteredWeights, ddyJitteredWeights);
 
-	const float32x3 positionWS = LerpBarycentrics(jitterWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
-	const float32x3 normalLS = LerpBarycentrics(jitterWeights, normalsLS[0], normalsLS[1], normalsLS[2]);
+	const float32x3 positionWS = LerpBarycentrics(jitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
+	const float32x3 normalLS = LerpBarycentrics(jitteredWeights, normalsLS[0], normalsLS[1], normalsLS[2]);
 
-	const float32x3 ddxPositionWS = LerpBarycentrics(ddxJitterWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
-	const float32x3 ddyPositionWS = LerpBarycentrics(ddyJitterWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
+	const float32x3 ddxPositionWS = LerpBarycentrics(ddxJitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
+	const float32x3 ddyPositionWS = LerpBarycentrics(ddyJitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
 
 	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
 											positionWS,
-											uv,
-											TransformLocalDirectionToWorld(normalLS, node.NormalLocalToWorld),
-											drawCall.PrimitiveIndex,
 											ddxPositionWS,
 											ddyPositionWS,
+											uv,
 											ddxUV,
 											ddyUV,
-											RootConstants.ViewMode,
+											TransformLocalDirectionToWorld(normalLS, node.NormalLocalToWorld),
+											drawCall.PrimitiveIndex,
 											triangleIndex,
+											RootConstants.ViewMode,
 											RootConstants.AnisotropicWrapSamplerIndex).rgb;
 }

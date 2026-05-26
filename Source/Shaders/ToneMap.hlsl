@@ -24,6 +24,7 @@ PixelInput VertexStart(uint32 vertexID : SV_VertexID)
 float32x4 PixelStart(PixelInput input) : SV_TARGET
 {
 	const Texture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
+	const RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 	const SamplerState linearClampSampler = ResourceDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
 	if (RootConstants.DebugViewMode)
@@ -34,7 +35,6 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 
 	const float32x3 hdrRGB = hdrTexture.Sample(linearClampSampler, input.UV);
 
-	const RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 	const float32 averageLuminance = luminanceBuffer.Load<float32>(LuminanceHistogramBinsCount * sizeof(uint32));
 
 	const float32x3 exposedRGB = hdrRGB * ConvertEv100ToExposure(ConvertAverageLuminanceToEv100(averageLuminance));
