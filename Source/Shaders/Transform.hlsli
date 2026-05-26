@@ -2,6 +2,11 @@
 
 #include "Common.hlsli"
 
+float32x3 PerspectiveDivide(float32x4 homogeneous)
+{
+	return homogeneous.xyz / homogeneous.w;
+}
+
 float32x4 TransformLocalPositionToWorld(float32x3 positionLS, float32x4x4 localToWorld)
 {
 	return mul(localToWorld, float32x4(positionLS, 1.0f));
@@ -17,9 +22,14 @@ float32x4 TransformWorldToClip(float32x4 positionWS, float32x4x4 worldToClip)
 	return mul(worldToClip, positionWS);
 }
 
-float32x2 TransformClipToNDC(float32x4 positionCS)
+float32x3 TransformClipToWorld(float32x4 positionCS, float32x4x4 clipToWorld)
 {
-	return positionCS.xy / positionCS.w;
+	return PerspectiveDivide(mul(clipToWorld, positionCS));
+}
+
+float32x3 TransformClipToNDC(float32x4 positionCS)
+{
+	return PerspectiveDivide(positionCS);
 }
 
 float32x4 TransformScreenToClip(float32x2 positionSS, float32x4x4 screenToClip)
@@ -34,7 +44,7 @@ float32x2 TransformScreenToNDC(float32x2 positionSS, float32x2 screenSize)
 
 float32x2 TransformClipToUV(float32x4 positionCS)
 {
-	return (TransformClipToNDC(positionCS) + 1.0f) / float32x2(2.0f, -2.0f);
+	return (TransformClipToNDC(positionCS).xy + 1.0f) / float32x2(2.0f, -2.0f);
 }
 
 float32x4 TransformUVToClip(float32x2 uv)
