@@ -17,7 +17,6 @@ struct SceneRootConstants
 	uint32 DrawCallIndex;
 	uint32 PrimitiveIndex;
 	uint32 NodeIndex;
-
 	uint32 AnisotropicWrapSamplerIndex;
 
 	ViewMode ViewMode;
@@ -30,6 +29,7 @@ struct SceneRootConstants
 struct DeferredRootConstants
 {
 	uint32 HDRTextureIndex;
+
 	uint32 VisibilityTextureIndex;
 	uint32 AnisotropicWrapSamplerIndex;
 
@@ -38,8 +38,9 @@ struct DeferredRootConstants
 
 struct ResolveRootConstants
 {
-	uint32 HDRTextureIndex;
 	uint32 AccumulationTextureIndex;
+
+	uint32 HDRTextureIndex;
 	uint32 PreviousAccumulationTextureIndex;
 	uint32 VisibilityTextureIndex;
 	uint32 VertexBufferIndex;
@@ -57,8 +58,9 @@ struct ResolveRootConstants
 
 struct LuminanceHistogramRootConstants
 {
-	uint32 HDRTextureIndex;
 	uint32 LuminanceBufferIndex;
+
+	uint32 HDRTextureIndex;
 };
 
 struct LuminanceAverageRootConstants

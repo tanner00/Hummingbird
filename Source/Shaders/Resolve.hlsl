@@ -9,7 +9,15 @@ ConstantBuffer<ResolveRootConstants> RootConstants : register(b0);
 [numthreads(16, 16, 1)]
 void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 {
+	RWTexture2D<float32x3> accumulationTexture = ResourceDescriptorHeap[RootConstants.AccumulationTextureIndex];
+
 	const Texture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
+	const Texture2D<float32x3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
+	const Texture2D<uint32x2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
+	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[RootConstants.VertexBufferIndex];
+	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[RootConstants.PrimitiveBufferIndex];
+	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[RootConstants.NodeBufferIndex];
+	const StructuredBuffer<DrawCall> drawCallBuffer = ResourceDescriptorHeap[RootConstants.DrawCallBufferIndex];
 
 	uint32x2 hdrTextureDimensions;
 	hdrTexture.GetDimensions(hdrTextureDimensions.x, hdrTextureDimensions.y);
@@ -19,9 +27,6 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 		return;
 	}
 
-	RWTexture2D<float32x3> accumulationTexture = ResourceDescriptorHeap[RootConstants.AccumulationTextureIndex];
-
-	const Texture2D<uint32x2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
 	const uint32x2 visibility = visibilityTexture.Load(uint32x3(dispatchThreadID.xy, 0));
 
 	if (all(visibility.xy == 0))
@@ -32,16 +37,10 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const uint32 drawCallIndex = visibility.x - 1;
 	const uint32 triangleIndex = visibility.y - 1;
 
-	const StructuredBuffer<DrawCall> drawCallBuffer = ResourceDescriptorHeap[RootConstants.DrawCallBufferIndex];
 	const DrawCall drawCall = drawCallBuffer[drawCallIndex];
-
-	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[RootConstants.NodeBufferIndex];
 	const Node node = nodeBuffer[drawCall.NodeIndex];
-
-	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[RootConstants.PrimitiveBufferIndex];
 	const Primitive primitive = primitiveBuffer[drawCall.PrimitiveIndex];
 
-	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[RootConstants.VertexBufferIndex];
 	const uint32 triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 	uint32 indices[3];
@@ -75,8 +74,6 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const float32x2 velocityUV = currentPositionUV - previousPositionUV;
 	const float32x2 reprojectedUV = TransformTexelToUV(dispatchThreadID.xy, hdrTextureDimensions) - velocityUV;
 
-	const Texture2D<float32x3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
-
 	const float32x3 currentYCoCg = RGBToYCoCg(hdrTexture.Load(uint32x3(dispatchThreadID.xy, 0)));
 	const float32x3 previousYCoCg = RGBToYCoCg(SampleTextureCatmullRom(previousAccumulationTexture, hdrTextureDimensions, reprojectedUV));
 
@@ -101,7 +98,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const float32x2 subPixelOffset = frac(reprojectedUV * hdrTextureDimensions);
 	const float32 reduceSubPixelMovementBlur = smoothstep(0.0f, sqrt(0.5f), distance(subPixelOffset, float32x2(0.5f, 0.5f)));
 
-	const bool discardPrevious = RootConstants.DiscardPreviousFrame || (any(reprojectedUV < 0.0f) || any(reprojectedUV > 1.0f));
+	const bool32 discardPrevious = RootConstants.DiscardPreviousFrame || (any(reprojectedUV < 0.0f) || any(reprojectedUV > 1.0f));
 
 	static const float32 baseFactor = 0.15f;
 	const float32 currentFactor = discardPrevious ? 1.0f : saturate(lerp(baseFactor, 1.0f, reduceSubPixelMovementBlur) * reduceFlicker);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
 #include "Types.hlsli"
 
@@ -12,15 +13,15 @@ float32 CastShadowRay(float32x3 originWS,
 					  StructuredBuffer<Material> materialBuffer,
 					  SamplerState sampler)
 {
-	RayDesc ray;
-	ray.Origin = originWS;
-	ray.TMin = 0.001f;
-	ray.Direction = directionWS;
-	ray.TMax = maxDistance;
+	RayDesc rayDescription;
+	rayDescription.Origin = originWS;
+	rayDescription.TMin = 0.001f;
+	rayDescription.Direction = directionWS;
+	rayDescription.TMax = maxDistance;
 
 	const RAY_FLAG flags = RAY_FLAG_NONE;
 	RayQuery<flags> query;
-	query.TraceRayInline(accelerationStructure, flags, 0xff, ray);
+	query.TraceRayInline(accelerationStructure, flags, 0xff, rayDescription);
 
 	while (query.Proceed())
 	{
@@ -37,9 +38,7 @@ float32 CastShadowRay(float32x3 originWS,
 
 		const float32x2 barycentrics = query.CandidateTriangleBarycentrics();
 		const float32x3 weights = float32x3(1.0f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
-		const float32x2 uv = uvs[0] * weights.x +
-							 uvs[1] * weights.y +
-							 uvs[2] * weights.z;
+		const float32x2 uv = LerpBarycentrics(weights, uvs[0], uvs[1], uvs[2]);
 
 		const Material material = materialBuffer[primitive.MaterialIndex];
 		const Texture2D<float32x4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];

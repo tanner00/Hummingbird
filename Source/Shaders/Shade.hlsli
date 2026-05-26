@@ -27,15 +27,15 @@ void ComputeTangents(float32x3 normal,
 
 float32x4 Shade(Scene scene,
 				float32x3 positionWS,
-				float32x2 uv,
-				float32x3 normalWS,
-				uint32 primitiveIndex,
 				float32x3 ddxPositionWS,
 				float32x3 ddyPositionWS,
+				float32x2 uv,
 				float32x2 ddxUV,
 				float32x2 ddyUV,
-				ViewMode viewMode,
+				float32x3 normalWS,
+				uint32 primitiveIndex,
 				uint32 primitiveID,
+				ViewMode viewMode,
 				uint32 anisotropicWrapSamplerIndex)
 {
 	normalWS = normalize(normalWS);

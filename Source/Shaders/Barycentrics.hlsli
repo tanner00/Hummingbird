@@ -38,13 +38,13 @@ void CalculateBarycentrics(const float32x4 positionsCS[3],
 	const float32 interpolatedW = 1.0f / interpolatedInverseW;
 
 	weights.x = interpolatedW * (inverseW.x + offsetNDC.x * ddxBarycentrics.x + offsetNDC.y * ddyBarycentrics.x);
-	weights.y = interpolatedW * (0.0f       + offsetNDC.x * ddxBarycentrics.y + offsetNDC.y * ddyBarycentrics.y);
-	weights.z = interpolatedW * (0.0f       + offsetNDC.x * ddxBarycentrics.z + offsetNDC.y * ddyBarycentrics.z);
+	weights.y = interpolatedW * (0.0f + offsetNDC.x * ddxBarycentrics.y + offsetNDC.y * ddyBarycentrics.y);
+	weights.z = interpolatedW * (0.0f + offsetNDC.x * ddxBarycentrics.z + offsetNDC.y * ddyBarycentrics.z);
 
-	const float32 ddxInterpolatedW = 1.0f / (interpolatedInverseW + ( ddxBarycentricsSum * 2.0f / screenSize.x));
+	const float32 ddxInterpolatedW = 1.0f / (interpolatedInverseW + (ddxBarycentricsSum * 2.0f / screenSize.x));
 	const float32 ddyInterpolatedW = 1.0f / (interpolatedInverseW + (-ddyBarycentricsSum * 2.0f / screenSize.y));
 
-	ddxWeights = ddxInterpolatedW * (weights * interpolatedInverseW + ( ddxBarycentrics * 2.0f / screenSize.x)) - weights;
+	ddxWeights = ddxInterpolatedW * (weights * interpolatedInverseW + (ddxBarycentrics * 2.0f / screenSize.x)) - weights;
 	ddyWeights = ddyInterpolatedW * (weights * interpolatedInverseW + (-ddyBarycentrics * 2.0f / screenSize.y)) - weights;
 }
 

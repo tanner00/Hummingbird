@@ -237,11 +237,11 @@ void Editor::Update()
 				Container({}, [this]
 				{
 					char cpuTimeText[16] = {};
-					Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), Renderer->AverageCPUTime * 1000.0);
+					Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), Renderer->AverageTimeCPU * 1000.0);
 					Text(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 
 					char gpuTimeText[16] = {};
-					Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), Renderer->AverageGPUTime * 1000.0);
+					Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), Renderer->AverageTimeGPU * 1000.0);
 					Text(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 				});
 #endif

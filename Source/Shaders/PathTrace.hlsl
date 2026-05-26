@@ -9,6 +9,7 @@ ConstantBuffer<Scene> Scene : register(b1);
 void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 {
 	RWTexture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
+
 	const RaytracingAccelerationStructure accelerationStructure = ResourceDescriptorHeap[Scene.AccelerationStructureIndex];
 
 	uint32x2 hdrTextureDimensions;

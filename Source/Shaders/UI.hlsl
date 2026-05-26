@@ -60,8 +60,8 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 	const StructuredBuffer<UIDraw> drawBuffer = ResourceDescriptorHeap[RootConstants.UIDrawBufferIndex];
 	const UIDraw draw = drawBuffer[input.DrawIndex];
 
-	const bool inside = (input.PositionCS.x >= draw.ScissorMinSS.x) && (input.PositionCS.y >= draw.ScissorMinSS.y) &&
-						(input.PositionCS.x <= draw.ScissorMaxSS.x) && (input.PositionCS.y <= draw.ScissorMaxSS.y);
+	const bool32 inside = (input.PositionCS.x >= draw.ScissorMinSS.x) && (input.PositionCS.y >= draw.ScissorMinSS.y) &&
+						  (input.PositionCS.x <= draw.ScissorMaxSS.x) && (input.PositionCS.y <= draw.ScissorMaxSS.y);
 	if (!inside)
 	{
 		return 0.0f;

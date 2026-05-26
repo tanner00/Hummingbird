@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Common.hlsli"
+#include "Transform.hlsli"
 
-float32x3 SampleTextureCatmullRom(Texture2D<float32x3> texture, uint2 textureDimensions, float32x2 uv)
+float32x3 SampleTextureCatmullRom(Texture2D<float32x3> texture, uint32x2 textureDimensions, float32x2 uv)
 {
-	const float32x2 sampleTexel = uv * textureDimensions - 0.5f;
-	const float32x2 f = frac(sampleTexel);
+	const float32x2 samplePositionTS = TransformUVToTexel(uv, textureDimensions);
+	const float32x2 f = frac(samplePositionTS);
 
 	const float32x2 weights[] =
 	{
@@ -18,14 +19,14 @@ float32x3 SampleTextureCatmullRom(Texture2D<float32x3> texture, uint2 textureDim
 	float32x3 sample = 0.0f;
 	for (uint32 j = 0; j < 4; ++j)
 	{
-		const uint32 y = clamp(int32(sampleTexel.y) + (j - 1), 0, textureDimensions.y - 1);
+		const uint32 yTS = clamp(int32(samplePositionTS.y) + (j - 1), 0, textureDimensions.y - 1);
 
 		float32x3 row = 0.0f;
 		for (uint32 i = 0; i < 4; ++i)
 		{
-			const uint32 x = clamp(int32(sampleTexel.x) + (i - 1), 0, textureDimensions.x - 1);
+			const uint32 xTS = clamp(int32(samplePositionTS.x) + (i - 1), 0, textureDimensions.x - 1);
 
-			row += texture.Load(uint3(x, y, 0)) * weights[i].x * weights[j].y;
+			row += texture.Load(uint3(xTS, yTS, 0)) * weights[i].x * weights[j].y;
 		}
 
 		sample += row;

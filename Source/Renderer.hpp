@@ -32,7 +32,7 @@ private:
 	void UpdatePathTracing();
 
 #if !RELEASE
-	void UpdateFrameTimes(float64 frameStartCPUTime);
+	void UpdateFrameTimes(float64 frameStartTimeCPU);
 #endif
 
 	void LoadScene(const GLTF::Scene& scene);
@@ -70,8 +70,8 @@ private:
 	bool PathTrace;
 
 #if !RELEASE
-	float64 AverageCPUTime;
-	float64 AverageGPUTime;
+	float64 AverageTimeCPU;
+	float64 AverageTimeGPU;
 #endif
 
 	RHI::Resource SwapChainTextureResources[RHI::FramesInFlight];

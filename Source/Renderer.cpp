@@ -92,8 +92,8 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 	, TemporalAntiAliasing({ .Enabled = true, .DiscardPreviousFrame = true, .PreviousWorldToClip = Matrix::Identity, .FrameCount = 0 })
 	, PathTrace(false)
 #if !RELEASE
-	, AverageCPUTime(0.0)
-	, AverageGPUTime(0.0)
+	, AverageTimeCPU(0.0)
+	, AverageTimeGPU(0.0)
 #endif
 {
 	CreateRenderContext(window, validation);
@@ -324,8 +324,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 	const HLSL::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
 	{
-		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
 		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
+		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
 	};
 
 	GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
@@ -381,7 +381,6 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 									{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
 									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
 									FinalTextureResource);
-
 	if (ShouldAntiAlias())
 	{
 		GlobalGraphics().TextureBarrier({ BarrierStage::PixelShading, BarrierStage::None },
@@ -503,8 +502,8 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 
 		const HLSL::ResolveRootConstants resolveRootConstants =
 		{
-			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
 			.AccumulationTextureIndex = GlobalDevice().Get(AccumulationTexture.UnorderedAccessView),
+			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
 			.PreviousAccumulationTextureIndex = GlobalDevice().Get(PreviousAccumulationTexture.ShaderResourceView),
 			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
 			.VertexBufferIndex = GlobalDevice().Get(SceneVertexBuffer.View),
@@ -556,13 +555,13 @@ void Renderer::UpdatePathTracing()
 }
 
 #if !RELEASE
-void Renderer::UpdateFrameTimes(float64 frameStartCPUTime)
+void Renderer::UpdateFrameTimes(float64 frameStartTimeCPU)
 {
-	const float64 cpuTime = Platform::GetTime() - frameStartCPUTime;
-	const float64 gpuTime = GlobalGraphics().GetMostRecentGPUTime();
+	const float64 timeCPU = Platform::GetTime() - frameStartTimeCPU;
+	const float64 timeGPU = GlobalGraphics().GetMostRecentGPUTime();
 
-	AverageCPUTime = AverageCPUTime * 0.95 + cpuTime * 0.05;
-	AverageGPUTime = AverageGPUTime * 0.95 + gpuTime * 0.05;
+	AverageTimeCPU = AverageTimeCPU * 0.95 + timeCPU * 0.05;
+	AverageTimeGPU = AverageTimeGPU * 0.95 + timeGPU * 0.05;
 }
 #endif
 
