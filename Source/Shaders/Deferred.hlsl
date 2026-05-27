@@ -1,7 +1,10 @@
 #include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
-#include "Shade.hlsli"
+#include "PBR.hlsli"
+#include "Shadow.hlsli"
+#include "Surface.hlsli"
 #include "Transform.hlsli"
+#include "ViewMode.hlsli"
 
 ConstantBuffer<DeferredRootConstants> RootConstants : register(b0);
 ConstantBuffer<Scene> Scene : register(b1);
@@ -11,6 +14,17 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 {
 	RWTexture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
 
+	const Texture2D<uint32x2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
+	const SamplerState anisotropicWrapSampler = ResourceDescriptorHeap[RootConstants.AnisotropicWrapSamplerIndex];
+	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
+	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
+	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
+	const StructuredBuffer<Material> materialBuffer = ResourceDescriptorHeap[Scene.MaterialBufferIndex];
+	const StructuredBuffer<DrawCall> drawCallBuffer = ResourceDescriptorHeap[Scene.DrawCallBufferIndex];
+	const ConstantBuffer<DirectionalLight> directionalLightBuffer = ResourceDescriptorHeap[Scene.DirectionalLightBufferIndex];
+	const StructuredBuffer<PointLight> pointLightsBuffer = ResourceDescriptorHeap[Scene.PointLightsBufferIndex];
+	const RaytracingAccelerationStructure accelerationStructure = ResourceDescriptorHeap[Scene.AccelerationStructureIndex];
+
 	uint32x2 hdrTextureDimensions;
 	hdrTexture.GetDimensions(hdrTextureDimensions.x, hdrTextureDimensions.y);
 
@@ -19,7 +33,6 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 		return;
 	}
 
-	const Texture2D<uint32x2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
 	const uint32x2 visibility = visibilityTexture.Load(uint32x3(dispatchThreadID.xy, 0));
 
 	if (all(visibility.xy == 0))
@@ -30,16 +43,11 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const uint32 drawCallIndex = visibility.x - 1;
 	const uint32 triangleIndex = visibility.y - 1;
 
-	const StructuredBuffer<DrawCall> drawCallBuffer = ResourceDescriptorHeap[Scene.DrawCallBufferIndex];
 	const DrawCall drawCall = drawCallBuffer[drawCallIndex];
-
-	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
 	const Node node = nodeBuffer[drawCall.NodeIndex];
-
-	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
 	const Primitive primitive = primitiveBuffer[drawCall.PrimitiveIndex];
+	const Material material = materialBuffer[primitive.MaterialIndex];
 
-	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
 	const uint32 triangleOffset = triangleIndex * primitive.IndexStride * 3;
 
 	uint32 indices[3];
@@ -91,16 +99,68 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const float32x3 ddxPositionWS = LerpBarycentrics(ddxJitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
 	const float32x3 ddyPositionWS = LerpBarycentrics(ddyJitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
 
-	hdrTexture[dispatchThreadID.xy] = Shade(Scene,
-											positionWS,
+	const Surface surface = EvaluateSurface(material,
+											Scene.TwoChannelNormalMaps,
 											ddxPositionWS,
 											ddyPositionWS,
 											uv,
 											ddxUV,
 											ddyUV,
-											TransformLocalDirectionToWorld(normalLS, node.NormalLocalToWorld),
-											drawCall.PrimitiveIndex,
-											triangleIndex,
-											RootConstants.ViewMode,
-											RootConstants.AnisotropicWrapSamplerIndex).rgb;
+											normalize(TransformLocalDirectionToWorld(normalLS, node.NormalLocalToWorld)),
+											anisotropicWrapSampler);
+
+	float32x3 viewModeRGB;
+	if (CheckViewMode(RootConstants.ViewMode, surface, triangleIndex, viewModeRGB))
+	{
+		hdrTexture[dispatchThreadID.xy] = viewModeRGB;
+		return;
+	}
+
+	const float32x3 viewDirectionWS = normalize(Scene.ViewPositionWS - positionWS);
+
+	float32x3 pointLightContributionRGB = 0.0f;
+
+	for (uint32 pointLightIndex = 0; pointLightIndex < Scene.PointLightsCount; ++pointLightIndex)
+	{
+		const PointLight pointLight = pointLightsBuffer[pointLightIndex];
+
+		const float32x3 pointLightDirectionWS = normalize(pointLight.PositionWS - positionWS);
+
+		const float32 objectToLightDistance = distance(pointLight.PositionWS, positionWS);
+		const float32 attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
+
+		pointLightContributionRGB += PBR(surface,
+										 viewDirectionWS,
+										 pointLightDirectionWS,
+										 attenuation * pointLight.IntensityCandela * pointLight.RGB) *
+									 CastShadowRay(positionWS,
+									 			   pointLightDirectionWS,
+									 			   objectToLightDistance,
+									 			   accelerationStructure,
+									 			   vertexBuffer,
+									 			   primitiveBuffer,
+									 			   materialBuffer,
+									 			   anisotropicWrapSampler);
+	}
+
+	const float32x3 directionalLightDirectionWS = normalize(directionalLightBuffer.DirectionWS);
+
+	const float32x3 directionalLightContributionRGB = PBR(surface,
+														  viewDirectionWS,
+														  directionalLightDirectionWS,
+														  directionalLightBuffer.IntensityLux * directionalLightBuffer.RGB) *
+													  CastShadowRay(positionWS,
+																	directionalLightDirectionWS,
+																	Infinity,
+																	accelerationStructure,
+																	vertexBuffer,
+																	primitiveBuffer,
+																	materialBuffer,
+																	anisotropicWrapSampler);
+
+	const float32x3 unlitRGB = surface.IsSpecularGlossiness ? surface.DiffuseRGB : surface.BaseColorRGB;
+
+	const float32x3 ambientLightContributionRGB = 0.05f * directionalLightBuffer.IntensityLux * unlitRGB;
+
+	hdrTexture[dispatchThreadID.xy] = pointLightContributionRGB + directionalLightContributionRGB + ambientLightContributionRGB + surface.EmissiveRGB;
 }
