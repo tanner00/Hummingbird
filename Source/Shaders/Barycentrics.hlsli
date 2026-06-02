@@ -2,12 +2,12 @@
 
 #include "Transform.hlsli"
 
-void CalculateBarycentrics(const float32x4 positionsCS[3],
-						   float32x2 pixelSS,
-						   float32x2 screenSize,
-						   out float32x3 weights,
-						   out float32x3 ddxWeights,
-						   out float32x3 ddyWeights)
+void CalculateScreenBarycentrics(const float32x4 positionsCS[3],
+								 float32x2 pixelSS,
+								 float32x2 screenSize,
+								 out float32x3 weights,
+								 out float32x3 ddxWeights,
+								 out float32x3 ddyWeights)
 {
 	const float32x2 pixelNDC = TransformScreenToNDC(pixelSS, screenSize);
 
@@ -48,14 +48,14 @@ void CalculateBarycentrics(const float32x4 positionsCS[3],
 	ddyWeights = ddyInterpolatedW * (weights * interpolatedInverseW + (-ddyBarycentrics * 2.0f / screenSize.y)) - weights;
 }
 
-void CalculateBarycentrics(const float32x4 positionsCS[3],
-						   float32x2 pixelSS,
-						   float32x2 screenSize,
-						   out float32x3 weights)
+void CalculateScreenBarycentrics(const float32x4 positionsCS[3],
+								 float32x2 pixelSS,
+								 float32x2 screenSize,
+								 out float32x3 weights)
 {
 	float32x3 unused1;
 	float32x3 unused2;
-	CalculateBarycentrics(positionsCS, pixelSS, screenSize, weights, unused1, unused2);
+	CalculateScreenBarycentrics(positionsCS, pixelSS, screenSize, weights, unused1, unused2);
 }
 
 float32 LerpBarycentrics(float32x3 weights, float32 vX, float32 vY, float32 vZ)
