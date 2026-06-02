@@ -52,9 +52,14 @@ float32x4 TransformUVToClip(float32x2 uv)
 	return float32x4(uv * float32x2(2.0f, -2.0f) + float32x2(-1.0f, 1.0f), 0.0f, 1.0f);
 }
 
-float32x2 TransformTexelToUV(uint32x2 texel, uint32x2 textureDimensions)
+float32x2 TransformTexelToUV(float32x2 texel, uint32x2 textureDimensions)
 {
 	return (texel + 0.5f) / textureDimensions;
+}
+
+float32x2 TransformUVToTexel(float32x2 uv, uint32x2 textureDimensions)
+{
+	return uv * textureDimensions - 0.5f;
 }
 
 float32x2 TransformVertexIDToUV(uint32 vertexID)
