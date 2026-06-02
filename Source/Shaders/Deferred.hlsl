@@ -81,7 +81,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	float32x3 weights;
 	float32x3 ddxWeights;
 	float32x3 ddyWeights;
-	CalculateBarycentrics(positionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
+	CalculateScreenBarycentrics(positionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, weights, ddxWeights, ddyWeights);
 
 	const float32x2 uv = LerpBarycentrics(weights, uvs[0], uvs[1], uvs[2]);
 
@@ -91,7 +91,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	float32x3 jitteredWeights;
 	float32x3 ddxJitteredWeights;
 	float32x3 ddyJitteredWeights;
-	CalculateBarycentrics(jitteredPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, jitteredWeights, ddxJitteredWeights, ddyJitteredWeights);
+	CalculateScreenBarycentrics(jitteredPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, jitteredWeights, ddxJitteredWeights, ddyJitteredWeights);
 
 	const float32x3 positionWS = LerpBarycentrics(jitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
 	const float32x3 normalLS = LerpBarycentrics(jitteredWeights, normalsLS[0], normalsLS[1], normalsLS[2]);

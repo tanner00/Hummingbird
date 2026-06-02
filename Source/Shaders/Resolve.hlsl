@@ -62,7 +62,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	};
 
 	float32x3 currentWeights;
-	CalculateBarycentrics(currentPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, currentWeights);
+	CalculateScreenBarycentrics(currentPositionsCS, dispatchThreadID.xy + 0.5f, hdrTextureDimensions, currentWeights);
 
 	const float32x3 currentPositionWS = LerpBarycentrics(currentWeights, currentPositionsWS[0].xyz, currentPositionsWS[1].xyz, currentPositionsWS[2].xyz);
 
