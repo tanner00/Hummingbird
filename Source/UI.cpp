@@ -1013,6 +1013,10 @@ static void DrawChildren(const Element& element, ArrayView<ID> childrenIDs)
 			horizontal ? (element.SizeSS.Y - elementStyle.BorderSizeSS * 2.0f) : elementStyle.BetweenSizeSS,
 		};
 		DrawRectangle(betweenPositionSS, betweenSizeSS, elementStyle.BetweenSRGBA, element.Layer);
+
+		HLSL::UIDraw& draw = Draws[DrawIndex - 1];
+		draw.ScissorMinSS = element.ScissorMinSS;
+		draw.ScissorMaxSS = element.ScissorMaxSS;
 	}
 }
 
@@ -1102,7 +1106,6 @@ static void Draw(ID id)
 		for (usize drawIndex = 0; drawIndex < DrawIndex - drawStart; ++drawIndex)
 		{
 			HLSL::UIDraw& draw = Draws[DrawIndex - drawIndex - 1];
-
 			draw.ScissorMinSS = element.ScissorMinSS;
 			draw.ScissorMaxSS = element.ScissorMaxSS;
 		}
