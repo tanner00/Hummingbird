@@ -31,7 +31,7 @@ struct Element
 
 	float32x2 NaturalSizeLS;
 
-	float32 ScrollOffsetLS;
+	float32x2 ScrollOffsetLS;
 
 	float32x2 ScissorMinSS;
 	float32x2 ScissorMaxSS;
@@ -552,7 +552,7 @@ static bool IsIntersecting(ID id)
 									 element.Description.Style.CornerRadiiSS);
 }
 
-bool IsHovered(ID id, bool ignoreChildren)
+static bool IsHovered(ID id, bool ignoreChildren, bool onlyScrollable)
 {
 	if (!DoesExist(id))
 	{
@@ -594,7 +594,9 @@ bool IsHovered(ID id, bool ignoreChildren)
 				breadthFirst.Add(childID);
 			}
 
-			if (currentID == id || currentElement.Layer <= element.Layer)
+			if (currentID == id ||
+				currentElement.Layer <= element.Layer ||
+				(onlyScrollable && currentElement.NaturalSizeLS.X <= currentElement.SizeSS.X && currentElement.NaturalSizeLS.Y <= currentElement.SizeSS.Y))
 			{
 				continue;
 			}
@@ -609,6 +611,11 @@ bool IsHovered(ID id, bool ignoreChildren)
 	}
 
 	return intersecting && !higherHovered;
+}
+
+bool IsHovered(ID id, bool ignoreChildren)
+{
+	return IsHovered(id, ignoreChildren, false);
 }
 
 bool IsPressed(ID id, bool ignoreChildren)
@@ -956,18 +963,23 @@ static void LayoutPosition(ID id, bool x, float32 timeDelta, float32 cursorSS)
 	float32& elementPositionSS = x ? element.PositionSS.X : element.PositionSS.Y;
 	elementPositionSS = cursorSS;
 
-	if (DoesExist(id) && !x)
+	if (DoesExist(id))
 	{
-		element.ScrollOffsetLS = PreviousElements[id].ScrollOffsetLS;
+		const Element& previousElement = PreviousElements[id];
 
-		if (IsHovered(id, true))
+		float32& scrollOffsetLS = x ? element.ScrollOffsetLS.X : element.ScrollOffsetLS.Y;
+		scrollOffsetLS = x ? previousElement.ScrollOffsetLS.X : previousElement.ScrollOffsetLS.Y;
+
+		if (IsHovered(id, false, true) &&
+			x == (Platform::IsKeyPressed(Platform::Key::Shift) || (element.NaturalSizeLS.Y <= element.SizeSS.Y)))
 		{
-			element.ScrollOffsetLS += static_cast<float32>(Platform::GetMouseScrollY()) * 12000.0f * timeDelta;
+			scrollOffsetLS += static_cast<float32>(Platform::GetMouseScrollY()) * 12000.0f * timeDelta;
 		}
 
-		element.ScrollOffsetLS = Clamp(element.ScrollOffsetLS, 0.0f, Max(element.NaturalSizeLS.Y - element.SizeSS.Y, 0.0f));
+		const float32 maxScrollLS = Max(x ? (element.NaturalSizeLS.X - element.SizeSS.X) : (element.NaturalSizeLS.Y - element.SizeSS.Y), 0.0f);
+		scrollOffsetLS = Clamp(scrollOffsetLS, 0.0f, maxScrollLS);
 
-		cursorSS -= element.ScrollOffsetLS;
+		cursorSS -= scrollOffsetLS;
 	}
 
 	const float32 childrenCursorSS = cursorSS + (x ? elementLayout.PaddingSS.X : elementLayout.PaddingSS.Y);
