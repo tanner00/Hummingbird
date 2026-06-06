@@ -2,6 +2,12 @@
 
 #include "Transform.hlsli"
 
+float32x3 PerspectiveCorrectBarycentrics(float32x3 barycentrics, float32x3 w)
+{
+	const float32x3 barycentricsOverW = barycentrics / w;
+	return barycentricsOverW / (barycentricsOverW.x + barycentricsOverW.y + barycentricsOverW.z);
+}
+
 void CalculateScreenBarycentrics(const float32x4 positionsCS[3],
 								 float32x2 pixelSS,
 								 float32x2 screenSize,
@@ -9,43 +15,35 @@ void CalculateScreenBarycentrics(const float32x4 positionsCS[3],
 								 out float32x3 ddxWeights,
 								 out float32x3 ddyWeights)
 {
-	const float32x2 pixelNDC = TransformScreenToNDC(pixelSS, screenSize);
-
-	const float32x3 inverseW = 1.0f / float32x3(positionsCS[0].w, positionsCS[1].w, positionsCS[2].w);
-
 	const float32x2 positionsNDC[] =
 	{
-		positionsCS[0].xy * inverseW.x,
-		positionsCS[1].xy * inverseW.y,
-		positionsCS[2].xy * inverseW.z,
+		PerspectiveDivide(positionsCS[0]).xy,
+		PerspectiveDivide(positionsCS[1]).xy,
+		PerspectiveDivide(positionsCS[2]).xy,
 	};
 
-	const float32 inverseDeterminant = 1.0f / determinant(float32x2x2(positionsNDC[2] - positionsNDC[1],
-																	  positionsNDC[0] - positionsNDC[1]));
-	const float32x3 ddxBarycentrics = float32x3(positionsNDC[2].y - positionsNDC[1].y,
-												positionsNDC[0].y - positionsNDC[2].y,
-												positionsNDC[1].y - positionsNDC[0].y) * inverseDeterminant * inverseW * -1.0f;
-	const float32x3 ddyBarycentrics = float32x3(positionsNDC[2].x - positionsNDC[1].x,
-												positionsNDC[0].x - positionsNDC[2].x,
-												positionsNDC[1].x - positionsNDC[0].x) * inverseDeterminant * inverseW;
+	const float32 signedAreaNDC = determinant(float32x2x2(positionsNDC[2] - positionsNDC[1], positionsNDC[0] - positionsNDC[1]));
 
-	const float32 ddxBarycentricsSum = ddxBarycentrics.x + ddxBarycentrics.y + ddxBarycentrics.z;
-	const float32 ddyBarycentricsSum = ddyBarycentrics.x + ddyBarycentrics.y + ddyBarycentrics.z;
+	const float32x3 ddxWeightsNDC = float32x3(positionsNDC[1].y - positionsNDC[2].y,
+											  positionsNDC[2].y - positionsNDC[0].y,
+											  positionsNDC[0].y - positionsNDC[1].y) / ToSafeDenominator(signedAreaNDC);
+	const float32x3 ddyWeightsNDC = float32x3(positionsNDC[2].x - positionsNDC[1].x,
+											  positionsNDC[0].x - positionsNDC[2].x,
+											  positionsNDC[1].x - positionsNDC[0].x) / ToSafeDenominator(signedAreaNDC);
 
-	const float32x2 offsetNDC = pixelNDC - positionsNDC[0];
+	const float32x2 offsetNDC = TransformScreenToNDC(pixelSS, screenSize) - positionsNDC[0];
 
-	const float32 interpolatedInverseW = inverseW.x + offsetNDC.x * ddxBarycentricsSum + offsetNDC.y * ddyBarycentricsSum;
-	const float32 interpolatedW = 1.0f / interpolatedInverseW;
+	const float32x3 weightsNDC = float32x3(1.0f, 0.0f, 0.0f) + offsetNDC.x * ddxWeightsNDC + offsetNDC.y * ddyWeightsNDC;
 
-	weights.x = interpolatedW * (inverseW.x + offsetNDC.x * ddxBarycentrics.x + offsetNDC.y * ddyBarycentrics.x);
-	weights.y = interpolatedW * (0.0f + offsetNDC.x * ddxBarycentrics.y + offsetNDC.y * ddyBarycentrics.y);
-	weights.z = interpolatedW * (0.0f + offsetNDC.x * ddxBarycentrics.z + offsetNDC.y * ddyBarycentrics.z);
+	const float32x3 w = float32x3(positionsCS[0].w, positionsCS[1].w, positionsCS[2].w);
 
-	const float32 ddxInterpolatedW = 1.0f / (interpolatedInverseW + (ddxBarycentricsSum * 2.0f / screenSize.x));
-	const float32 ddyInterpolatedW = 1.0f / (interpolatedInverseW + (-ddyBarycentricsSum * 2.0f / screenSize.y));
+	weights = PerspectiveCorrectBarycentrics(weightsNDC, w);
 
-	ddxWeights = ddxInterpolatedW * (weights * interpolatedInverseW + (ddxBarycentrics * 2.0f / screenSize.x)) - weights;
-	ddyWeights = ddyInterpolatedW * (weights * interpolatedInverseW + (-ddyBarycentrics * 2.0f / screenSize.y)) - weights;
+	const float32 ddxNDC = 2.0f / screenSize.x;
+	const float32 ddyNDC = -2.0f / screenSize.y;
+
+	ddxWeights = PerspectiveCorrectBarycentrics(weightsNDC + ddxWeightsNDC * ddxNDC, w) - weights;
+	ddyWeights = PerspectiveCorrectBarycentrics(weightsNDC + ddyWeightsNDC * ddyNDC, w) - weights;
 }
 
 void CalculateScreenBarycentrics(const float32x4 positionsCS[3],
