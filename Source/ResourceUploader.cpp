@@ -101,7 +101,7 @@ Resource Upload(Lifetime lifetime, const void* data, const ResourceDescription& 
 		heap = &SceneHeaps.Last();
 	}
 
-	const usize resourceUploadSize = GlobalDevice().GetResourceUploadSize(description);
+	const usize resourceUploadSize = GlobalDevice().GetResourceStagingSize(description);
 	CHECK(resourceUploadSize <= UploadHeap.Heap.Size);
 
 	if (UploadHeap.Offset + resourceUploadSize > UploadHeap.Heap.Size)
