@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+#include "Base.hlsli"
 #include "Luminance.hlsli"
 
 uint32 HDRToHistogramBin(float32x3 hdrRGB)

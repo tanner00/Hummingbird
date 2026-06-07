@@ -39,7 +39,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	if (query.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
 	{
-		rgb = ToRGB(Hash(query.CommittedInstanceID()));
+		rgb = UInt32ToRGB(Hash(query.CommittedInstanceID()));
 	}
 
 	hdrTexture[dispatchThreadID.xy] = rgb;

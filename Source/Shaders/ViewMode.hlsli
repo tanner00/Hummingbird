@@ -1,4 +1,5 @@
-#include "Common.hlsli"
+#include "Color.hlsli"
+#include "Hash.hlsli"
 #include "Surface.hlsli"
 #include "Types.hlsli"
 
@@ -15,7 +16,7 @@ bool32 CheckViewMode(ViewMode viewMode, Surface surface, uint32 triangleIndex, o
 		rgb = surface.IsSpecularGlossiness ? surface.DiffuseRGB : surface.BaseColorRGB;
 		break;
 	case ViewMode::Geometry:
-		rgb = ToRGB(Hash(triangleIndex));
+		rgb = UInt32ToRGB(Hash(triangleIndex));
 		break;
 	case ViewMode::Normal:
 		rgb = SRGBToLinear(surface.ShadeNormalWS * 0.5f + 0.5f);

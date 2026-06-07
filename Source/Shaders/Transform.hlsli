@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common.hlsli"
+#include "Base.hlsli"
 
 float32x3 PerspectiveDivide(float32x4 homogeneous)
 {

@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+#include "Math.hlsli"
 #include "Surface.hlsli"
 
 static const float32x3 DielectricSpecular = 0.04f;

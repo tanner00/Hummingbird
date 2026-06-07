@@ -1,5 +1,6 @@
 #include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
+#include "Math.hlsli"
 #include "PBR.hlsli"
 #include "Shadow.hlsli"
 #include "Surface.hlsli"

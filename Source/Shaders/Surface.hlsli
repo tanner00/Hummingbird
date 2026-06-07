@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common.hlsli"
+#include "Color.hlsli"
 #include "Types.hlsli"
 
 struct Surface
