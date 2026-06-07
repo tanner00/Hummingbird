@@ -1,5 +1,6 @@
 #include "ToneMap.hlsli"
 #include "Luminance.hlsli"
+#include "Samplers.hlsli"
 #include "Transform.hlsli"
 #include "Types.hlsli"
 
@@ -25,15 +26,14 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 {
 	const Texture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
 	const RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
-	const SamplerState linearClampSampler = ResourceDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
 	if (RootConstants.DebugViewMode)
 	{
-		const float32x3 ldrRGB = hdrTexture.Sample(linearClampSampler, input.UV);
+		const float32x3 ldrRGB = hdrTexture.Sample(GetLinearClampSampler(), input.UV);
 		return float32x4(ldrRGB, 1.0f);
 	}
 
-	const float32x3 hdrRGB = hdrTexture.Sample(linearClampSampler, input.UV);
+	const float32x3 hdrRGB = hdrTexture.Sample(GetLinearClampSampler(), input.UV);
 
 	const float32 averageLuminance = luminanceBuffer.Load<float32>(LuminanceHistogramBinsCount * sizeof(uint32));
 

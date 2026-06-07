@@ -36,6 +36,7 @@ static ReadTexture CreateReadTexture(ResourceUploader::Lifetime lifetime,
 	{
 		.Type = ViewType::ShaderResource,
 		.Resource = texture,
+		.ViewHeap = GlobalResourceViewHeap(),
 	});
 
 	return ReadTexture { texture, view };
@@ -66,6 +67,7 @@ static ReadBuffer CreateReadBuffer(ResourceUploader::Lifetime lifetime,
 			.Size = size,
 			.Stride = stride,
 		},
+		.ViewHeap = GlobalResourceViewHeap(),
 	});
 
 	return ReadBuffer { buffer, view };
@@ -123,6 +125,8 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 		.MagnificationFilter = SamplerFilter::Anisotropic,
 		.HorizontalAddress = SamplerAddress::Wrap,
 		.VerticalAddress = SamplerAddress::Wrap,
+		.ViewHeap = GlobalSamplerViewHeap(),
+		.ReservedIndex = HLSL::AnisotropicWrapSamplerIndex,
 	});
 
 	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
@@ -144,6 +148,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 				.Size = sizeof(HLSL::Scene),
 				.Stride = 0,
 			},
+			.ViewHeap = GlobalResourceViewHeap(),
 		});
 	}
 
@@ -164,6 +169,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 			.Size = SceneLuminanceBufferResource.Size,
 			.Stride = 0,
 		},
+		.ViewHeap = GlobalResourceViewHeap(),
 	});
 
 	CreatePipelines();
@@ -203,6 +209,8 @@ Renderer::~Renderer()
 void Renderer::Update(const CameraController& cameraController, float32 timeDelta, [[maybe_unused]] float64 frameStartCPUTime)
 {
 	GlobalGraphics().Begin();
+
+	GlobalGraphics().SetViewHeaps(GlobalResourceViewHeap(), GlobalSamplerViewHeap());
 
 	if (FinalTextureResource.IsValid())
 	{
@@ -369,7 +377,6 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		.HDRTextureIndex = ShouldAntiAlias() ? GlobalDevice().Get(AccumulationTexture.ShaderResourceView)
 											 : GlobalDevice().Get(HDRTexture.ShaderResourceView),
 		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-		.LinearClampSamplerIndex = GlobalDevice().Get(RenderContext.LinearClampSampler),
 		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
 	};
 
@@ -421,7 +428,6 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 				.DrawCallIndex = static_cast<uint32>(drawCallIndex),
 				.PrimitiveIndex = static_cast<uint32>(primitive.GlobalIndex),
 				.NodeIndex = static_cast<uint32>(nodeIndex),
-				.AnisotropicWrapSamplerIndex = GlobalDevice().Get(AnisotropicWrapSampler),
 				.ViewMode = ViewMode,
 				.NormalLocalToWorld = normalLocalToWorld,
 			};
@@ -479,7 +485,6 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 	{
 		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
 		.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
-		.AnisotropicWrapSamplerIndex = GlobalDevice().Get(AnisotropicWrapSampler),
 		.ViewMode = ViewMode,
 	};
 
@@ -818,6 +823,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	SceneAccelerationStructure = GlobalDevice().Create(RayTracingAccelerationStructureDescription
 	{
 		.Resource = SceneAccelerationStructureResource,
+		.ViewHeap = GlobalResourceViewHeap(),
 	});
 
 	GlobalGraphics().End();
@@ -1206,6 +1212,7 @@ void Renderer::CreateSwapChainTextures(uint32 width, uint32 height)
 		{
 			.Type = ViewType::RenderTarget,
 			.Resource = SwapChainTextureResources[frameIndex],
+			.ViewHeap = GlobalRenderTargetViewHeap(),
 		});
 	}
 }
@@ -1239,11 +1246,13 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 			{
 				.Type = ViewType::ShaderResource,
 				.Resource = resource,
+				.ViewHeap = GlobalResourceViewHeap(),
 			}),
 			.UnorderedAccessView = GlobalDevice().Create(
 			{
 				.Type = ViewType::UnorderedAccess,
 				.Resource = resource,
+				.ViewHeap = GlobalResourceViewHeap(),
 			}),
 		};
 	};
@@ -1262,6 +1271,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 	{
 		.Type = ViewType::DepthStencil,
 		.Resource = DepthTextureResource,
+		.ViewHeap = GlobalDepthStencilViewHeap(),
 	});
 
 	VisibilityTextureResource = GlobalDevice().Create(
@@ -1277,11 +1287,13 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 	{
 		.Type = ViewType::RenderTarget,
 		.Resource = VisibilityTextureResource,
+		.ViewHeap = GlobalRenderTargetViewHeap(),
 	});
 	VisibilityTextureShaderResourceView = GlobalDevice().Create(
 	{
 		.Type = ViewType::ShaderResource,
 		.Resource = VisibilityTextureResource,
+		.ViewHeap = GlobalResourceViewHeap(),
 	});
 
 	HDRTexture = createWriteTexture(ResourceFormat::RGBA32Float, "HDR Texture"_view);
@@ -1301,11 +1313,13 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 	{
 		.Type = ViewType::RenderTarget,
 		.Resource = FinalTextureResource,
+		.ViewHeap = GlobalRenderTargetViewHeap(),
 	});
 	FinalTextureShaderResourceView = GlobalDevice().Create(
 	{
 		.Type = ViewType::ShaderResource,
 		.Resource = FinalTextureResource,
+		.ViewHeap = GlobalResourceViewHeap(),
 	});
 
 	TemporalAntiAliasing.DiscardPreviousFrame = true;

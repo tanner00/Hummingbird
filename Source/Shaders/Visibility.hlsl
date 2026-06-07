@@ -1,3 +1,4 @@
+#include "Samplers.hlsli"
 #include "Transform.hlsli"
 #include "Types.hlsli"
 
@@ -29,7 +30,6 @@ PixelInput VertexStart(VertexInput input)
 
 uint32x2 PixelStart(PixelInput input, uint32 primitiveID : SV_PrimitiveID) : SV_Target
 {
-	const SamplerState anisotropicWrapSampler = ResourceDescriptorHeap[RootConstants.AnisotropicWrapSamplerIndex];
 	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
 	const StructuredBuffer<Material> materialBuffer = ResourceDescriptorHeap[Scene.MaterialBufferIndex];
 
@@ -37,7 +37,7 @@ uint32x2 PixelStart(PixelInput input, uint32 primitiveID : SV_PrimitiveID) : SV_
 	const Material material = materialBuffer[primitive.MaterialIndex];
 
 	const Texture2D<float32x4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
-	const float32 alpha = baseColorOrDiffuseTexture.Sample(anisotropicWrapSampler, input.UV).a * material.BaseColorOrDiffuseFactor.a;
+	const float32 alpha = baseColorOrDiffuseTexture.Sample(GetAnisotropicWrapSampler(), input.UV).a * material.BaseColorOrDiffuseFactor.a;
 
 	if (alpha < material.AlphaCutoff && RootConstants.ViewMode != ViewMode::Geometry)
 	{

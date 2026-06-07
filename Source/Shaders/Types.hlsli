@@ -4,6 +4,10 @@
 #include "Shared.hlsli"
 #undef SHARED_ON
 
+static const uint32 LinearClampSamplerIndex = 1;
+static const uint32 AnisotropicWrapSamplerIndex = 2;
+static const uint32 SamplerCount = AnisotropicWrapSamplerIndex + 1;
+
 enum class ViewMode : uint32
 {
 	Lit,
@@ -17,11 +21,8 @@ struct SceneRootConstants
 	uint32 DrawCallIndex;
 	uint32 PrimitiveIndex;
 	uint32 NodeIndex;
-	uint32 AnisotropicWrapSamplerIndex;
 
 	ViewMode ViewMode;
-
-	PAD(12);
 
 	Matrix NormalLocalToWorld;
 };
@@ -31,7 +32,6 @@ struct DeferredRootConstants
 	uint32 HDRTextureIndex;
 
 	uint32 VisibilityTextureIndex;
-	uint32 AnisotropicWrapSamplerIndex;
 
 	ViewMode ViewMode;
 };
@@ -74,7 +74,6 @@ struct ToneMapRootConstants
 {
 	uint32 HDRTextureIndex;
 	uint32 LuminanceBufferIndex;
-	uint32 LinearClampSamplerIndex;
 
 	bool32 DebugViewMode;
 };
@@ -178,9 +177,8 @@ struct UIRootConstants
 {
 	uint32 UIDrawBufferIndex;
 	uint32 FontTextureIndex;
-	uint32 LinearClampSamplerIndex;
 
-	PAD(4);
+	PAD(8);
 
 	Matrix ScreenToClip;
 	float32x2 UnitRange;
