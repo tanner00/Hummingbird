@@ -91,7 +91,7 @@ Scene LoadScene(StringView filePath)
 
 			const float32 aspectRatio = perspectiveCameraObject.HasKey("aspectRatio"_view)
 									? static_cast<float32>(perspectiveCameraObject["aspectRatio"_view].GetDecimal())
-									: (16.0f / 9.0f);
+									: 16.0f / 9.0f;
 
 			const float32 nearZ = static_cast<float32>(perspectiveCameraObject["znear"_view].GetDecimal());
 

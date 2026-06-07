@@ -503,8 +503,8 @@ static bool IsPointInRoundedRectangle(float32 x, float32 y, float32 left, float3
 		(left + right) * 0.5f,
 		(top + bottom) * 0.5f,
 	};
-	const float32 cornerRadius = x > center.X ? (y > center.Y ? cornerRadii.W : cornerRadii.Y)
-											  : (y > center.Y ? cornerRadii.Z : cornerRadii.X);
+	const float32 cornerRadius = x > center.X ? y > center.Y ? cornerRadii.W : cornerRadii.Y
+											  : y > center.Y ? cornerRadii.Z : cornerRadii.X;
 
 	const float32 rectangleX = Clamp(x, left + cornerRadius, right - cornerRadius);
 	const float32 rectangleY = Clamp(y, top + cornerRadius, bottom - cornerRadius);
@@ -655,8 +655,8 @@ static float32 GetChildrenSize(const Element& element, bool x, Direction directi
 {
 	const usize count = element.ChildrenIDs.GetCount();
 
-	float32 sizeSS = (IsSameDirection(x, direction) && count > 0) ? element.Description.Layout.SpacingSS * static_cast<float32>(count - 1)
-																  : 0.0f;
+	float32 sizeSS = IsSameDirection(x, direction) && count > 0 ? element.Description.Layout.SpacingSS * static_cast<float32>(count - 1)
+																: 0.0f;
 
 	for (const ID childID : element.ChildrenIDs)
 	{
@@ -827,19 +827,19 @@ static void LayoutSize(ID rootID, bool x)
 
 					const float32 flexibleElementSizeSS = x ? flexibleElement.SizeSS.X : flexibleElement.SizeSS.Y;
 
-					if (grow ? (flexibleElementSizeSS >= flexibleElementLimitSizeSS) : (flexibleElementSizeSS <= flexibleElementLimitSizeSS))
+					if (grow ? flexibleElementSizeSS >= flexibleElementLimitSizeSS : flexibleElementSizeSS <= flexibleElementLimitSizeSS)
 					{
 						flexibleIDs.Remove(flexibleIDsIndex);
 						--flexibleIDsIndex;
 						continue;
 					}
 
-					if (grow ? (flexibleElementSizeSS < firstFlexibleSS) : (flexibleElementSizeSS > firstFlexibleSS))
+					if (grow ? flexibleElementSizeSS < firstFlexibleSS : flexibleElementSizeSS > firstFlexibleSS)
 					{
 						secondFlexibleSS = firstFlexibleSS;
 						firstFlexibleSS = flexibleElementSizeSS;
 					}
-					if (grow ? (flexibleElementSizeSS > firstFlexibleSS) : (flexibleElementSizeSS < firstFlexibleSS))
+					if (grow ? flexibleElementSizeSS > firstFlexibleSS : flexibleElementSizeSS < firstFlexibleSS)
 					{
 						secondFlexibleSS = grow ? Min(secondFlexibleSS, flexibleElementSizeSS) : Max(secondFlexibleSS, flexibleElementSizeSS);
 						distributeLS = secondFlexibleSS - firstFlexibleSS;
@@ -976,7 +976,7 @@ static void LayoutPosition(ID id, bool x, float32 timeDelta, float32 cursorSS)
 			scrollOffsetLS += static_cast<float32>(Platform::GetMouseScrollY()) * 12000.0f * timeDelta;
 		}
 
-		const float32 maxScrollLS = Max(x ? (element.NaturalSizeLS.X - element.SizeSS.X) : (element.NaturalSizeLS.Y - element.SizeSS.Y), 0.0f);
+		const float32 maxScrollLS = Max(x ? element.NaturalSizeLS.X - element.SizeSS.X : element.NaturalSizeLS.Y - element.SizeSS.Y, 0.0f);
 		scrollOffsetLS = Clamp(scrollOffsetLS, 0.0f, maxScrollLS);
 
 		cursorSS -= scrollOffsetLS;
@@ -1021,8 +1021,8 @@ static void DrawChildren(const Element& element, ArrayView<ID> childrenIDs)
 		};
 		const float32x2 betweenSizeSS =
 		{
-			horizontal ? elementStyle.BetweenSizeSS : (element.SizeSS.X - elementStyle.BorderSizeSS * 2.0f),
-			horizontal ? (element.SizeSS.Y - elementStyle.BorderSizeSS * 2.0f) : elementStyle.BetweenSizeSS,
+			horizontal ? elementStyle.BetweenSizeSS : element.SizeSS.X - elementStyle.BorderSizeSS * 2.0f,
+			horizontal ? element.SizeSS.Y - elementStyle.BorderSizeSS * 2.0f : elementStyle.BetweenSizeSS,
 		};
 		DrawRectangle(betweenPositionSS, betweenSizeSS, elementStyle.BetweenSRGBA, element.Layer);
 
