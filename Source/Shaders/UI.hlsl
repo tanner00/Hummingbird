@@ -73,7 +73,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 	case UIDrawType::Rectangle:
 	{
 		const float32 edgeSoftnessSS = all(draw.CornerRadiiSS <= 1.0f) ? 0.0f : 1.0f;
-		const float32 borderSoftnessSS = (all(draw.CornerRadiiSS <= 1.0f) || draw.BorderSizeSS <= 1.0f) ? 0.0f : 1.0f;
+		const float32 borderSoftnessSS = all(draw.CornerRadiiSS <= 1.0f) || draw.BorderSizeSS <= 1.0f ? 0.0f : 1.0f;
 
 		const float32x2 halfSizeSS = draw.SizeSS * 0.5f;
 		const float32x2 centerPositionSS = draw.SizeSS * input.UV - halfSizeSS;

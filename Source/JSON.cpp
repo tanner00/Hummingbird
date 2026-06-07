@@ -373,7 +373,7 @@ static float64 ParseNumber(StringView buffer, usize* index)
 	}
 
 	const float64 power = static_cast<float64>(Power10(Absolute(exponent)));
-	const float64 multiplier = (exponent >= 0) ? power : (1.0 / power);
+	const float64 multiplier = exponent >= 0 ? power : 1.0 / power;
 	return mantissa * multiplier;
 }
 

@@ -76,7 +76,7 @@ void Shutdown()
 Resource Upload(Lifetime lifetime, const void* data, const ResourceDescription& description)
 {
 	LinearHeap* heap = lifetime == Lifetime::Persistent ? &PersistentHeap
-														: (lifetime == Lifetime::Scene ? &SceneHeaps.Last() : nullptr);
+														: lifetime == Lifetime::Scene ? &SceneHeaps.Last() : nullptr;
 	CHECK(heap);
 
 	const usize resourceAlignment = GlobalDevice().GetResourceAlignment(description);
