@@ -1,5 +1,4 @@
 #include "LuminanceHistogram.hlsli"
-#include "Common.hlsli"
 #include "Types.hlsli"
 
 ConstantBuffer<LuminanceHistogramRootConstants> RootConstants : register(b0);

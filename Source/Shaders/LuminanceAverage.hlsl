@@ -1,4 +1,3 @@
-#include "Common.hlsli"
 #include "Luminance.hlsli"
 #include "Types.hlsli"
 

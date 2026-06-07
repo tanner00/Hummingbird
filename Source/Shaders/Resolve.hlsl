@@ -1,6 +1,8 @@
 #include "Resolve.hlsli"
 #include "Barycentrics.hlsli"
+#include "Color.hlsli"
 #include "Geometry.hlsli"
+#include "Math.hlsli"
 #include "Transform.hlsli"
 #include "Types.hlsli"
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Common.hlsli"
 #include "Types.hlsli"
 
 void LoadTriangleIndices(ByteAddressBuffer vertexBuffer, Primitive primitive, uint32 triangleOffset, out uint32 indices[3])

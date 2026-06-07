@@ -3,6 +3,7 @@
 #include "RHI/HLSL.hpp"
 #include "Luft/Math.hpp"
 #else
+#include "Base.hlsli"
 #define PAD(size)
 #define Matrix matrix
 #endif

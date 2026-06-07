@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Math.hlsli"
 #include "Transform.hlsli"
 
 float32x3 PerspectiveCorrectBarycentrics(float32x3 barycentrics, float32x3 w)

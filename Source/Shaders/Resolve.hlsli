@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common.hlsli"
+#include "Base.hlsli"
 #include "Transform.hlsli"
 
 float32x3 SampleTextureCatmullRom(Texture2D<float32x3> texture, uint32x2 textureDimensions, float32x2 uv)
@@ -33,16 +33,6 @@ float32x3 SampleTextureCatmullRom(Texture2D<float32x3> texture, uint32x2 texture
 	}
 
 	return sample;
-}
-
-float32x3 RGBToYCoCg(float32x3 x)
-{
-	return float32x3(x.r * 0.25f + x.g * 0.5f + x.b * 0.25f, x.r * 0.5f - x.b * 0.5f, -x.r * 0.25f + x.g * 0.5f - x.b * 0.25f);
-}
-
-float32x3 YCoCgToRGB(float32x3 x)
-{
-	return float32x3(x.x + x.y - x.z, x.x + x.z, x.x - x.y - x.z);
 }
 
 float32x3 ToneMapReinhardYCoCg(float32x3 x)

@@ -1,3 +1,5 @@
 #pragma once
 
-#include "Common.hlsli"
+#include "Color.hlsli"
+#include "Hash.hlsli"
+#include "Math.hlsli"
