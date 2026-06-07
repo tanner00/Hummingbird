@@ -1,4 +1,5 @@
 #include "Color.hlsli"
+#include "Samplers.hlsli"
 #include "UI.hlsli"
 #include "Transform.hlsli"
 #include "Types.hlsli"
@@ -93,9 +94,8 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 	case UIDrawType::Character:
 	{
 		const Texture2D<float32x3> fontTexture = ResourceDescriptorHeap[RootConstants.FontTextureIndex];
-		const SamplerState linearClampSampler = ResourceDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
-		const float32x3 multiChannelSignedDistance = fontTexture.Sample(linearClampSampler, input.UV);
+		const float32x3 multiChannelSignedDistance = fontTexture.Sample(GetLinearClampSampler(), input.UV);
 		const float32 signedDistance = Median(multiChannelSignedDistance);
 		const float32 distanceSS = CalculateDistanceFieldRangeSS(input.UV, RootConstants.UnitRange) * (signedDistance - 0.5f);
 
@@ -107,11 +107,10 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 	case UIDrawType::Image:
 	{
 		const Texture2D<float32x4> imageTexture = ResourceDescriptorHeap[draw.ImageIndex];
-		const SamplerState linearClampSampler = ResourceDescriptorHeap[RootConstants.LinearClampSamplerIndex];
 
 		const float32x4 rgba = float32x4(SRGBToLinear(draw.SRGBA.rgb), draw.SRGBA.a);
 
-		srgba = LinearToSRGB(imageTexture.Sample(linearClampSampler, input.UV) * rgba);
+		srgba = LinearToSRGB(imageTexture.Sample(GetLinearClampSampler(), input.UV) * rgba);
 		break;
 	}
 	}

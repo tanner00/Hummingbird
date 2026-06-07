@@ -2,6 +2,7 @@
 
 #include "Barycentrics.hlsli"
 #include "Geometry.hlsli"
+#include "Samplers.hlsli"
 #include "Types.hlsli"
 
 float32 CastShadowRay(float32x3 originWS,
@@ -10,8 +11,7 @@ float32 CastShadowRay(float32x3 originWS,
 					  RaytracingAccelerationStructure accelerationStructure,
 					  ByteAddressBuffer vertexBuffer,
 					  StructuredBuffer<Primitive> primitiveBuffer,
-					  StructuredBuffer<Material> materialBuffer,
-					  SamplerState sampler)
+					  StructuredBuffer<Material> materialBuffer)
 {
 	RayDesc rayDescription;
 	rayDescription.Origin = originWS;
@@ -42,7 +42,7 @@ float32 CastShadowRay(float32x3 originWS,
 
 		const Material material = materialBuffer[primitive.MaterialIndex];
 		const Texture2D<float32x4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
-		const float32 alpha = baseColorOrDiffuseTexture.SampleLevel(sampler, uv, 0).a * material.BaseColorOrDiffuseFactor.a;
+		const float32 alpha = baseColorOrDiffuseTexture.SampleLevel(GetAnisotropicWrapSampler(), uv, 0).a * material.BaseColorOrDiffuseFactor.a;
 
 		if (alpha >= material.AlphaCutoff)
 		{

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Color.hlsli"
+#include "Samplers.hlsli"
 #include "Types.hlsli"
 
 struct Surface
@@ -49,18 +50,17 @@ Surface EvaluateSurface(Material material,
 						float32x2 uv,
 						float32x2 ddxUV,
 						float32x2 ddyUV,
-						float32x3 normalWS,
-						SamplerState anisotropicWrapSampler)
+						float32x3 normalWS)
 {
 	const Texture2D<float32x4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
 	const Texture2D<float32x4> metallicRoughnessOrSpecularGlossinessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
 	const Texture2D<float32x3> emissiveTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.EmissiveTextureIndex)];
 	const Texture2D<float32x3> normalMapTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.NormalMapTextureIndex)];
 
-	const float32x4 baseColorOrDiffuse = baseColorOrDiffuseTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
-	const float32x4 metallicRoughnessOrSpecularGlossiness = metallicRoughnessOrSpecularGlossinessTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
-	const float32x3 emissive = emissiveTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV);
-	float32x3 normalTS = normalMapTexture.SampleGrad(anisotropicWrapSampler, uv, ddxUV, ddyUV).xyz * 2.0f - 1.0f;
+	const float32x4 baseColorOrDiffuse = baseColorOrDiffuseTexture.SampleGrad(GetAnisotropicWrapSampler(), uv, ddxUV, ddyUV);
+	const float32x4 metallicRoughnessOrSpecularGlossiness = metallicRoughnessOrSpecularGlossinessTexture.SampleGrad(GetAnisotropicWrapSampler(), uv, ddxUV, ddyUV);
+	const float32x3 emissive = emissiveTexture.SampleGrad(GetAnisotropicWrapSampler(), uv, ddxUV, ddyUV);
+	float32x3 normalTS = normalMapTexture.SampleGrad(GetAnisotropicWrapSampler(), uv, ddxUV, ddyUV).xyz * 2.0f - 1.0f;
 	if (twoChannelNormalMaps)
 	{
 		normalTS.z = sqrt(1.0f - saturate(dot(normalTS.xy, normalTS.xy)));

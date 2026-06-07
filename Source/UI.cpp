@@ -180,6 +180,7 @@ void Init()
 	{
 		.Type = ViewType::ShaderResource,
 		.Resource = Font::Resource,
+		.ViewHeap = GlobalResourceViewHeap(),
 	});
 
 	DDS::UnloadImage(&fontImage);
@@ -205,6 +206,7 @@ void Init()
 				.Size = DrawBufferResources[frameIndex].Size,
 				.Stride = sizeof(HLSL::UIDraw),
 			},
+			.ViewHeap = GlobalResourceViewHeap(),
 		});
 	}
 }
@@ -1156,7 +1158,6 @@ void Submit(uint32 screenWidth, uint32 screenHeight, float32 timeDelta)
 
 	RootConstants.UIDrawBufferIndex = GlobalDevice().Get(DrawBufferViews[GlobalDevice().GetFrameIndex()]);
 	RootConstants.FontTextureIndex = GlobalDevice().Get(Font::TextureView);
-	RootConstants.LinearClampSamplerIndex = GlobalDevice().Get(RenderContext.LinearClampSampler);
 
 	SortStable(Draws.GetData(), DrawIndex, Allocator, [](const HLSL::UIDraw& a, const HLSL::UIDraw& b) -> bool
 	{

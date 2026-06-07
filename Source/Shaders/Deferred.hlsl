@@ -16,7 +16,6 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	RWTexture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
 
 	const Texture2D<uint32x2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
-	const SamplerState anisotropicWrapSampler = ResourceDescriptorHeap[RootConstants.AnisotropicWrapSamplerIndex];
 	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
 	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
 	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
@@ -107,8 +106,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 											uv,
 											ddxUV,
 											ddyUV,
-											normalize(TransformLocalDirectionToWorld(normalLS, node.NormalLocalToWorld)),
-											anisotropicWrapSampler);
+											normalize(TransformLocalDirectionToWorld(normalLS, node.NormalLocalToWorld)));
 
 	float32x3 viewModeRGB;
 	if (CheckViewMode(RootConstants.ViewMode, surface, triangleIndex, viewModeRGB))
@@ -140,8 +138,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 									 			   accelerationStructure,
 									 			   vertexBuffer,
 									 			   primitiveBuffer,
-									 			   materialBuffer,
-									 			   anisotropicWrapSampler);
+									 			   materialBuffer);
 	}
 
 	const float32x3 directionalLightDirectionWS = normalize(directionalLightBuffer.DirectionWS);
@@ -156,8 +153,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 																	accelerationStructure,
 																	vertexBuffer,
 																	primitiveBuffer,
-																	materialBuffer,
-																	anisotropicWrapSampler);
+																	materialBuffer);
 
 	const float32x3 unlitRGB = surface.IsSpecularGlossiness ? surface.DiffuseRGB : surface.BaseColorRGB;
 
