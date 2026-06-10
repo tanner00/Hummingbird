@@ -44,6 +44,7 @@ void ComputeTangents(float32x3 normal,
 }
 
 Surface EvaluateSurface(Material material,
+						bool32 frontFacing,
 						bool32 twoChannelNormalMaps,
 						float32x3 ddxPositionWS,
 						float32x3 ddyPositionWS,
@@ -86,7 +87,7 @@ Surface EvaluateSurface(Material material,
 
 	surface.Alpha = material.BaseColorOrDiffuseFactor.a * baseColorOrDiffuse.a;
 
-	surface.ShadeNormalWS = normalize(mul(tbn, normalTS));
+	surface.ShadeNormalWS = normalize(mul(tbn, normalTS)) * (material.DoubleSided && !frontFacing ? -1.0f : 1.0f);
 
 	return surface;
 }

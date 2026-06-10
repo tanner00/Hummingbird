@@ -99,7 +99,11 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const float32x3 ddxPositionWS = LerpBarycentrics(ddxJitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
 	const float32x3 ddyPositionWS = LerpBarycentrics(ddyJitteredWeights, positionsWS[0].xyz, positionsWS[1].xyz, positionsWS[2].xyz);
 
+	const float32x3 triangleNormalWS = cross(positionsWS[1].xyz - positionsWS[0].xyz, positionsWS[2].xyz - positionsWS[0].xyz);
+	const bool32 frontFacing = dot(triangleNormalWS, positionWS - Scene.ViewPositionWS) < 0.0f;
+
 	const Surface surface = EvaluateSurface(material,
+											frontFacing,
 											Scene.TwoChannelNormalMaps,
 											ddxPositionWS,
 											ddyPositionWS,

@@ -434,7 +434,9 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 
 			++drawCallIndex;
 
-			GlobalGraphics().SetPipeline(VisibilityPipeline);
+			const Material& material = SceneMaterials[primitive.MaterialIndex];
+
+			GlobalGraphics().SetPipeline(material.DoubleSided ? VisibilityDoubleSidedPipeline : VisibilityPipeline);
 			GlobalGraphics().SetRootConstants(&rootConstants);
 			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
 
@@ -684,8 +686,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 	{
 		for (Primitive& primitive : mesh.Primitives)
 		{
-			const GLTF::AlphaMode alphaMode = primitive.MaterialIndex != INDEX_NONE ? scene.Materials[primitive.MaterialIndex].AlphaMode
-																					: GLTF::AlphaMode::Opaque;
+			const GLTF::AlphaMode alphaMode = scene.Materials[primitive.MaterialIndex].AlphaMode;
 
 			const RayTracingAccelerationStructureTriangleGeometry geometry =
 			{
@@ -892,6 +893,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.EmissiveStrength = gltfMaterial.EmissiveStrength,
 			.Translucent = gltfMaterial.AlphaMode != GLTF::AlphaMode::Opaque,
 			.AlphaCutoff = gltfMaterial.AlphaCutoff,
+			.DoubleSided = gltfMaterial.DoubleSided,
 		};
 		if (gltfMaterial.IsSpecularGlossiness)
 		{
@@ -964,6 +966,7 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 			.EmissiveFactor = material.EmissiveFactor,
 			.EmissiveStrength = material.EmissiveStrength,
 			.AlphaCutoff = material.AlphaCutoff,
+			.DoubleSided = material.DoubleSided,
 		});
 	}
 	SceneMaterialBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,
@@ -1090,6 +1093,7 @@ void Renderer::CreatePipelines()
 										   StringView path,
 										   bool pixelShader,
 										   bool depth,
+										   bool cull,
 										   auto... formats) -> GraphicsPipeline
 	{
 		Shader vertex = GlobalDevice().Create(
@@ -1115,6 +1119,7 @@ void Renderer::CreatePipelines()
 			.RenderTargetFormats = { formats... },
 			.DepthStencilFormat = depth ? ResourceFormat::Depth32 : ResourceFormat::None,
 			.AlphaBlend = false,
+			.Cull = cull,
 			.ReverseDepth = true,
 			.DebugName = debugName,
 		});
@@ -1149,7 +1154,14 @@ void Renderer::CreatePipelines()
 												"Shaders/Visibility.hlsl"_view,
 												true,
 												true,
+												true,
 												ResourceFormat::RG32UInt);
+	VisibilityDoubleSidedPipeline = createGraphicsPipeline("Visibility Buffer Double-Sided Pipeline"_view,
+														   "Shaders/Visibility.hlsl"_view,
+														   true,
+														   true,
+														   false,
+														   ResourceFormat::RG32UInt);
 	DeferredPipeline = createComputePipeline("Deferred Pipeline"_view,
 											 "Shaders/Deferred.hlsl"_view);
 
@@ -1165,6 +1177,7 @@ void Renderer::CreatePipelines()
 											 "Shaders/ToneMap.hlsl"_view,
 											 true,
 											 false,
+											 false,
 											 ResourceFormat::RGBA8UNormSRGB);
 
 	PathTracePipeline = createComputePipeline("Path Trace Pipeline"_view,
@@ -1176,6 +1189,7 @@ void Renderer::CreatePipelines()
 void Renderer::DestroyPipelines()
 {
 	GlobalDevice().Destroy(&VisibilityPipeline);
+	GlobalDevice().Destroy(&VisibilityDoubleSidedPipeline);
 	GlobalDevice().Destroy(&DeferredPipeline);
 	GlobalDevice().Destroy(&ResolvePipeline);
 	GlobalDevice().Destroy(&LuminanceHistogramPipeline);

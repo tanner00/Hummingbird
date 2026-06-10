@@ -452,6 +452,7 @@ Scene LoadScene(StringView filePath)
 			.EmissiveStrength = 1.0f,
 			.AlphaMode = AlphaMode::Opaque,
 			.AlphaCutoff = 0.0f,
+			.DoubleSided = false,
 		};
 
 		const JSON::Object& materialObject = materialValue.GetObject();
@@ -619,6 +620,11 @@ Scene LoadScene(StringView filePath)
 		if (materialObject.HasKey("alphaCutoff"_view))
 		{
 			material.AlphaCutoff = static_cast<float32>(materialObject["alphaCutoff"_view].GetDecimal());
+		}
+
+		if (materialObject.HasKey("doubleSided"_view))
+		{
+			material.DoubleSided = materialObject["doubleSided"_view].GetBoolean();
 		}
 
 		materials.Add(material);
