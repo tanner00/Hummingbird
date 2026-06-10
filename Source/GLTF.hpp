@@ -186,6 +186,8 @@ struct Material
 
 	AlphaMode AlphaMode;
 	float32 AlphaCutoff;
+
+	bool DoubleSided;
 };
 
 struct Sampler

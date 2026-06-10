@@ -115,6 +115,7 @@ private:
 	RHI::RayTracingAccelerationStructure SceneAccelerationStructure;
 
 	RHI::GraphicsPipeline VisibilityPipeline;
+	RHI::GraphicsPipeline VisibilityDoubleSidedPipeline;
 	RHI::ComputePipeline DeferredPipeline;
 
 	RHI::ComputePipeline ResolvePipeline;

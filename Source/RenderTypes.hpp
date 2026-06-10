@@ -95,6 +95,8 @@ struct Material
 
 	bool Translucent;
 	float32 AlphaCutoff;
+
+	bool DoubleSided;
 };
 
 namespace HLSL

@@ -153,6 +153,8 @@ struct Material
 	float32 EmissiveStrength;
 
 	float32 AlphaCutoff;
+
+	bool32 DoubleSided;
 };
 
 struct DirectionalLight
