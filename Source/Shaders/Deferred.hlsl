@@ -157,8 +157,12 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 												   				 primitiveBuffer,
 												   				 materialBuffer);
 
+	const float32x3 skyFacingAmbientIlluminanceRGB = 0.15f * directionalLightIlluminanceRGB;
+	const float32x3 groundFacingAmbientIlluminanceRGB = 0.3f * skyFacingAmbientIlluminanceRGB;
+	const float32x3 ambientIlluminanceRGB = lerp(groundFacingAmbientIlluminanceRGB, skyFacingAmbientIlluminanceRGB, surface.ShadeNormalWS.y * 0.5f + 0.5f);
+
 	const float32x3 unlitRGB = surface.IsSpecularGlossiness ? surface.DiffuseRGB : surface.BaseColorRGB;
-	const float32x3 ambientLuminanceRGB = 0.05f * directionalLightBuffer.IntensityLux * unlitRGB;
+	const float32x3 ambientLuminanceRGB = ambientIlluminanceRGB * (unlitRGB / Pi);
 
 	hdrTexture[dispatchThreadID.xy] = pointLightLuminanceRGB + directionalLightLuminanceRGB + ambientLuminanceRGB + surface.EmissiveRGB;
 }
