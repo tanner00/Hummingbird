@@ -117,7 +117,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float32x3 viewDirectionWS = normalize(Scene.ViewPositionWS - positionWS);
 
-	float32x3 pointLightContributionRGB = 0.0f;
+	float32x3 pointLightLuminanceRGB = 0.0f;
 
 	for (uint32 pointLightIndex = 0; pointLightIndex < Scene.PointLightsCount; ++pointLightIndex)
 	{
@@ -128,36 +128,37 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 		const float32 objectToLightDistance = distance(pointLight.PositionWS, positionWS);
 		const float32 attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
 
-		pointLightContributionRGB += PBR(surface,
-										 viewDirectionWS,
-										 pointLightDirectionWS,
-										 attenuation * pointLight.IntensityCandela * pointLight.RGB) *
-									 CastShadowRay(positionWS,
-									 			   pointLightDirectionWS,
-									 			   objectToLightDistance,
-									 			   accelerationStructure,
-									 			   vertexBuffer,
-									 			   primitiveBuffer,
-									 			   materialBuffer);
+		pointLightLuminanceRGB += PBR(surface,
+									  viewDirectionWS,
+									  pointLightDirectionWS,
+									  attenuation * pointLight.IntensityCandela * pointLight.RGB) *
+								  CastShadowRay(positionWS,
+								  				pointLightDirectionWS,
+												objectToLightDistance,
+												accelerationStructure,
+												vertexBuffer,
+												primitiveBuffer,
+												materialBuffer);
 	}
 
 	const float32x3 directionalLightDirectionWS = normalize(directionalLightBuffer.DirectionWS);
 
-	const float32x3 directionalLightContributionRGB = PBR(surface,
-														  viewDirectionWS,
-														  directionalLightDirectionWS,
-														  directionalLightBuffer.IntensityLux * directionalLightBuffer.RGB) *
-													  CastShadowRay(positionWS,
-																	directionalLightDirectionWS,
-																	Infinity,
-																	accelerationStructure,
-																	vertexBuffer,
-																	primitiveBuffer,
-																	materialBuffer);
+	const float32x3 directionalLightIlluminanceRGB = directionalLightBuffer.IntensityLux * directionalLightBuffer.RGB;
+
+	const float32x3 directionalLightLuminanceRGB = PBR(surface,
+													   viewDirectionWS,
+													   directionalLightDirectionWS,
+													   directionalLightIlluminanceRGB) *
+												   CastShadowRay(positionWS,
+												   				 directionalLightDirectionWS,
+												   				 Infinity,
+												   				 accelerationStructure,
+												   				 vertexBuffer,
+												   				 primitiveBuffer,
+												   				 materialBuffer);
 
 	const float32x3 unlitRGB = surface.IsSpecularGlossiness ? surface.DiffuseRGB : surface.BaseColorRGB;
+	const float32x3 ambientLuminanceRGB = 0.05f * directionalLightBuffer.IntensityLux * unlitRGB;
 
-	const float32x3 ambientLightContributionRGB = 0.05f * directionalLightBuffer.IntensityLux * unlitRGB;
-
-	hdrTexture[dispatchThreadID.xy] = pointLightContributionRGB + directionalLightContributionRGB + ambientLightContributionRGB + surface.EmissiveRGB;
+	hdrTexture[dispatchThreadID.xy] = pointLightLuminanceRGB + directionalLightLuminanceRGB + ambientLuminanceRGB + surface.EmissiveRGB;
 }

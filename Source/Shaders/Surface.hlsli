@@ -31,11 +31,11 @@ void ComputeTangents(float32x3 normal,
 					 out float32x3 tangent,
 					 out float32x3 bitangent)
 {
-	const float32x3 ddxPositionPerpendicular = -cross(ddxPosition, normal);
-	const float32x3 ddyPositionPerpendicular = cross(ddyPosition, normal);
+	const float32x3 ddxPerpendicularPosition = -cross(ddxPosition, normal);
+	const float32x3 ddyPerpendicularPosition = cross(ddyPosition, normal);
 
-	tangent = ddyPositionPerpendicular * ddxUV.x + ddxPositionPerpendicular * ddyUV.x;
-	bitangent = ddyPositionPerpendicular * ddxUV.y + ddxPositionPerpendicular * ddyUV.y;
+	tangent = ddyPerpendicularPosition * ddxUV.x + ddxPerpendicularPosition * ddyUV.x;
+	bitangent = ddyPerpendicularPosition * ddxUV.y + ddxPerpendicularPosition * ddyUV.y;
 
 	const float32 inverseScale = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
 

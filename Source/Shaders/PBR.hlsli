@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Math.hlsli"
 #include "Surface.hlsli"
 
@@ -35,7 +37,7 @@ float32x3 BRDFCookTorrance(float32x3 cDiffuse,
 						   float32x3 normal,
 						   float32x3 viewDirection,
 						   float32x3 lightDirection,
-						   float32x3 lightRadiance)
+						   float32x3 lightIlluminanceRGB)
 {
 	const float32x3 halfwayDirection = normalize(viewDirection + lightDirection);
 
@@ -49,26 +51,26 @@ float32x3 BRDFCookTorrance(float32x3 cDiffuse,
 	const float32x3 specularBRDF = (d * f * g) / ToSafeDenominator(4.0f * nDotV * nDotL);
 	const float32x3 diffuseBRDF = (1.0f - f) * (cDiffuse / Pi);
 
-	return (diffuseBRDF + specularBRDF) * lightRadiance * nDotL;
+	return (diffuseBRDF + specularBRDF) * lightIlluminanceRGB * nDotL;
 }
 
-float32x3 PBRMetallicRoughness(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightRadiance)
+float32x3 PBRMetallicRoughness(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
 {
 	const float32x3 cDiffuse = lerp(surface.BaseColorRGB, 0.0f, surface.Metallic);
 	const float32x3 f0 = lerp(DielectricSpecular, surface.BaseColorRGB, surface.Metallic);
-	return BRDFCookTorrance(cDiffuse, f0, surface.Roughness, surface.ShadeNormalWS, viewDirection, lightDirection, lightRadiance);
+	return BRDFCookTorrance(cDiffuse, f0, surface.Roughness, surface.ShadeNormalWS, viewDirection, lightDirection, lightIlluminanceRGB);
 }
 
-float32x3 PBRSpecularGlossiness(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightRadiance)
+float32x3 PBRSpecularGlossiness(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
 {
 	const float32x3 cDiffuse = lerp(surface.DiffuseRGB, 0.0f, max(surface.Specular.r, max(surface.Specular.g, surface.Specular.b)));
 	const float32x3 f0 = surface.Specular;
 	const float32 roughness = 1.0f - surface.Glossiness;
-	return BRDFCookTorrance(cDiffuse, f0, roughness, surface.ShadeNormalWS, viewDirection, lightDirection, lightRadiance);
+	return BRDFCookTorrance(cDiffuse, f0, roughness, surface.ShadeNormalWS, viewDirection, lightDirection, lightIlluminanceRGB);
 }
 
-float32x3 PBR(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightRadiance)
+float32x3 PBR(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
 {
-	return surface.IsSpecularGlossiness ? PBRSpecularGlossiness(surface, viewDirection, lightDirection, lightRadiance)
-										: PBRMetallicRoughness(surface, viewDirection, lightDirection, lightRadiance);
+	return surface.IsSpecularGlossiness ? PBRSpecularGlossiness(surface, viewDirection, lightDirection, lightIlluminanceRGB)
+										: PBRMetallicRoughness(surface, viewDirection, lightDirection, lightIlluminanceRGB);
 }

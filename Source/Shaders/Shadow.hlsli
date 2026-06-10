@@ -5,7 +5,7 @@
 #include "Samplers.hlsli"
 #include "Types.hlsli"
 
-float32 CastShadowRay(float32x3 originWS,
+float32 CastShadowRay(float32x3 positionWS,
 					  float32x3 directionWS,
 					  float32 maxDistance,
 					  RaytracingAccelerationStructure accelerationStructure,
@@ -14,7 +14,7 @@ float32 CastShadowRay(float32x3 originWS,
 					  StructuredBuffer<Material> materialBuffer)
 {
 	RayDesc rayDescription;
-	rayDescription.Origin = originWS;
+	rayDescription.Origin = positionWS;
 	rayDescription.TMin = 0.001f;
 	rayDescription.Direction = directionWS;
 	rayDescription.TMax = maxDistance;
