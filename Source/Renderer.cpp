@@ -419,17 +419,14 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 		const Node& node = SceneNodes[nodeIndex];
 		const Mesh& mesh = SceneMeshes[node.MeshIndex];
 
-		const Matrix normalLocalToWorld = node.LocalToWorld.GetInverse().GetTranspose();
-
 		for (const Primitive& primitive : mesh.Primitives)
 		{
-			const HLSL::SceneRootConstants rootConstants =
+			const HLSL::VisibilityRootConstants rootConstants =
 			{
 				.DrawCallIndex = static_cast<uint32>(drawCallIndex),
 				.PrimitiveIndex = static_cast<uint32>(primitive.GlobalIndex),
 				.NodeIndex = static_cast<uint32>(nodeIndex),
 				.ViewMode = ViewMode,
-				.NormalLocalToWorld = normalLocalToWorld,
 			};
 
 			++drawCallIndex;
