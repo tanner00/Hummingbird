@@ -132,10 +132,10 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 		const float32 objectToLightDistance = distance(pointLight.PositionWS, positionWS);
 		const float32 attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
 
-		pointLightLuminanceRGB += PBR(surface,
-									  viewDirectionWS,
-									  pointLightDirectionWS,
-									  attenuation * pointLight.IntensityCandela * pointLight.RGB) *
+		pointLightLuminanceRGB += EvaluateDirectLighting(surface,
+														 viewDirectionWS,
+														 pointLightDirectionWS,
+														 attenuation * pointLight.IntensityCandela * pointLight.RGB) *
 								  CastShadowRay(positionWS,
 								  				pointLightDirectionWS,
 												objectToLightDistance,
@@ -149,10 +149,10 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float32x3 directionalLightIlluminanceRGB = directionalLightBuffer.IntensityLux * directionalLightBuffer.RGB;
 
-	const float32x3 directionalLightLuminanceRGB = PBR(surface,
-													   viewDirectionWS,
-													   directionalLightDirectionWS,
-													   directionalLightIlluminanceRGB) *
+	const float32x3 directionalLightLuminanceRGB = EvaluateDirectLighting(surface,
+																		  viewDirectionWS,
+																		  directionalLightDirectionWS,
+																		  directionalLightIlluminanceRGB) *
 												   CastShadowRay(positionWS,
 												   				 directionalLightDirectionWS,
 												   				 Infinity,
