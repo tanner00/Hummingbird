@@ -3,11 +3,11 @@
 #include "Math.hlsli"
 #include "Surface.hlsli"
 
-static const float32x3 DielectricSpecular = 0.04f;
+static const float32x3 DielectricSpecularF0 = 0.04f;
 
-float32x3 FresnelSchlick(float32x3 f0, float32x3 halfwayDirection, float32x3 viewDirection)
+float32x3 FresnelSchlick(float32x3 specularF0, float32x3 halfwayDirection, float32x3 viewDirection)
 {
-	return f0 + (1.0f - f0) * pow(saturate(1.0f - abs(dot(viewDirection, halfwayDirection))), 5.0f);
+	return specularF0 + (1.0f - specularF0) * pow(saturate(1.0f - abs(dot(viewDirection, halfwayDirection))), 5.0f);
 }
 
 float32 NDFTrowbridgeReitzGGX(float32x3 normal, float32x3 halfwayDirection, float32 roughness)
@@ -20,8 +20,8 @@ float32 NDFTrowbridgeReitzGGX(float32x3 normal, float32x3 halfwayDirection, floa
 float32 GeometrySchlickGGX(float32x3 normal, float32x3 direction, float32 roughness)
 {
 	const float32 kDirectLight = (roughness + 1.0f) * (roughness + 1.0f) / 8.0f;
-	const float32 nDotRay = saturate(dot(normal, direction));
-	return nDotRay / ToSafeDenominator(nDotRay * (1.0f - kDirectLight) + kDirectLight);
+	const float32 nDotDirection = saturate(dot(normal, direction));
+	return nDotDirection / ToSafeDenominator(nDotDirection * (1.0f - kDirectLight) + kDirectLight);
 }
 
 float32 GeometrySmith(float32x3 viewDirection, float32x3 lightDirection, float32x3 normal, float32 roughness)
@@ -37,7 +37,7 @@ float32x3 BRDFLambertianDiffuse(float32x3 diffuseReflectanceRGB)
 }
 
 float32x3 BRDFCookTorrance(float32x3 diffuseReflectanceRGB,
-						   float32x3 f0,
+						   float32x3 specularF0,
 						   float32 roughness,
 						   float32x3 normal,
 						   float32x3 viewDirection,
@@ -50,36 +50,34 @@ float32x3 BRDFCookTorrance(float32x3 diffuseReflectanceRGB,
 	const float32 nDotV = saturate(dot(normal, viewDirection));
 
 	const float32 d = NDFTrowbridgeReitzGGX(normal, halfwayDirection, roughness);
-	const float32x3 f = FresnelSchlick(f0, halfwayDirection, viewDirection);
+	const float32x3 f = FresnelSchlick(specularF0, halfwayDirection, viewDirection);
 	const float32 g = GeometrySmith(viewDirection, lightDirection, normal, roughness);
 
-	const float32x3 specularBRDF = (d * f * g) / ToSafeDenominator(4.0f * nDotV * nDotL);
 	const float32x3 diffuseBRDF = (1.0f - f) * BRDFLambertianDiffuse(diffuseReflectanceRGB);
+	const float32x3 specularBRDF = (d * f * g) / ToSafeDenominator(4.0f * nDotV * nDotL);
 
 	return (diffuseBRDF + specularBRDF) * lightIlluminanceRGB * nDotL;
 }
 
 float32x3 DiffuseReflectance(Surface surface)
 {
-	return surface.IsSpecularGlossiness ? lerp(surface.DiffuseRGB, 0.0f, max(surface.Specular.r, max(surface.Specular.g, surface.Specular.b)))
+	return surface.IsSpecularGlossiness ? lerp(surface.DiffuseRGB, 0.0f, max(surface.SpecularF0.r, max(surface.SpecularF0.g, surface.SpecularF0.b)))
 										: lerp(surface.BaseColorRGB, 0.0f, surface.Metallic);
 }
 
-float32x3 PBRMetallicRoughness(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
+float32x3 SpecularF0(Surface surface)
 {
-	const float32x3 f0 = lerp(DielectricSpecular, surface.BaseColorRGB, surface.Metallic);
-	return BRDFCookTorrance(DiffuseReflectance(surface), f0, surface.Roughness, surface.ShadeNormalWS, viewDirection, lightDirection, lightIlluminanceRGB);
+	return surface.IsSpecularGlossiness ? surface.SpecularF0
+										: lerp(DielectricSpecularF0, surface.BaseColorRGB, surface.Metallic);
 }
 
-float32x3 PBRSpecularGlossiness(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
+float32x3 EvaluateDirectLighting(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
 {
-	const float32x3 f0 = surface.Specular;
-	const float32 roughness = 1.0f - surface.Glossiness;
-	return BRDFCookTorrance(DiffuseReflectance(surface), f0, roughness, surface.ShadeNormalWS, viewDirection, lightDirection, lightIlluminanceRGB);
-}
-
-float32x3 PBR(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
-{
-	return surface.IsSpecularGlossiness ? PBRSpecularGlossiness(surface, viewDirection, lightDirection, lightIlluminanceRGB)
-										: PBRMetallicRoughness(surface, viewDirection, lightDirection, lightIlluminanceRGB);
+	return BRDFCookTorrance(DiffuseReflectance(surface),
+							SpecularF0(surface),
+							surface.IsSpecularGlossiness ? 1.0f - surface.Glossiness : surface.Roughness,
+							surface.ShadeNormalWS,
+							viewDirection,
+							lightDirection,
+							lightIlluminanceRGB);
 }

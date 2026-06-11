@@ -11,7 +11,7 @@ struct Surface
 	float32 Roughness;
 
 	float32x3 DiffuseRGB;
-	float32x3 Specular;
+	float32x3 SpecularF0;
 	float32 Glossiness;
 
 	bool32 IsSpecularGlossiness;
@@ -78,7 +78,7 @@ Surface EvaluateSurface(Material material,
 	surface.Roughness = material.RoughnessOrGlossinessFactor * metallicRoughnessOrSpecularGlossiness.g;
 
 	surface.DiffuseRGB = material.BaseColorOrDiffuseFactor.rgb * baseColorOrDiffuse.rgb;
-	surface.Specular = material.MetallicOrSpecularFactor * metallicRoughnessOrSpecularGlossiness.rgb;
+	surface.SpecularF0 = material.MetallicOrSpecularFactor * metallicRoughnessOrSpecularGlossiness.rgb;
 	surface.Glossiness = material.RoughnessOrGlossinessFactor * SRGBToLinear(metallicRoughnessOrSpecularGlossiness.a);
 
 	surface.IsSpecularGlossiness = material.IsSpecularGlossiness;
