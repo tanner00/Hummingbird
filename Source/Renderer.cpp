@@ -552,7 +552,7 @@ void Renderer::UpdatePathTracing()
 	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
 	GlobalGraphics().Dispatch((FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1);
 
-	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
+	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 									{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
 									{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
 									HDRTexture.Resource);
