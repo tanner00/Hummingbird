@@ -16,15 +16,13 @@ enum class ViewMode : uint32
 	Normal,
 };
 
-struct SceneRootConstants
+struct VisibilityRootConstants
 {
 	uint32 DrawCallIndex;
 	uint32 PrimitiveIndex;
 	uint32 NodeIndex;
 
 	ViewMode ViewMode;
-
-	Matrix NormalLocalToWorld;
 };
 
 struct DeferredRootConstants

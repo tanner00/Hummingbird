@@ -14,7 +14,7 @@ struct PixelInput
 	float32x2 UV : TEXCOORD0;
 };
 
-ConstantBuffer<SceneRootConstants> RootConstants : register(b0);
+ConstantBuffer<VisibilityRootConstants> RootConstants : register(b0);
 ConstantBuffer<Scene> Scene : register(b1);
 
 PixelInput VertexStart(VertexInput input)
