@@ -1,4 +1,4 @@
-include "Common.lua"
+include "Luft/Common.lua"
 
 workspace "Hummingbird"
 	DefineConfigurations()
