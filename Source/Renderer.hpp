@@ -18,8 +18,8 @@ public:
 
 	void Update(const CameraController& cameraController, float32 timeDelta, float64 frameStartCPUTime);
 
-	void ResizeSwapChain(uint32 width, uint32 height);
-	void ResizeViewport(uint32 width, uint32 height);
+	void ResizeSwapChain(uint32x2 dimensions);
+	void ResizeViewport(uint32x2 dimensions);
 
 	void SetScene(const GLTF::Scene& scene)
 	{
@@ -42,10 +42,10 @@ private:
 	void DestroyPipelines();
 	void RecreatePipelines();
 
-	void CreateSwapChainTextures(uint32 width, uint32 height);
+	void CreateSwapChainTextures(uint32x2 dimensions);
 	void DestroySwapChainTextures();
 
-	void CreateViewportTextures(uint32 width, uint32 height);
+	void CreateViewportTextures(uint32x2 dimensions);
 	void DestroyViewportTextures();
 
 	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit && !PathTrace; }

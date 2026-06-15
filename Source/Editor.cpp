@@ -254,16 +254,15 @@ void Editor::Update()
 
 			const float32x2 viewportSizeSS = GetSize(viewportID);
 
-			const uint32 viewportPixelWidth = static_cast<uint32>(viewportSizeSS.X);
-			const uint32 viewportPixelHeight = static_cast<uint32>(viewportSizeSS.Y);
+			const uint32x2 viewportPixelDimensions = { static_cast<uint32>(viewportSizeSS.X), static_cast<uint32>(viewportSizeSS.Y) };
 
 			const ResourceDimensions currentViewportDimensions = Renderer->FinalTextureResource.Dimensions;
 
-			const bool resize = viewportPixelWidth != 0 && viewportPixelHeight != 0 &&
-								(currentViewportDimensions.Width != viewportPixelWidth || currentViewportDimensions.Height != viewportPixelHeight);
+			const bool resize = viewportPixelDimensions.X != 0 && viewportPixelDimensions.Y != 0 &&
+								(currentViewportDimensions.Width != viewportPixelDimensions.X || currentViewportDimensions.Height != viewportPixelDimensions.Y);
 			if (resize)
 			{
-				Renderer->ResizeViewport(viewportPixelWidth, viewportPixelHeight);
+				Renderer->ResizeViewport(viewportPixelDimensions);
 			}
 
 			Image(Renderer->FinalTextureShaderResourceView, { .ID = viewportID, .Layout = { .SizeX = Grow(), .SizeY = Grow() }, .Style = White });

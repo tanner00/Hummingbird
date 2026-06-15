@@ -51,7 +51,7 @@ void Start()
 
 		if (needsResize)
 		{
-			renderer.ResizeSwapChain(window->DrawWidth, window->DrawHeight);
+			renderer.ResizeSwapChain({ window->DrawWidth, window->DrawHeight });
 			needsResize = false;
 		}
 

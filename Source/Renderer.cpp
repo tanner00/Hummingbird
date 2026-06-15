@@ -227,7 +227,7 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
 									swapChainTextureResource);
 
-	GlobalGraphics().SetViewport(swapChainDimensions.Width, swapChainDimensions.Height);
+	GlobalGraphics().SetViewport({ swapChainDimensions.Width, swapChainDimensions.Height });
 	GlobalGraphics().ClearRenderTarget(swapChainTextureView);
 	GlobalGraphics().SetRenderTarget(swapChainTextureView);
 
@@ -252,7 +252,7 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 
 void Renderer::UpdateViewport(const CameraController& cameraController)
 {
-	GlobalGraphics().SetViewport(FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height);
+	GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
 
 	float32x2 currentJitterNDC = { 0.0f, 0.0f };
 	if (ShouldAntiAlias())
@@ -338,7 +338,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 	GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
 	GlobalGraphics().SetRootConstants(&luminanceHistogramRootConstants);
-	GlobalGraphics().Dispatch((FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1);
+	GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
@@ -352,7 +352,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 	GlobalGraphics().SetPipeline(LuminanceAveragePipeline);
 	GlobalGraphics().SetRootConstants(&luminanceAverageRootConstants);
-	GlobalGraphics().Dispatch(HLSL::LuminanceHistogramBinsCount, 1, 1);
+	GlobalGraphics().Dispatch({ HLSL::LuminanceHistogramBinsCount, 1, 1 });
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
 								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
@@ -407,7 +407,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 void Renderer::UpdateRasterization(const Matrix& worldToClip)
 {
-	GlobalGraphics().SetViewport(FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height);
+	GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
 	GlobalGraphics().ClearRenderTarget(VisibilityTextureRenderTargetView);
 	GlobalGraphics().ClearDepthStencil(DepthTextureView);
 
@@ -490,7 +490,7 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 	GlobalGraphics().SetPipeline(DeferredPipeline);
 	GlobalGraphics().SetRootConstants(&deferredRootConstants);
 	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-	GlobalGraphics().Dispatch((FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1);
+	GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 									{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
@@ -521,7 +521,7 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 
 		GlobalGraphics().SetPipeline(ResolvePipeline);
 		GlobalGraphics().SetRootConstants(&resolveRootConstants);
-		GlobalGraphics().Dispatch((FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1);
+		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
 
 		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 										{ BarrierAccess::ShaderResource, BarrierAccess::UnorderedAccess },
@@ -550,7 +550,7 @@ void Renderer::UpdatePathTracing()
 	GlobalGraphics().SetPipeline(PathTracePipeline);
 	GlobalGraphics().SetRootConstants(&pathTraceRootConstants);
 	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-	GlobalGraphics().Dispatch((FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1);
+	GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
 									{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
@@ -562,31 +562,31 @@ void Renderer::UpdatePathTracing()
 void Renderer::UpdateFrameTimes(float64 frameStartTimeCPU)
 {
 	const float64 timeCPU = Platform::GetTime() - frameStartTimeCPU;
-	const float64 timeGPU = GlobalGraphics().GetMostRecentGPUTime();
+	const float64 timeGPU = GlobalGraphics().GetMostRecentTimeGPU();
 
 	AverageTimeCPU = AverageTimeCPU * 0.95 + timeCPU * 0.05;
 	AverageTimeGPU = AverageTimeGPU * 0.95 + timeGPU * 0.05;
 }
 #endif
 
-void Renderer::ResizeSwapChain(uint32 width, uint32 height)
+void Renderer::ResizeSwapChain(uint32x2 dimensions)
 {
 	GlobalDevice().WaitForIdle();
 
 	DestroySwapChainTextures();
 
-	GlobalDevice().ResizeSwapChain(width, height);
-	CreateSwapChainTextures(width, height);
+	GlobalDevice().ResizeSwapChain(dimensions);
+	CreateSwapChainTextures(dimensions);
 
 	GlobalDevice().WaitForIdle();
 }
 
-void Renderer::ResizeViewport(uint32 width, uint32 height)
+void Renderer::ResizeViewport(uint32x2 dimensions)
 {
 	GlobalDevice().WaitForIdle();
 
 	DestroyViewportTextures();
-	CreateViewportTextures(width, height);
+	CreateViewportTextures(dimensions);
 }
 
 void Renderer::LoadScene(const GLTF::Scene& scene)
@@ -1205,7 +1205,7 @@ void Renderer::RecreatePipelines()
 	CreatePipelines();
 }
 
-void Renderer::CreateSwapChainTextures(uint32 width, uint32 height)
+void Renderer::CreateSwapChainTextures(uint32x2 dimensions)
 {
 	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
 	{
@@ -1215,7 +1215,7 @@ void Renderer::CreateSwapChainTextures(uint32 width, uint32 height)
 			.Format = ResourceFormat::RGBA8UNormSRGB,
 			.Flags = ResourceFlags::SwapChain | ResourceFlags::RenderTarget,
 			.InitialLayout = BarrierLayout::RenderTarget,
-			.Dimensions = { width, height },
+			.Dimensions = { dimensions.X, dimensions.Y },
 			.SwapChainIndex = static_cast<uint8>(frameIndex),
 			.DebugName = "SwapChain Texture"_view,
 		});
@@ -1237,9 +1237,9 @@ void Renderer::DestroySwapChainTextures()
 	}
 }
 
-void Renderer::CreateViewportTextures(uint32 width, uint32 height)
+void Renderer::CreateViewportTextures(uint32x2 dimensions)
 {
-	const auto createWriteTexture = [width, height](ResourceFormat format, StringView debugName) -> WriteTexture
+	const auto createWriteTexture = [dimensions](ResourceFormat format, StringView debugName) -> WriteTexture
 	{
 		const Resource resource = GlobalDevice().Create(
 		{
@@ -1247,7 +1247,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 			.Format = format,
 			.Flags = ResourceFlags::UnorderedAccess,
 			.InitialLayout = BarrierLayout::GraphicsQueueUnorderedAccess,
-			.Dimensions = { width, height },
+			.Dimensions = { dimensions.X, dimensions.Y },
 			.DebugName = debugName,
 		});
 		return WriteTexture
@@ -1274,7 +1274,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.Format = ResourceFormat::Depth32,
 		.Flags = ResourceFlags::DepthStencil,
 		.InitialLayout = BarrierLayout::DepthStencilWrite,
-		.Dimensions = { width, height },
+		.Dimensions = { dimensions.X, dimensions.Y },
 		.ClearDepth = 0.0f,
 		.DebugName = "Depth Texture"_view,
 	});
@@ -1291,7 +1291,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.Format = ResourceFormat::RG32UInt,
 		.Flags = ResourceFlags::RenderTarget,
 		.InitialLayout = BarrierLayout::RenderTarget,
-		.Dimensions = { width, height },
+		.Dimensions = { dimensions.X, dimensions.Y },
 		.DebugName = "Visibility Texture"_view,
 	});
 	VisibilityTextureRenderTargetView = GlobalDevice().Create(
@@ -1317,7 +1317,7 @@ void Renderer::CreateViewportTextures(uint32 width, uint32 height)
 		.Format = ResourceFormat::RGBA8UNormSRGB,
 		.Flags = ResourceFlags::RenderTarget,
 		.InitialLayout = BarrierLayout::GraphicsQueueShaderResource,
-		.Dimensions = { width, height },
+		.Dimensions = { dimensions.X, dimensions.Y },
 		.DebugName = "Final Texture"_view,
 	});
 	FinalTextureRenderTargetView = GlobalDevice().Create(
