@@ -100,7 +100,7 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 {
 	CreateRenderContext(window, validation);
 
-	ResourceUploader::Init(MB(32), MB(256));
+	ResourceUploader::Init();
 	UI::Init();
 
 	static constexpr uint8 white[] = { 0xff, 0xff, 0xff, 0xff };

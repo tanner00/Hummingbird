@@ -6,7 +6,7 @@ using namespace RHI;
 namespace ResourceUploader
 {
 
-static constexpr usize SingleSceneHeapSize = MB(256);
+static constexpr usize SingleHeapSize = MB(256);
 
 struct LinearHeap
 {
@@ -15,39 +15,39 @@ struct LinearHeap
 };
 
 static Array<LinearHeap> SceneHeaps(&GlobalAllocator::Get());
-static LinearHeap PersistentHeap;
+static Array<LinearHeap> PersistentHeaps(&GlobalAllocator::Get());
 static LinearHeap UploadHeap;
 
 static GraphicsContext Graphics;
 
 static Array<Resource> UploadBuffers(&GlobalAllocator::Get());
 
-void Init(usize persistentHeapSize, usize uploadHeapSize)
+void Init()
 {
 	SceneHeaps.Add(LinearHeap
 	{
 		.Heap = GlobalDevice().Create(
 		{
 			.Type = HeapType::Default,
-			.Size = SingleSceneHeapSize,
+			.Size = SingleHeapSize,
 		}),
 		.Offset = 0,
 	});
-	PersistentHeap = LinearHeap
+	PersistentHeaps.Add(LinearHeap
 	{
 		.Heap = GlobalDevice().Create(
 		{
 			.Type = HeapType::Default,
-			.Size = persistentHeapSize,
+			.Size = SingleHeapSize,
 		}),
 		.Offset = 0,
-	};
+	});
 	UploadHeap = LinearHeap
 	{
 		.Heap = GlobalDevice().Create(
 		{
 			.Type = HeapType::Upload,
-			.Size = uploadHeapSize,
+			.Size = SingleHeapSize,
 		}),
 		.Offset = 0,
 	};
@@ -62,7 +62,10 @@ void Shutdown()
 	{
 		GlobalDevice().Destroy(&heap.Heap);
 	}
-	GlobalDevice().Destroy(&PersistentHeap.Heap);
+	for (LinearHeap& heap : PersistentHeaps)
+	{
+		GlobalDevice().Destroy(&heap.Heap);
+	}
 	GlobalDevice().Destroy(&UploadHeap.Heap);
 
 	GlobalDevice().Destroy(&Graphics);
@@ -75,9 +78,8 @@ void Shutdown()
 
 Resource Upload(Lifetime lifetime, const void* data, const ResourceDescription& description)
 {
-	LinearHeap* heap = lifetime == Lifetime::Persistent ? &PersistentHeap
-														: lifetime == Lifetime::Scene ? &SceneHeaps.Last() : nullptr;
-	CHECK(heap);
+	Array<LinearHeap>* heaps = lifetime == Lifetime::Persistent ? &PersistentHeaps : &SceneHeaps;
+	LinearHeap* heap = &heaps->Last();
 
 	const usize resourceAlignment = GlobalDevice().GetResourceAlignment(description);
 	heap->Offset = NextMultipleOf(heap->Offset, resourceAlignment);
@@ -87,18 +89,16 @@ Resource Upload(Lifetime lifetime, const void* data, const ResourceDescription& 
 
 	if (heap->Offset + resourceSize > heap->Heap.Size)
 	{
-		CHECK(lifetime == Lifetime::Scene);
-
-		SceneHeaps.Add(LinearHeap
+		heaps->Add(LinearHeap
 		{
 			.Heap = GlobalDevice().Create(
 			{
 				.Type = HeapType::Default,
-				.Size = SingleSceneHeapSize,
+				.Size = SingleHeapSize,
 			}),
 			.Offset = 0,
 		});
-		heap = &SceneHeaps.Last();
+		heap = &heaps->Last();
 	}
 
 	const usize resourceUploadSize = GlobalDevice().GetResourceStagingSize(description);
