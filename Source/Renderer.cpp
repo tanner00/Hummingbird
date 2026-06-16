@@ -86,17 +86,18 @@ static void DestroyReadBuffer(ReadBuffer* buffer)
 }
 
 Renderer::Renderer(Platform::Window* window, bool validation)
-	: SceneMeshes(RendererAllocator)
-	, SceneNodes(RendererAllocator)
-	, SceneMaterials(RendererAllocator)
-	, SceneTwoChannelNormalMaps(false)
+	: FrameCount(0)
 	, ViewMode(HLSL::ViewMode::Lit)
-	, TemporalAntiAliasing({ .Enabled = true, .DiscardPreviousFrame = true, .PreviousWorldToClip = Matrix::Identity, .FrameCount = 0 })
+	, TemporalAntiAliasing({ .Enabled = true, .DiscardPreviousFrame = true, .PreviousWorldToClip = Matrix::Identity })
 	, PathTrace(false)
 #if !RELEASE
 	, AverageTimeCPU(0.0)
 	, AverageTimeGPU(0.0)
 #endif
+	, SceneMeshes(RendererAllocator)
+	, SceneNodes(RendererAllocator)
+	, SceneMaterials(RendererAllocator)
+	, SceneTwoChannelNormalMaps(false)
 {
 	CreateRenderContext(window, validation);
 
@@ -248,6 +249,8 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 
 	GlobalDevice().Submit(GlobalGraphics());
 	GlobalDevice().Present();
+
+	++FrameCount;
 }
 
 void Renderer::UpdateViewport(const CameraController& cameraController)
@@ -277,7 +280,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 			{ 0.031250f, 0.592593f },
 		};
 
-		const float32x2 currentHalton = halton23Sequence[TemporalAntiAliasing.FrameCount % ARRAY_COUNT(halton23Sequence)];
+		const float32x2 currentHalton = halton23Sequence[FrameCount % ARRAY_COUNT(halton23Sequence)];
 
 		currentJitterNDC = float32x2
 		{
@@ -401,7 +404,6 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		Swap(AccumulationTexture, PreviousAccumulationTexture);
 		TemporalAntiAliasing.DiscardPreviousFrame = false;
 		TemporalAntiAliasing.PreviousWorldToClip = worldToClip;
-		++TemporalAntiAliasing.FrameCount;
 	}
 }
 

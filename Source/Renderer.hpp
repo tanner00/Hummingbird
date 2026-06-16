@@ -50,10 +50,7 @@ private:
 
 	bool ShouldAntiAlias() const { return TemporalAntiAliasing.Enabled && ViewMode == HLSL::ViewMode::Lit && !PathTrace; }
 
-	Array<Mesh> SceneMeshes;
-	Array<Node> SceneNodes;
-	Array<Material> SceneMaterials;
-	bool SceneTwoChannelNormalMaps;
+	uint32 FrameCount;
 
 	HLSL::ViewMode ViewMode;
 
@@ -63,8 +60,6 @@ private:
 		bool DiscardPreviousFrame;
 
 		Matrix PreviousWorldToClip;
-
-		uint32 FrameCount;
 	} TemporalAntiAliasing;
 
 	bool PathTrace;
@@ -73,6 +68,11 @@ private:
 	float64 AverageTimeCPU;
 	float64 AverageTimeGPU;
 #endif
+
+	Array<Mesh> SceneMeshes;
+	Array<Node> SceneNodes;
+	Array<Material> SceneMaterials;
+	bool SceneTwoChannelNormalMaps;
 
 	RHI::Resource SwapChainTextureResources[RHI::FramesInFlight];
 	RHI::TextureView SwapChainTextureViews[RHI::FramesInFlight];
