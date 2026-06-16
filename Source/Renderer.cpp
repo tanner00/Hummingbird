@@ -304,8 +304,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		.PointLightsBufferIndex = ScenePointLightsBuffer.View.IsValid() ? GlobalDevice().Get(ScenePointLightsBuffer.View) : 0,
 		.AccelerationStructureIndex = GlobalDevice().Get(SceneAccelerationStructure),
 		.WorldToClip = worldToClip,
+		.JitteredWorldToClip = Matrix::Translation(currentJitterNDC.X, currentJitterNDC.Y, 0.0f) * worldToClip,
 		.ClipToWorld = worldToClip.GetInverse(),
-		.JitterWorldToClip = Matrix::Translation(currentJitterNDC.X, currentJitterNDC.Y, 0.0f) * worldToClip,
 		.ViewPositionWS = float32x3
 		{
 			cameraController.GetPositionWS().X,
@@ -323,7 +323,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 	}
 	else
 	{
-		UpdateRasterization(worldToClip);
+		UpdateRasterization();
 	}
 
 	GlobalGraphics().BufferBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
@@ -405,7 +405,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 	}
 }
 
-void Renderer::UpdateRasterization(const Matrix& worldToClip)
+void Renderer::UpdateRasterization()
 {
 	GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
 	GlobalGraphics().ClearRenderTarget(VisibilityTextureRenderTargetView);
@@ -510,17 +510,13 @@ void Renderer::UpdateRasterization(const Matrix& worldToClip)
 			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
 			.PreviousAccumulationTextureIndex = GlobalDevice().Get(PreviousAccumulationTexture.ShaderResourceView),
 			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
-			.VertexBufferIndex = GlobalDevice().Get(SceneVertexBuffer.View),
-			.PrimitiveBufferIndex = GlobalDevice().Get(ScenePrimitiveBuffer.View),
-			.NodeBufferIndex = GlobalDevice().Get(SceneNodeBuffer.View),
-			.DrawCallBufferIndex = GlobalDevice().Get(SceneDrawCallBuffer.View),
 			.DiscardPreviousFrame = TemporalAntiAliasing.DiscardPreviousFrame,
-			.WorldToClip = worldToClip,
 			.PreviousWorldToClip = TemporalAntiAliasing.PreviousWorldToClip,
 		};
 
 		GlobalGraphics().SetPipeline(ResolvePipeline);
 		GlobalGraphics().SetRootConstants(&resolveRootConstants);
+		GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
 		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
 
 		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },

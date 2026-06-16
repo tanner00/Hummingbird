@@ -73,9 +73,9 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	};
 	const float32x4 jitteredPositionsCS[] =
 	{
-		TransformWorldToClip(positionsWS[0], Scene.JitterWorldToClip),
-		TransformWorldToClip(positionsWS[1], Scene.JitterWorldToClip),
-		TransformWorldToClip(positionsWS[2], Scene.JitterWorldToClip),
+		TransformWorldToClip(positionsWS[0], Scene.JitteredWorldToClip),
+		TransformWorldToClip(positionsWS[1], Scene.JitteredWorldToClip),
+		TransformWorldToClip(positionsWS[2], Scene.JitteredWorldToClip),
 	};
 
 	float32x3 weights;

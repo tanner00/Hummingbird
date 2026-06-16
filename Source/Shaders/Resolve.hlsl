@@ -7,6 +7,7 @@
 #include "Types.hlsli"
 
 ConstantBuffer<ResolveRootConstants> RootConstants : register(b0);
+ConstantBuffer<Scene> Scene : register(b1);
 
 [numthreads(16, 16, 1)]
 void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
@@ -16,10 +17,10 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const Texture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
 	const Texture2D<float32x3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
 	const Texture2D<uint32x2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
-	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[RootConstants.VertexBufferIndex];
-	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[RootConstants.PrimitiveBufferIndex];
-	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[RootConstants.NodeBufferIndex];
-	const StructuredBuffer<DrawCall> drawCallBuffer = ResourceDescriptorHeap[RootConstants.DrawCallBufferIndex];
+	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
+	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
+	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
+	const StructuredBuffer<DrawCall> drawCallBuffer = ResourceDescriptorHeap[Scene.DrawCallBufferIndex];
 
 	uint32x2 hdrTextureDimensions;
 	hdrTexture.GetDimensions(hdrTextureDimensions.x, hdrTextureDimensions.y);
@@ -58,9 +59,9 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	};
 	const float32x4 currentPositionsCS[] =
 	{
-		TransformWorldToClip(currentPositionsWS[0], RootConstants.WorldToClip),
-		TransformWorldToClip(currentPositionsWS[1], RootConstants.WorldToClip),
-		TransformWorldToClip(currentPositionsWS[2], RootConstants.WorldToClip),
+		TransformWorldToClip(currentPositionsWS[0], Scene.WorldToClip),
+		TransformWorldToClip(currentPositionsWS[1], Scene.WorldToClip),
+		TransformWorldToClip(currentPositionsWS[2], Scene.WorldToClip),
 	};
 
 	float32x3 currentWeights;
@@ -68,7 +69,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 	const float32x3 currentPositionWS = LerpBarycentrics(currentWeights, currentPositionsWS[0].xyz, currentPositionsWS[1].xyz, currentPositionsWS[2].xyz);
 
-	const float32x4 currentPositionCS = TransformWorldToClip(float32x4(currentPositionWS, 1.0f), RootConstants.WorldToClip);
+	const float32x4 currentPositionCS = TransformWorldToClip(float32x4(currentPositionWS, 1.0f), Scene.WorldToClip);
 	const float32x4 previousPositionCS = TransformWorldToClip(float32x4(currentPositionWS, 1.0f), RootConstants.PreviousWorldToClip);
 
 	const float32x2 currentPositionUV = TransformClipToUV(currentPositionCS);

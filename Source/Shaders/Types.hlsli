@@ -41,16 +41,11 @@ struct ResolveRootConstants
 	uint32 HDRTextureIndex;
 	uint32 PreviousAccumulationTextureIndex;
 	uint32 VisibilityTextureIndex;
-	uint32 VertexBufferIndex;
-	uint32 PrimitiveBufferIndex;
-	uint32 NodeBufferIndex;
-	uint32 DrawCallBufferIndex;
 
 	bool32 DiscardPreviousFrame;
 
 	PAD(12);
 
-	Matrix WorldToClip;
 	Matrix PreviousWorldToClip;
 };
 
@@ -93,8 +88,8 @@ struct Scene
 	uint32 AccelerationStructureIndex;
 
 	Matrix WorldToClip;
+	Matrix JitteredWorldToClip;
 	Matrix ClipToWorld;
-	Matrix JitterWorldToClip;
 	float32x3 ViewPositionWS;
 
 	bool32 TwoChannelNormalMaps;

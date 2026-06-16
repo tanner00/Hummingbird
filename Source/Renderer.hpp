@@ -28,7 +28,7 @@ public:
 
 private:
 	void UpdateViewport(const CameraController& cameraController);
-	void UpdateRasterization(const Matrix& worldToClip);
+	void UpdateRasterization();
 	void UpdatePathTracing();
 
 #if !RELEASE

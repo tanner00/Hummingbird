@@ -10,7 +10,7 @@ struct VertexInput
 
 struct PixelInput
 {
-	float32x4 PositionCS : SV_POSITION;
+	float32x4 JitteredPositionCS : SV_POSITION;
 	float32x2 UV : TEXCOORD0;
 };
 
@@ -23,7 +23,7 @@ PixelInput VertexStart(VertexInput input)
 	const Node node = nodeBuffer[RootConstants.NodeIndex];
 
 	PixelInput result;
-	result.PositionCS = TransformWorldToClip(TransformLocalPositionToWorld(input.PositionLS, node.LocalToWorld), Scene.JitterWorldToClip);
+	result.JitteredPositionCS = TransformWorldToClip(TransformLocalPositionToWorld(input.PositionLS, node.LocalToWorld), Scene.JitteredWorldToClip);
 	result.UV = input.UV;
 	return result;
 }
