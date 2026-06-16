@@ -207,7 +207,7 @@ Renderer::~Renderer()
 	DestroyRenderContext();
 }
 
-void Renderer::Update(const CameraController& cameraController, float32 timeDelta, [[maybe_unused]] float64 frameStartCPUTime)
+void Renderer::Update(const CameraController& cameraController, float32 timeDelta, [[maybe_unused]] float64 frameStartTimeCPU)
 {
 	GlobalGraphics().Begin();
 
@@ -244,7 +244,7 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 	ResourceUploader::Flush();
 
 #if !RELEASE
-	UpdateFrameTimes(frameStartCPUTime);
+	UpdateFrameTimes(frameStartTimeCPU);
 #endif
 
 	GlobalDevice().Submit(GlobalGraphics());
@@ -311,9 +311,9 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		.ClipToWorld = worldToClip.GetInverse(),
 		.ViewPositionWS = float32x3
 		{
-			cameraController.GetPositionWS().X,
-			cameraController.GetPositionWS().Y,
-			cameraController.GetPositionWS().Z,
+			cameraController.GetPosition().X,
+			cameraController.GetPosition().Y,
+			cameraController.GetPosition().Z,
 		},
 		.TwoChannelNormalMaps = SceneTwoChannelNormalMaps,
 		.PointLightsCount = ScenePointLightsBuffer.View.IsValid() ? static_cast<uint32>(Count(ScenePointLightsBuffer.View.Buffer)) : 0,
@@ -946,15 +946,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 		{
 			.BaseColorOrDiffuseTextureIndex = GlobalDevice().Get(baseColorOrDiffuseTexture.View),
 			.MetallicRoughnessOrSpecularGlossinessTextureIndex = GlobalDevice().Get(metallicRoughnessOrSpecularGlossinessTexture.View),
-			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness
-									  ? material.SpecularGlossiness.DiffuseFactor
-									  : material.MetallicRoughness.BaseColorFactor,
-			.MetallicOrSpecularFactor = material.IsSpecularGlossiness
-									  ? material.SpecularGlossiness.SpecularFactor
-									  : float32x3 { material.MetallicRoughness.MetallicFactor, 0.0f, 0.0f },
-			.RoughnessOrGlossinessFactor = material.IsSpecularGlossiness
-										 ? material.SpecularGlossiness.GlossinessFactor
-										 : material.MetallicRoughness.RoughnessFactor,
+			.BaseColorOrDiffuseFactor = material.IsSpecularGlossiness ? material.SpecularGlossiness.DiffuseFactor
+																	  : material.MetallicRoughness.BaseColorFactor,
+			.MetallicOrSpecularFactor = material.IsSpecularGlossiness ? material.SpecularGlossiness.SpecularFactor
+																	  : float32x3 { material.MetallicRoughness.MetallicFactor, 0.0f, 0.0f },
+			.RoughnessOrGlossinessFactor = material.IsSpecularGlossiness ? material.SpecularGlossiness.GlossinessFactor
+																		 : material.MetallicRoughness.RoughnessFactor,
 			.IsSpecularGlossiness = material.IsSpecularGlossiness,
 			.NormalMapTextureIndex = GlobalDevice().Get(material.NormalMapTexture.View.IsValid() ? material.NormalMapTexture.View : DefaultNormalMapTexture.View),
 			.EmissiveTextureIndex = GlobalDevice().Get(material.EmissiveTexture.View.IsValid() ? material.EmissiveTexture.View : WhiteTexture.View),
@@ -973,7 +970,12 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 										   "Scene Material Buffer"_view);
 
 	bool hasDirectionalLight = false;
-	HLSL::DirectionalLight directionalLight;
+	HLSL::DirectionalLight directionalLight =
+	{
+		.RGB = { 1.0f, 1.0f, 1.0f },
+		.IntensityLux = 1.0f,
+		.DirectionWS = { 0.0f, 1.0f, 0.0f },
+	};
 	Array<HLSL::PointLight> pointLights(RendererAllocator);
 
 	for (const GLTF::Light& light : scene.Lights)
@@ -1005,15 +1007,6 @@ void Renderer::LoadScene(const GLTF::Scene& scene)
 				.PositionWS = { translationWS.X, translationWS.Y, translationWS.Z },
 			});
 		}
-	}
-	if (!hasDirectionalLight)
-	{
-		directionalLight = HLSL::DirectionalLight
-		{
-			.RGB = { 1.0f, 1.0f, 1.0f },
-			.IntensityLux = 1.0f,
-			.DirectionWS = { 0.0f, 1.0f, 0.0f },
-		};
 	}
 
 	SceneDirectionalLightBuffer = CreateReadBuffer(ResourceUploader::Lifetime::Scene,

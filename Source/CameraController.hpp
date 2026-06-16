@@ -16,15 +16,9 @@ public:
 
 	void SetCamera(const GLTF::Camera& camera);
 
-	Vector GetPositionWS() const
-	{
-		return PositionWS;
-	}
+	Vector GetPosition() const { return PositionWS; }
 
-	Matrix GetViewToWorld() const
-	{
-		return Matrix::Translation(PositionWS) * OrientationWS.ToMatrix();
-	}
+	Matrix GetViewToWorld() const { return Matrix::Translation(PositionWS) * OrientationWS.ToMatrix(); }
 
 	float32 GetFieldOfViewYRadians() const { return FieldOfViewYRadians; }
 	float32 GetAspectRatio() const { return AspectRatio; }

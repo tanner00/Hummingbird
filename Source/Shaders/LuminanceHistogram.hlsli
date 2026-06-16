@@ -1,7 +1,7 @@
 #include "Base.hlsli"
 #include "Luminance.hlsli"
 
-uint32 HDRToHistogramBin(float32x3 hdrRGB)
+uint32 HDRToLuminanceHistogramBin(float32x3 hdrRGB)
 {
 	const float32 luminance = dot(hdrRGB, float32x3(0.2127f, 0.7152f, 0.0722f));
 

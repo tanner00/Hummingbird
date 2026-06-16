@@ -61,6 +61,8 @@ inline void CreateRenderContext(Platform::Window* window, bool validation)
 		.Validation = validation,
 	});
 
+	RenderContext.Graphics = GlobalDevice().Create(RHI::GraphicsContextDescription {});
+
 	RenderContext.ResourceViewHeap = GlobalDevice().Create(
 	{
 		.Type = RHI::ViewHeapType::Resource,
@@ -84,8 +86,6 @@ inline void CreateRenderContext(Platform::Window* window, bool validation)
 		.Count = 1,
 	});
 
-	RenderContext.Graphics = GlobalDevice().Create(RHI::GraphicsContextDescription {});
-
 	RenderContext.LinearClampSampler = GlobalDevice().Create(
 	{
 		.MinificationFilter = RHI::SamplerFilter::Linear,
@@ -100,12 +100,13 @@ inline void CreateRenderContext(Platform::Window* window, bool validation)
 inline void DestroyRenderContext()
 {
 	GlobalDevice().Destroy(&RenderContext.Graphics);
-	GlobalDevice().Destroy(&RenderContext.LinearClampSampler);
 
 	GlobalDevice().Destroy(&RenderContext.ResourceViewHeap);
 	GlobalDevice().Destroy(&RenderContext.SamplerViewHeap);
 	GlobalDevice().Destroy(&RenderContext.RenderTargetViewHeap);
 	GlobalDevice().Destroy(&RenderContext.DepthStencilViewHeap);
+
+	GlobalDevice().Destroy(&RenderContext.LinearClampSampler);
 
 	GlobalAllocator::Get().Destroy(RenderContext.Device);
 }

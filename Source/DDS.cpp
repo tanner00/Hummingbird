@@ -16,7 +16,7 @@ struct PixelFormat
 	uint32 Size;
 	uint32 Flags;
 	uint32 CompressedOrCustomFormat;
-	uint32 RgbBitCount;
+	uint32 RGBBitCount;
 	uint32 RedBitMask;
 	uint32 GreenBitMask;
 	uint32 BlueBitMask;

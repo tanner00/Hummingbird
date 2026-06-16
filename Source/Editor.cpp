@@ -113,7 +113,7 @@ static bool DropDown(ArrayView<StringView> items, usize* selectedIndex)
 			}
 		}
 
-		if (!open || (Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left) && !anyPressed))
+		if (!open || Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left) && !anyPressed)
 		{
 			return;
 		}

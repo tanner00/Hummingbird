@@ -23,8 +23,8 @@ void CameraController::Update(float32 timeDelta)
 {
 	if (Platform::GetInputMode() == Platform::InputMode::Captured)
 	{
-		const float32 yawDeltaRadians =   -static_cast<float32>(Platform::GetMouseX()) * RotationSpeedRadians * timeDelta;
-		float32 pitchDeltaRadians =       -static_cast<float32>(Platform::GetMouseY()) * RotationSpeedRadians * timeDelta;
+		const float32 yawDeltaRadians = -static_cast<float32>(Platform::GetMouseX()) * RotationSpeedRadians * timeDelta;
+		float32 pitchDeltaRadians = -static_cast<float32>(Platform::GetMouseY()) * RotationSpeedRadians * timeDelta;
 
 		PitchRadians += pitchDeltaRadians;
 		if (PitchRadians > Pi / 2.0f)
@@ -38,45 +38,45 @@ void CameraController::Update(float32 timeDelta)
 			PitchRadians = -Pi / 2.0f;
 		}
 
-		OrientationWS = Quaternion::AxisAngle(Vector { 0.0f, 1.0f, 0.0f }, yawDeltaRadians) * OrientationWS;
+		OrientationWS = Quaternion::AxisAngle(Vector(0.0f, 1.0f, 0.0f), yawDeltaRadians) * OrientationWS;
 		OrientationWS = OrientationWS.GetNormalized();
-		OrientationWS = Quaternion::AxisAngle(OrientationWS.Rotate(Vector { 1.0f, 0.0f, 0.0f }), pitchDeltaRadians) * OrientationWS;
+		OrientationWS = Quaternion::AxisAngle(OrientationWS.Rotate(Vector(1.0f, 0.0f, 0.0f)), pitchDeltaRadians) * OrientationWS;
 		OrientationWS = OrientationWS.GetNormalized();
 	}
 
 	const Vector forwardWS = OrientationWS.Rotate(GLTF::DefaultDirectionLS);
-	const Vector upWS = OrientationWS.Rotate(Vector { 0.0f, 1.0f, 0.0f });
+	const Vector upWS = OrientationWS.Rotate(Vector(0.0f, 1.0f, 0.0f));
 	const Vector sideWS = upWS.Cross(OrientationWS.Rotate(GLTF::DefaultDirectionLS));
 
-	Vector movementWS = Vector::Zero;
-	bool moving = false;
+	Vector translationWS = Vector::Zero;
+	bool translation = false;
 
 	if (Platform::IsKeyPressed(Platform::Key::W))
 	{
-		movementWS = forwardWS;
-		moving = true;
+		translationWS = forwardWS;
+		translation = true;
 	}
 	else if (Platform::IsKeyPressed(Platform::Key::S))
 	{
-		movementWS = -forwardWS;
-		moving = true;
+		translationWS = -forwardWS;
+		translation = true;
 	}
 
 	if (Platform::IsKeyPressed(Platform::Key::A))
 	{
-		movementWS = movementWS + sideWS;
-		moving = true;
+		translationWS = translationWS + sideWS;
+		translation = true;
 	}
 	else if (Platform::IsKeyPressed(Platform::Key::D))
 	{
-		movementWS = movementWS - sideWS;
-		moving = true;
+		translationWS = translationWS - sideWS;
+		translation = true;
 	}
 
-	if (moving)
+	if (translation)
 	{
 		const float32 movementSpeed = Platform::IsKeyPressed(Platform::Key::Shift) ? FastMovementSpeed : DefaultMovementSpeed;
-		PositionWS = PositionWS + movementWS.GetNormalized() * movementSpeed * timeDelta;
+		PositionWS = PositionWS + translationWS.GetNormalized() * movementSpeed * timeDelta;
 	}
 }
 

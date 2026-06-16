@@ -15,7 +15,7 @@ float32 CastShadowRay(float32x3 positionWS,
 {
 	RayDesc rayDescription;
 	rayDescription.Origin = positionWS;
-	rayDescription.TMin = 0.001f;
+	rayDescription.TMin = 1e-3f;
 	rayDescription.Direction = directionWS;
 	rayDescription.TMax = maxDistance;
 

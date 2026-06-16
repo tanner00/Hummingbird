@@ -103,7 +103,7 @@ Value& Value::operator=(const Value& copy)
 	return *this;
 }
 
-Value::Value(Value&& move) noexcept
+Value::Value(Value&& move)
 	: Tag(move.Tag)
 {
 	move.Tag = Tag::None;
@@ -137,7 +137,7 @@ Value::Value(Value&& move) noexcept
 	}
 }
 
-Value& Value::operator=(Value&& move) noexcept
+Value& Value::operator=(Value&& move)
 {
 	if (&move == this)
 	{
@@ -244,10 +244,10 @@ static uint64 ParseUInt64(StringView buffer, usize* index)
 	VERIFY(offset != 0, "Expected to read a number and failed!");
 
 	uint64 result = 0;
-	for (usize i = 0; i < offset; ++i)
+	for (usize digitIndex = 0; digitIndex < offset; ++digitIndex)
 	{
 		factor /= 10;
-		result += factor * (PeekCharacter(buffer, *index + i) - '0');
+		result += factor * (PeekCharacter(buffer, *index + digitIndex) - '0');
 	}
 
 	*index += offset;
@@ -257,16 +257,16 @@ static uint64 ParseUInt64(StringView buffer, usize* index)
 static int64 ParseInt64(StringView buffer, usize* index)
 {
 	CHECK(index);
-	const bool isNegative = PeekCharacter(buffer, *index) == '-';
-	const bool isSign = isNegative || PeekCharacter(buffer, *index) == '+';
-	VERIFY(IsDigit(buffer[*index]) || isSign, "Expected to read a number and failed!");
+	const bool negative = PeekCharacter(buffer, *index) == '-';
+	const bool sign = negative || PeekCharacter(buffer, *index) == '+';
+	VERIFY(IsDigit(buffer[*index]) || sign, "Expected to read a number and failed!");
 
-	if (isSign)
+	if (sign)
 	{
 		Advance(index, 1);
 	}
 	const int64 value = static_cast<int64>(ParseUInt64(buffer, index));
-	return isNegative ? -value : value;
+	return negative ? -value : value;
 }
 
 static float64 ParseDoubleNoExponent(StringView buffer, usize* index)
@@ -304,11 +304,11 @@ static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
 	const auto parseAnyOf = [](StringView buffer, usize* index, String* result, const char* any, usize anyLength) -> bool
 	{
 		CHECK(index);
-		for (usize i = 0; i < anyLength; ++i)
+		for (usize acceptedIndex = 0; acceptedIndex < anyLength; ++acceptedIndex)
 		{
-			if (PeekCharacter(buffer, *index) == any[i])
+			if (PeekCharacter(buffer, *index) == any[acceptedIndex])
 			{
-				result->Append(any[i]);
+				result->Append(any[acceptedIndex]);
 				Advance(index, 1);
 				return true;
 			}
@@ -328,7 +328,8 @@ static void ParseEscapeSequence(StringView buffer, usize* index, String* result)
 	if (PeekCharacter(buffer, *index - 1) == 'u')
 	{
 		static constexpr usize codepointLength = 4;
-		for (usize i = 0; i < codepointLength; ++i)
+
+		for (usize codepointIndex = 0; codepointIndex < codepointLength; ++codepointIndex)
 		{
 			VERIFY(IsInRange(buffer, *index), "Failed to parse unicode codepoint!");
 			const bool matchedHex = parseAnyOf(buffer, index, result, acceptableHex, ARRAY_COUNT(acceptableHex));

@@ -111,8 +111,8 @@ inline ID NameCombine(ID id, StringView name)
 	return HashCombine(id, NameToID(name));
 }
 
-template<typename... Args>
-ID NamesToID(const Args&... names)
+template<typename... Arguments>
+ID NamesToID(const Arguments&... names)
 {
 	ID id = 0;
 	((id = NameCombine(id, names)), ...);

@@ -538,8 +538,8 @@ static bool IsIntersecting(ID id)
 
 	const float32x2 mousePositionSS = { static_cast<float32>(Platform::GetMouseX()), static_cast<float32>(Platform::GetMouseY()) };
 
-	const bool inside = (mousePositionSS.X >= element.ScissorMinSS.X) && (mousePositionSS.Y >= element.ScissorMinSS.Y) &&
-						(mousePositionSS.X <= element.ScissorMaxSS.X) && (mousePositionSS.Y <= element.ScissorMaxSS.Y);
+	const bool inside = mousePositionSS.X >= element.ScissorMinSS.X && mousePositionSS.Y >= element.ScissorMinSS.Y &&
+						mousePositionSS.X <= element.ScissorMaxSS.X && mousePositionSS.Y <= element.ScissorMaxSS.Y;
 	if (!inside)
 	{
 		return false;

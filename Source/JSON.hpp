@@ -75,8 +75,8 @@ public:
 	Value(const Value& copy);
 	Value& operator=(const Value& copy);
 
-	Value(Value&& move) noexcept;
-	Value& operator=(Value&& move) noexcept;
+	Value(Value&& move);
+	Value& operator=(Value&& move);
 
 	Tag GetTag() const
 	{

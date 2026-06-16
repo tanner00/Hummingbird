@@ -16,7 +16,7 @@ static String ResolveFilePath(StringView sceneFilePath, StringView filePath)
 	VERIFY(directoryLength != INDEX_NONE, "Invalid GLTF file path!");
 
 	String fullPath(directoryLength + sizeof(pathSeparator) + filePath.GetLength(), Allocator);
-	fullPath.Append(StringView { sceneFilePath.GetData(), directoryLength });
+	fullPath.Append(StringView(sceneFilePath.GetData(), directoryLength));
 	fullPath.Append(pathSeparator);
 	fullPath.Append(filePath);
 
@@ -66,11 +66,11 @@ Scene LoadScene(StringView filePath)
 
 	const JSON::Object& sceneObject = sceneArray[0].GetObject();
 
-	const JSON::Array& sceneNodeArray = sceneObject["nodes"_view].GetArray();
-	Array<usize> sceneNodes(sceneNodeArray.GetCount(), Allocator);
-	for (const JSON::Value& nodeValue : sceneNodeArray)
+	const JSON::Array& topLevelNodeArray = sceneObject["nodes"_view].GetArray();
+	Array<usize> topLevelNodes(topLevelNodeArray.GetCount(), Allocator);
+	for (const JSON::Value& nodeValue : topLevelNodeArray)
 	{
-		sceneNodes.Emplace(static_cast<usize>(nodeValue.GetDecimal()));
+		topLevelNodes.Add(static_cast<usize>(nodeValue.GetDecimal()));
 	}
 
 	Array<Camera> cameraTemplates(Allocator);
@@ -85,19 +85,17 @@ Scene LoadScene(StringView filePath)
 			const bool perspective = cameraObject.HasKey("perspective"_view) && cameraObject["type"_view].GetString() == "perspective"_view;
 			VERIFY(perspective, "Expected GLTF camera to be perspective!");
 
-			const JSON::Object& perspectiveCameraObject = cameraObject["perspective"_view].GetObject();
+			const JSON::Object& perspectiveObject = cameraObject["perspective"_view].GetObject();
 
-			const float32 fieldOfViewYRadians = static_cast<float32>(perspectiveCameraObject["yfov"_view].GetDecimal());
+			const float32 fieldOfViewYRadians = static_cast<float32>(perspectiveObject["yfov"_view].GetDecimal());
 
-			const float32 aspectRatio = perspectiveCameraObject.HasKey("aspectRatio"_view)
-									? static_cast<float32>(perspectiveCameraObject["aspectRatio"_view].GetDecimal())
-									: 16.0f / 9.0f;
+			const float32 aspectRatio = perspectiveObject.HasKey("aspectRatio"_view) ? static_cast<float32>(perspectiveObject["aspectRatio"_view].GetDecimal())
+																					 : 16.0f / 9.0f;
 
-			const float32 nearZ = static_cast<float32>(perspectiveCameraObject["znear"_view].GetDecimal());
+			const float32 nearZ = static_cast<float32>(perspectiveObject["znear"_view].GetDecimal());
 
-			const float32 farZ = perspectiveCameraObject.HasKey("zfar"_view)
-							 ? static_cast<float32>(perspectiveCameraObject["zfar"_view].GetDecimal())
-							 : 1000.0f;
+			const float32 farZ = perspectiveObject.HasKey("zfar"_view) ? static_cast<float32>(perspectiveObject["zfar"_view].GetDecimal())
+																	   : 1000.0f;
 
 			cameraTemplates.Add(Camera
 			{
@@ -182,12 +180,9 @@ Scene LoadScene(StringView filePath)
 				const JSON::Array& translationArray = nodeObject["translation"_view].GetArray();
 				VERIFY(translationArray.GetCount() == 3, "Invalid GLTF translation!");
 
-				translation =
-				{
-					static_cast<float32>(translationArray[0].GetDecimal()),
-					static_cast<float32>(translationArray[1].GetDecimal()),
-					static_cast<float32>(translationArray[2].GetDecimal()),
-				};
+				translation = Vector(static_cast<float32>(translationArray[0].GetDecimal()),
+									 static_cast<float32>(translationArray[1].GetDecimal()),
+									 static_cast<float32>(translationArray[2].GetDecimal()));
 			}
 
 			Quaternion rotation = Quaternion::Identity;
@@ -196,32 +191,26 @@ Scene LoadScene(StringView filePath)
 				const JSON::Array& rotationArray = nodeObject["rotation"_view].GetArray();
 				VERIFY(rotationArray.GetCount() == 4, "Invalid GLTF rotation!");
 
-				rotation = Quaternion
-				{
-					static_cast<float32>(rotationArray[0].GetDecimal()),
-					static_cast<float32>(rotationArray[1].GetDecimal()),
-					static_cast<float32>(rotationArray[2].GetDecimal()),
-					static_cast<float32>(rotationArray[3].GetDecimal()),
-				};
+				rotation = Quaternion(static_cast<float32>(rotationArray[0].GetDecimal()),
+									  static_cast<float32>(rotationArray[1].GetDecimal()),
+									  static_cast<float32>(rotationArray[2].GetDecimal()),
+									  static_cast<float32>(rotationArray[3].GetDecimal()));
 			}
 
-			Vector scale = { 1.0f, 1.0f, 1.0f };
+			Vector scale(1.0f, 1.0f, 1.0f);
 			if (hasScale)
 			{
 				const JSON::Array& scaleArray = nodeObject["scale"_view].GetArray();
 				VERIFY(scaleArray.GetCount() == 3, "Invalid GLTF scale!");
 
-				scale = Vector
-				{
-					static_cast<float32>(scaleArray[0].GetDecimal()),
-					static_cast<float32>(scaleArray[1].GetDecimal()),
-					static_cast<float32>(scaleArray[2].GetDecimal()),
-				};
+				scale = Vector(static_cast<float32>(scaleArray[0].GetDecimal()),
+							   static_cast<float32>(scaleArray[1].GetDecimal()),
+							   static_cast<float32>(scaleArray[2].GetDecimal()));
 			}
 
-			localToWorld = Matrix::Translation(translation.X, translation.Y, translation.Z)
-						 * rotation.ToMatrix()
-						 * Matrix::Scale(scale.X, scale.Y, scale.Z);
+			localToWorld = Matrix::Translation(translation.X, translation.Y, translation.Z) *
+						   rotation.ToMatrix() *
+						   Matrix::Scale(scale.X, scale.Y, scale.Z);
 		}
 		if (nodeObject.HasKey("matrix"_view))
 		{
@@ -239,18 +228,18 @@ Scene LoadScene(StringView filePath)
 				++element;
 			}
 		}
-		if (nodeObject.HasKey("mesh"_view))
-		{
-			mesh = static_cast<usize>(nodeObject["mesh"_view].GetDecimal());
-		}
 		if (nodeObject.HasKey("children"_view))
 		{
 			const JSON::Array& childrenArray = nodeObject["children"_view].GetArray();
 			childNodes.Reserve(childrenArray.GetCount());
 			for (const JSON::Value& childValue : childrenArray)
 			{
-				childNodes.Emplace(static_cast<usize>(childValue.GetDecimal()));
+				childNodes.Add(static_cast<usize>(childValue.GetDecimal()));
 			}
+		}
+		if (nodeObject.HasKey("mesh"_view))
+		{
+			mesh = static_cast<usize>(nodeObject["mesh"_view].GetDecimal());
 		}
 		if (nodeObject.HasKey("camera"_view))
 		{
@@ -264,12 +253,20 @@ Scene LoadScene(StringView filePath)
 			{
 				lightIndices.Add(nodeIndex);
 
-				const JSON::Object& khrLightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
-				light = static_cast<usize>(khrLightsPunctualObject["light"_view].GetDecimal());
+				const JSON::Object& lightsPunctualObject = extensionsObject["KHR_lights_punctual"_view].GetObject();
+				light = static_cast<usize>(lightsPunctualObject["light"_view].GetDecimal());
 			}
 		}
 
-		nodes.Emplace(localToWorld, INDEX_NONE, Move(childNodes), mesh, camera, light);
+		nodes.Add(Node
+		{
+			.LocalToWorld = localToWorld,
+			.Parent = INDEX_NONE,
+			.ChildNodes = Move(childNodes),
+			.Mesh = mesh,
+			.Camera = camera,
+			.Light = light,
+		});
 	}
 
 	for (usize nodeIndex = 0; nodeIndex < nodes.GetCount(); ++nodeIndex)
@@ -292,7 +289,7 @@ Scene LoadScene(StringView filePath)
 		cameras.Add(placedCamera);
 	}
 
-	Array<Light> lights(Allocator);
+	Array<Light> lights(lightIndices.GetCount(), Allocator);
 	for (usize lightIndex : lightIndices)
 	{
 		const Node& node = nodes[lightIndex];
@@ -317,7 +314,11 @@ Scene LoadScene(StringView filePath)
 		uint8* bufferData = Platform::ReadEntireFile(fullPath, &fileSize, Allocator);
 		VERIFY(bufferSize == fileSize, "Failed to read GLTF buffer!");
 
-		buffers.Emplace(bufferData, bufferSize);
+		buffers.Add(Buffer
+		{
+			.Data = bufferData,
+			.Size = bufferSize,
+		});
 	}
 
 	const JSON::Array& bufferViewArray = rootObject["bufferViews"_view].GetArray();
@@ -329,13 +330,10 @@ Scene LoadScene(StringView filePath)
 		const usize buffer = static_cast<usize>(bufferViewObject["buffer"_view].GetDecimal());
 		const usize size = static_cast<usize>(bufferViewObject["byteLength"_view].GetDecimal());
 
-		usize offset = 0;
-		if (bufferViewObject.HasKey("byteOffset"_view))
-		{
-			offset = static_cast<usize>(bufferViewObject["byteOffset"_view].GetDecimal());
-		}
+		const usize offset = bufferViewObject.HasKey("byteOffset"_view) ? static_cast<usize>(bufferViewObject["byteOffset"_view].GetDecimal())
+																		: 0;
 
-		TargetType targetType;
+		TargetType targetType = TargetType::ArrayBuffer;
 		if (bufferViewObject.HasKey("target"_view))
 		{
 			const usize targetTypeNumber = static_cast<usize>(bufferViewObject["target"_view].GetDecimal());
@@ -352,12 +350,14 @@ Scene LoadScene(StringView filePath)
 				VERIFY(false, "Unexpected GLTF target type!");
 			}
 		}
-		else
-		{
-			targetType = TargetType::ArrayBuffer;
-		}
 
-		bufferViews.Emplace(buffer, size, offset, targetType);
+		bufferViews.Add(BufferView
+		{
+			.Buffer = buffer,
+			.Size = size,
+			.Offset = offset,
+			.Target = targetType,
+		});
 	}
 
 	const JSON::Array& meshArray = rootObject["meshes"_view].GetArray();
@@ -400,7 +400,12 @@ Scene LoadScene(StringView filePath)
 				attributes.Add(AttributeType::TexCoord0, static_cast<usize>(attributesObject["TEXCOORD_0"_view].GetDecimal()));
 			}
 
-			primitives.Emplace(Move(attributes), indices, material);
+			primitives.Add(Primitive
+			{
+				.Attributes = Move(attributes),
+				.Indices = indices,
+				.Material = material,
+			});
 		}
 
 		meshes.Emplace(Move(primitives));
@@ -416,9 +421,12 @@ Scene LoadScene(StringView filePath)
 			const JSON::Object& imageObject = imageValue.GetObject();
 
 			const String& imagePath = imageObject["uri"_view].GetString();
-			const String fullPath = ResolveFilePath(filePath, imagePath);
+			String fullPath = ResolveFilePath(filePath, imagePath);
 
-			images.Emplace(fullPath);
+			images.Add(Image
+			{
+				.Path = Move(fullPath),
+			});
 		}
 	}
 
@@ -433,11 +441,14 @@ Scene LoadScene(StringView filePath)
 
 			const usize image = static_cast<usize>(textureObject["source"_view].GetDecimal());
 
-			const usize sampler = textureObject.HasKey("sampler"_view)
-								? static_cast<usize>(textureObject["sampler"_view].GetDecimal())
-								: INDEX_NONE;
+			const usize sampler = textureObject.HasKey("sampler"_view) ? static_cast<usize>(textureObject["sampler"_view].GetDecimal())
+																	   : INDEX_NONE;
 
-			textures.Emplace(image, sampler);
+			textures.Add(Texture
+			{
+				.Image = image,
+				.Sampler = sampler,
+			});
 		}
 	}
 
@@ -567,11 +578,11 @@ Scene LoadScene(StringView filePath)
 
 			if (extensionsObject.HasKey("KHR_materials_emissive_strength"_view))
 			{
-				const JSON::Object& khrMaterialsEmissiveStrengthObject = extensionsObject["KHR_materials_emissive_strength"_view].GetObject();
+				const JSON::Object& emissiveStrength = extensionsObject["KHR_materials_emissive_strength"_view].GetObject();
 
-				if (khrMaterialsEmissiveStrengthObject.HasKey("emissiveStrength"_view))
+				if (emissiveStrength.HasKey("emissiveStrength"_view))
 				{
-					material.EmissiveStrength = static_cast<float32>(khrMaterialsEmissiveStrengthObject["emissiveStrength"_view].GetDecimal());
+					material.EmissiveStrength = static_cast<float32>(emissiveStrength["emissiveStrength"_view].GetDecimal());
 				}
 			}
 		}
@@ -682,21 +693,23 @@ Scene LoadScene(StringView filePath)
 		{
 			const JSON::Object& samplerObject = samplerValue.GetObject();
 
-			const Filter minification = samplerObject.HasKey("minFilter"_view)
-									  ? toFilter(static_cast<usize>(samplerObject["minFilter"_view].GetDecimal()), false)
-									  : Filter::Linear;
-			const Filter magnification = samplerObject.HasKey("magFilter"_view)
-									   ? toFilter(static_cast<usize>(samplerObject["magFilter"_view].GetDecimal()), true)
-									   : Filter::Linear;
+			const Filter minification = samplerObject.HasKey("minFilter"_view) ? toFilter(static_cast<usize>(samplerObject["minFilter"_view].GetDecimal()), false)
+																			   : Filter::Linear;
+			const Filter magnification = samplerObject.HasKey("magFilter"_view) ? toFilter(static_cast<usize>(samplerObject["magFilter"_view].GetDecimal()), true)
+																				: Filter::Linear;
 
-			const Address horizontal = samplerObject.HasKey("wrapS"_view)
-									 ? toAddress(static_cast<usize>(samplerObject["wrapS"_view].GetDecimal()))
-									 : Address::Repeat;
-			const Address vertical = samplerObject.HasKey("wrapT"_view)
-								   ? toAddress(static_cast<usize>(samplerObject["wrapT"_view].GetDecimal()))
-								   : Address::Repeat;
+			const Address horizontal = samplerObject.HasKey("wrapS"_view) ? toAddress(static_cast<usize>(samplerObject["wrapS"_view].GetDecimal()))
+																		  : Address::Repeat;
+			const Address vertical = samplerObject.HasKey("wrapT"_view) ? toAddress(static_cast<usize>(samplerObject["wrapT"_view].GetDecimal()))
+																		: Address::Repeat;
 
-			samplers.Emplace(minification, magnification, horizontal, vertical);
+			samplers.Add(Sampler
+			{
+				.MinificationFilter = minification,
+				.MagnificationFilter = magnification,
+				.HorizontalAddress = horizontal,
+				.VerticalAddress = vertical,
+			});
 		}
 	}
 
@@ -711,43 +724,36 @@ Scene LoadScene(StringView filePath)
 		const String& accessorTypeString = accessorObject["type"_view].GetString();
 		const usize componentTypeNumber = static_cast<usize>(accessorObject["componentType"_view].GetDecimal());
 
-		usize offset = 0;
-		if (accessorObject.HasKey("byteOffset"_view))
-		{
-			offset = static_cast<usize>(accessorObject["byteOffset"_view].GetDecimal());
-		}
+		const usize offset = accessorObject.HasKey("byteOffset"_view) ? static_cast<usize>(accessorObject["byteOffset"_view].GetDecimal())
+																	  : 0;
 
-		ComponentType componentType;
-		if (componentTypeNumber == 5120)
+		ComponentType componentType = ComponentType::Int8;
+		switch (componentTypeNumber)
 		{
+		case 5120:
 			componentType = ComponentType::Int8;
-		}
-		else if (componentTypeNumber == 5121)
-		{
+			break;
+		case 5121:
 			componentType = ComponentType::UInt8;
-		}
-		else if (componentTypeNumber == 5122)
-		{
-			componentType = ComponentType::UInt16;
-		}
-		else if (componentTypeNumber == 5123)
-		{
+			break;
+		case 5122:
 			componentType = ComponentType::Int16;
-		}
-		else if (componentTypeNumber == 5125)
-		{
+			break;
+		case 5123:
+			componentType = ComponentType::UInt16;
+			break;
+		case 5125:
 			componentType = ComponentType::UInt32;
-		}
-		else if (componentTypeNumber == 5126)
-		{
+			break;
+		case 5126:
 			componentType = ComponentType::Float32;
-		}
-		else
-		{
+			break;
+		default:
 			VERIFY(false, "Unexpected GLTF component type!");
+			break;
 		}
 
-		AccessorType accessorType;
+		AccessorType accessorType = AccessorType::Scalar;
 		if (accessorTypeString == "SCALAR"_view)
 		{
 			accessorType = AccessorType::Scalar;
@@ -781,7 +787,14 @@ Scene LoadScene(StringView filePath)
 			VERIFY(false, "Unexpected GLTF accessor type!");
 		}
 
-		accessors.Emplace(bufferView, count, offset, componentType, accessorType);
+		accessors.Add(Accessor
+		{
+			.BufferView = bufferView,
+			.Count = count,
+			.Offset = offset,
+			.ComponentType = componentType,
+			.AccessorType = accessorType,
+		});
 	}
 
 	bool twoChannelNormalMaps = false;
@@ -797,7 +810,7 @@ Scene LoadScene(StringView filePath)
 
 	return Scene
 	{
-		.TopLevelNodes = Move(sceneNodes),
+		.TopLevelNodes = Move(topLevelNodes),
 		.Nodes = Move(nodes),
 		.Buffers = Move(buffers),
 		.BufferViews = Move(bufferViews),

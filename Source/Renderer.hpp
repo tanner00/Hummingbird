@@ -16,7 +16,7 @@ public:
 	Renderer(Platform::Window* window, bool validation);
 	~Renderer();
 
-	void Update(const CameraController& cameraController, float32 timeDelta, float64 frameStartCPUTime);
+	void Update(const CameraController& cameraController, float32 timeDelta, float64 frameStartTimeCPU);
 
 	void ResizeSwapChain(uint32x2 dimensions);
 	void ResizeViewport(uint32x2 dimensions);

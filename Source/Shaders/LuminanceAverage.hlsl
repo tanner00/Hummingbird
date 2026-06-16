@@ -3,7 +3,7 @@
 
 ConstantBuffer<LuminanceAverageRootConstants> RootConstants : register(b0);
 
-groupshared uint32 HistogramShared[LuminanceHistogramBinsCount];
+groupshared uint32 SharedLuminanceHistogram[LuminanceHistogramBinsCount];
 
 [numthreads(LuminanceHistogramBinsCount, 1, 1)]
 void ComputeStart(uint32 groupIndex : SV_GroupIndex)
@@ -11,7 +11,7 @@ void ComputeStart(uint32 groupIndex : SV_GroupIndex)
 	RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 
 	const uint32 binCount = luminanceBuffer.Load(groupIndex * sizeof(uint32));
-	HistogramShared[groupIndex] = binCount * groupIndex;
+	SharedLuminanceHistogram[groupIndex] = binCount * groupIndex;
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -21,7 +21,7 @@ void ComputeStart(uint32 groupIndex : SV_GroupIndex)
 	{
 		if (groupIndex < luminanceHistogramBinIndex)
 		{
-			HistogramShared[groupIndex] += HistogramShared[groupIndex + luminanceHistogramBinIndex];
+			SharedLuminanceHistogram[groupIndex] += SharedLuminanceHistogram[groupIndex + luminanceHistogramBinIndex];
 		}
 
 		GroupMemoryBarrierWithGroupSync();
@@ -29,7 +29,7 @@ void ComputeStart(uint32 groupIndex : SV_GroupIndex)
 
 	if (groupIndex == 0)
 	{
-		const float32 luminanceWeightedLog = HistogramShared[0] / max((float32)RootConstants.PixelCount - binCount, 1.0f) - 1.0f;
+		const float32 luminanceWeightedLog = SharedLuminanceHistogram[0] / max((float32)RootConstants.PixelCount - binCount, 1.0f) - 1.0f;
 		const float32 luminanceAverage = exp2((luminanceWeightedLog / (LuminanceHistogramBinsCount - 2)) * LuminanceLogRange + LuminanceLogMinimum);
 
 		luminanceBuffer.Store<float32>(LuminanceHistogramBinsCount * sizeof(uint32), luminanceAverage);

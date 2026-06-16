@@ -17,16 +17,16 @@ float32x3 SampleTextureCatmullRom(Texture2D<float32x3> texture, uint32x2 texture
 	};
 
 	float32x3 sample = 0.0f;
-	for (uint32 j = 0; j < 4; ++j)
+	for (uint32 ySampleIndex = 0; ySampleIndex < 4; ++ySampleIndex)
 	{
-		const uint32 yTS = clamp(int32(samplePositionTS.y) + (j - 1), 0, textureDimensions.y - 1);
+		const uint32 yTS = clamp(int32(samplePositionTS.y) + (ySampleIndex - 1), 0, textureDimensions.y - 1);
 
 		float32x3 row = 0.0f;
-		for (uint32 i = 0; i < 4; ++i)
+		for (uint32 xSampleIndex = 0; xSampleIndex < 4; ++xSampleIndex)
 		{
-			const uint32 xTS = clamp(int32(samplePositionTS.x) + (i - 1), 0, textureDimensions.x - 1);
+			const uint32 xTS = clamp(int32(samplePositionTS.x) + (xSampleIndex - 1), 0, textureDimensions.x - 1);
 
-			row += texture.Load(uint3(xTS, yTS, 0)) * weights[i].x * weights[j].y;
+			row += texture.Load(uint3(xTS, yTS, 0)) * weights[xSampleIndex].x * weights[ySampleIndex].y;
 		}
 
 		sample += row;
