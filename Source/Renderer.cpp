@@ -130,26 +130,15 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 		.ReservedIndex = HLSL::AnisotropicWrapSamplerIndex,
 	});
 
-	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
+	for (Resource& sceneBufferResource : SceneBufferResources)
 	{
-		SceneBufferResources[frameIndex] = GlobalDevice().Create(
+		sceneBufferResource = GlobalDevice().Create(
 		{
 			.Type = ResourceType::Buffer,
 			.Flags = ResourceFlags::Upload,
 			.InitialLayout = BarrierLayout::Undefined,
 			.Size = sizeof(HLSL::Scene),
 			.DebugName = "Scene Buffer"_view,
-		});
-		SceneBufferViews[frameIndex] = GlobalDevice().Create(
-		{
-			.Type = ViewType::ConstantBuffer,
-			.Buffer = Buffer
-			{
-				.Resource = SceneBufferResources[frameIndex],
-				.Size = sizeof(HLSL::Scene),
-				.Stride = 0,
-			},
-			.ViewHeap = GlobalResourceViewHeap(),
 		});
 	}
 
@@ -190,10 +179,9 @@ Renderer::~Renderer()
 
 	GlobalDevice().Destroy(&AnisotropicWrapSampler);
 
-	for (usize frameIndex = 0; frameIndex < FramesInFlight; ++frameIndex)
+	for (Resource& sceneBufferResource : SceneBufferResources)
 	{
-		GlobalDevice().Destroy(&SceneBufferResources[frameIndex]);
-		GlobalDevice().Destroy(&SceneBufferViews[frameIndex]);
+		GlobalDevice().Destroy(&sceneBufferResource);
 	}
 
 	GlobalDevice().Destroy(&SceneLuminanceBufferResource);

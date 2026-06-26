@@ -106,7 +106,6 @@ private:
 	ReadBuffer ScenePointLightsBuffer;
 
 	RHI::Resource SceneBufferResources[RHI::FramesInFlight];
-	RHI::BufferView SceneBufferViews[RHI::FramesInFlight];
 
 	RHI::Resource SceneLuminanceBufferResource;
 	RHI::BufferView SceneLuminanceBufferView;
