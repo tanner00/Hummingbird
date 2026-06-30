@@ -202,7 +202,7 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 
 	GlobalGraphics().SetViewHeaps(GlobalResourceViewHeap(), GlobalSamplerViewHeap());
 
-	if (FinalTextureResource.IsValid())
+	if (FinalTexture.Resource.IsValid())
 	{
 		UpdateViewport(cameraController);
 	}
@@ -217,7 +217,7 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
 									swapChainTextureResource);
 
-	RenderGraph::AddGraphicsPass({ FinalTextureShaderResourceView },
+	RenderGraph::AddGraphicsPass({ FinalTexture.ShaderResourceView },
 								 {},
 								 [timeDelta, swapChainTextureView, swapChainDimensions]
 	{
@@ -278,8 +278,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 		currentJitterNDC = float32x2
 		{
-			(currentHalton.X - 0.5f) * (2.0f / static_cast<float32>(FinalTextureResource.Dimensions.Width)),
-			(currentHalton.Y - 0.5f) * (2.0f / static_cast<float32>(FinalTextureResource.Dimensions.Height)),
+			(currentHalton.X - 0.5f) * (2.0f / static_cast<float32>(FinalTexture.Resource.Dimensions.Width)),
+			(currentHalton.Y - 0.5f) * (2.0f / static_cast<float32>(FinalTexture.Resource.Dimensions.Height)),
 		};
 	}
 
@@ -335,7 +335,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 		GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
 		GlobalGraphics().SetRootConstants(&rootConstants);
-		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+		GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 15) / 16, (FinalTexture.Resource.Dimensions.Height + 15) / 16, 1 });
 	});
 
 	RenderGraph::AddComputePass({ SceneLuminanceBufferView },
@@ -345,7 +345,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		const HLSL::LuminanceAverageRootConstants rootConstants =
 		{
 			.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-			.PixelCount = FinalTextureResource.Dimensions.Width * FinalTextureResource.Dimensions.Height,
+			.PixelCount = FinalTexture.Resource.Dimensions.Width * FinalTexture.Resource.Dimensions.Height,
 		};
 
 		GlobalGraphics().SetPipeline(LuminanceAveragePipeline);
@@ -356,11 +356,11 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 	const TextureView toneMapTextureView = ShouldAntiAlias() ? AccumulationTexture.ShaderResourceView : HDRTexture.ShaderResourceView;
 
 	RenderGraph::AddGraphicsPass({ SceneLuminanceBufferView, toneMapTextureView },
-								 { FinalTextureRenderTargetView },
+								 { FinalTexture.RenderTargetView },
 								 [this, toneMapTextureView]
 	{
-		GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
-		GlobalGraphics().SetRenderTarget(FinalTextureRenderTargetView);
+		GlobalGraphics().SetViewport({ FinalTexture.Resource.Dimensions.Width, FinalTexture.Resource.Dimensions.Height });
+		GlobalGraphics().SetRenderTarget(FinalTexture.RenderTargetView);
 
 		const HLSL::ToneMapRootConstants rootConstants =
 		{
@@ -385,13 +385,13 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 void Renderer::UpdateRasterization()
 {
 	RenderGraph::AddGraphicsPass({},
-								 { VisibilityTextureRenderTargetView, DepthTextureView },
+								 { VisibilityTexture.RenderTargetView, DepthTextureView },
 								 [this]
 	{
-		GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
-		GlobalGraphics().ClearRenderTarget(VisibilityTextureRenderTargetView);
+		GlobalGraphics().SetViewport({ FinalTexture.Resource.Dimensions.Width, FinalTexture.Resource.Dimensions.Height });
+		GlobalGraphics().ClearRenderTarget(VisibilityTexture.RenderTargetView);
 		GlobalGraphics().ClearDepthStencil(DepthTextureView);
-		GlobalGraphics().SetRenderTarget(VisibilityTextureRenderTargetView, DepthTextureView);
+		GlobalGraphics().SetRenderTarget(VisibilityTexture.RenderTargetView, DepthTextureView);
 
 		usize drawCallIndex = 0;
 		for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetCount(); ++nodeIndex)
@@ -451,26 +451,26 @@ void Renderer::UpdateRasterization()
 		}
 	});
 
-	RenderGraph::AddComputePass({ VisibilityTextureShaderResourceView },
+	RenderGraph::AddComputePass({ VisibilityTexture.ShaderResourceView },
 								{ HDRTexture.UnorderedAccessView },
 								[this]
 	{
 		const HLSL::DeferredRootConstants rootConstants =
 		{
 			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
-			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
+			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTexture.ShaderResourceView),
 			.ViewMode = ViewMode,
 		};
 
 		GlobalGraphics().SetPipeline(DeferredPipeline);
 		GlobalGraphics().SetRootConstants(&rootConstants);
 		GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+		GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 15) / 16, (FinalTexture.Resource.Dimensions.Height + 15) / 16, 1 });
 	});
 
 	if (ShouldAntiAlias())
 	{
-		RenderGraph::AddComputePass({ HDRTexture.ShaderResourceView, PreviousAccumulationTexture.ShaderResourceView, VisibilityTextureShaderResourceView },
+		RenderGraph::AddComputePass({ HDRTexture.ShaderResourceView, PreviousAccumulationTexture.ShaderResourceView, VisibilityTexture.ShaderResourceView },
 									{ AccumulationTexture.UnorderedAccessView },
 									[
 										this,
@@ -485,7 +485,7 @@ void Renderer::UpdateRasterization()
 				.AccumulationTextureIndex = GlobalDevice().Get(accumulationTexture.UnorderedAccessView),
 				.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
 				.PreviousAccumulationTextureIndex = GlobalDevice().Get(previousAccumulationTexture.ShaderResourceView),
-				.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
+				.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTexture.ShaderResourceView),
 				.DiscardPreviousFrame = discardPreviousFrame,
 				.PreviousWorldToClip = previousWorldToClip,
 			};
@@ -493,7 +493,7 @@ void Renderer::UpdateRasterization()
 			GlobalGraphics().SetPipeline(ResolvePipeline);
 			GlobalGraphics().SetRootConstants(&rootConstants);
 			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-			GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+			GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 15) / 16, (FinalTexture.Resource.Dimensions.Height + 15) / 16, 1 });
 		});
 	}
 }
@@ -512,7 +512,7 @@ void Renderer::UpdatePathTracing()
 		GlobalGraphics().SetPipeline(PathTracePipeline);
 		GlobalGraphics().SetRootConstants(&rootConstants);
 		GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+		GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 15) / 16, (FinalTexture.Resource.Dimensions.Height + 15) / 16, 1 });
 	});
 }
 
@@ -1190,6 +1190,34 @@ void Renderer::DestroySwapChainTextures()
 
 void Renderer::CreateViewportTextures(uint32x2 dimensions)
 {
+	const auto createRenderTargetTexture = [dimensions](ResourceFormat format, StringView debugName) -> RenderTargetTexture
+	{
+		const Resource resource = GlobalDevice().Create(
+		{
+			.Type = ResourceType::Texture2D,
+			.Format = format,
+			.Flags = ResourceFlags::RenderTarget,
+			.InitialLayout = BarrierLayout::RenderTarget,
+			.Dimensions = { dimensions.X, dimensions.Y },
+			.DebugName = debugName,
+		});
+		return RenderTargetTexture
+		{
+			.Resource = resource,
+			.ShaderResourceView = GlobalDevice().Create(
+			{
+				.Type = ViewType::ShaderResource,
+				.Resource = resource,
+				.ViewHeap = GlobalResourceViewHeap(),
+			}),
+			.RenderTargetView = GlobalDevice().Create(
+			{
+				.Type = ViewType::RenderTarget,
+				.Resource = resource,
+				.ViewHeap = GlobalRenderTargetViewHeap(),
+			}),
+		};
+	};
 	const auto createWriteTexture = [dimensions](ResourceFormat format, StringView debugName) -> WriteTexture
 	{
 		const Resource resource = GlobalDevice().Create(
@@ -1236,59 +1264,25 @@ void Renderer::CreateViewportTextures(uint32x2 dimensions)
 		.ViewHeap = GlobalDepthStencilViewHeap(),
 	});
 
-	VisibilityTextureResource = GlobalDevice().Create(
-	{
-		.Type = ResourceType::Texture2D,
-		.Format = ResourceFormat::RG32UInt,
-		.Flags = ResourceFlags::RenderTarget,
-		.InitialLayout = BarrierLayout::RenderTarget,
-		.Dimensions = { dimensions.X, dimensions.Y },
-		.DebugName = "Visibility Texture"_view,
-	});
-	VisibilityTextureRenderTargetView = GlobalDevice().Create(
-	{
-		.Type = ViewType::RenderTarget,
-		.Resource = VisibilityTextureResource,
-		.ViewHeap = GlobalRenderTargetViewHeap(),
-	});
-	VisibilityTextureShaderResourceView = GlobalDevice().Create(
-	{
-		.Type = ViewType::ShaderResource,
-		.Resource = VisibilityTextureResource,
-		.ViewHeap = GlobalResourceViewHeap(),
-	});
+	VisibilityTexture = createRenderTargetTexture(ResourceFormat::RG32UInt, "Visibility Texture"_view);
 
 	HDRTexture = createWriteTexture(ResourceFormat::RGBA32Float, "HDR Texture"_view);
 	AccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);
 	PreviousAccumulationTexture = createWriteTexture(ResourceFormat::RGBA32Float, "Accumulation Texture"_view);
 
-	FinalTextureResource = GlobalDevice().Create(
-	{
-		.Type = ResourceType::Texture2D,
-		.Format = ResourceFormat::RGBA8UNormSRGB,
-		.Flags = ResourceFlags::RenderTarget,
-		.InitialLayout = BarrierLayout::GraphicsQueueShaderResource,
-		.Dimensions = { dimensions.X, dimensions.Y },
-		.DebugName = "Final Texture"_view,
-	});
-	FinalTextureRenderTargetView = GlobalDevice().Create(
-	{
-		.Type = ViewType::RenderTarget,
-		.Resource = FinalTextureResource,
-		.ViewHeap = GlobalRenderTargetViewHeap(),
-	});
-	FinalTextureShaderResourceView = GlobalDevice().Create(
-	{
-		.Type = ViewType::ShaderResource,
-		.Resource = FinalTextureResource,
-		.ViewHeap = GlobalResourceViewHeap(),
-	});
+	FinalTexture = createRenderTargetTexture(ResourceFormat::RGBA8UNormSRGB, "Final Texture"_view);
 
 	TemporalAntiAliasing.DiscardPreviousFrame = true;
 }
 
 void Renderer::DestroyViewportTextures()
 {
+	const auto destroyRenderTargetTexture = [](RenderTargetTexture* renderTargetTexture) -> void
+	{
+		GlobalDevice().Destroy(&renderTargetTexture->Resource);
+		GlobalDevice().Destroy(&renderTargetTexture->ShaderResourceView);
+		GlobalDevice().Destroy(&renderTargetTexture->RenderTargetView);
+	};
 	const auto destroyWriteTexture = [](WriteTexture* writeTexture) -> void
 	{
 		GlobalDevice().Destroy(&writeTexture->Resource);
@@ -1299,15 +1293,11 @@ void Renderer::DestroyViewportTextures()
 	GlobalDevice().Destroy(&DepthTextureResource);
 	GlobalDevice().Destroy(&DepthTextureView);
 
-	GlobalDevice().Destroy(&VisibilityTextureResource);
-	GlobalDevice().Destroy(&VisibilityTextureRenderTargetView);
-	GlobalDevice().Destroy(&VisibilityTextureShaderResourceView);
+	destroyRenderTargetTexture(&VisibilityTexture);
 
 	destroyWriteTexture(&HDRTexture);
 	destroyWriteTexture(&AccumulationTexture);
 	destroyWriteTexture(&PreviousAccumulationTexture);
 
-	GlobalDevice().Destroy(&FinalTextureResource);
-	GlobalDevice().Destroy(&FinalTextureRenderTargetView);
-	GlobalDevice().Destroy(&FinalTextureShaderResourceView);
+	destroyRenderTargetTexture(&FinalTexture);
 }

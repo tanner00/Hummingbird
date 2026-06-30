@@ -19,6 +19,13 @@ struct ReadTexture
 	RHI::TextureView View;
 };
 
+struct RenderTargetTexture
+{
+	RHI::Resource Resource;
+	RHI::TextureView ShaderResourceView;
+	RHI::TextureView RenderTargetView;
+};
+
 struct WriteTexture
 {
 	RHI::Resource Resource;

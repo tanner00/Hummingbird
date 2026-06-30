@@ -256,7 +256,7 @@ void Editor::Update()
 
 			const uint32x2 viewportPixelDimensions = { static_cast<uint32>(viewportSizeSS.X), static_cast<uint32>(viewportSizeSS.Y) };
 
-			const ResourceDimensions currentViewportDimensions = Renderer->FinalTextureResource.Dimensions;
+			const ResourceDimensions currentViewportDimensions = Renderer->FinalTexture.Resource.Dimensions;
 
 			const bool resize = viewportPixelDimensions.X != 0 && viewportPixelDimensions.Y != 0 &&
 								(currentViewportDimensions.Width != viewportPixelDimensions.X || currentViewportDimensions.Height != viewportPixelDimensions.Y);
@@ -265,7 +265,7 @@ void Editor::Update()
 				Renderer->ResizeViewport(viewportPixelDimensions);
 			}
 
-			Image(Renderer->FinalTextureShaderResourceView, { .ID = viewportID, .Layout = { .SizeX = Grow(), .SizeY = Grow() }, .Style = White });
+			Image(Renderer->FinalTexture.ShaderResourceView, { .ID = viewportID, .Layout = { .SizeX = Grow(), .SizeY = Grow() }, .Style = White });
 
 			if (IsPressedOnce(viewportID))
 			{

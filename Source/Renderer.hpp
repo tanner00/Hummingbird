@@ -85,17 +85,13 @@ private:
 
 	RHI::Sampler AnisotropicWrapSampler;
 
-	RHI::Resource VisibilityTextureResource;
-	RHI::TextureView VisibilityTextureRenderTargetView;
-	RHI::TextureView VisibilityTextureShaderResourceView;
+	RenderTargetTexture VisibilityTexture;
 
 	WriteTexture HDRTexture;
 	WriteTexture AccumulationTexture;
 	WriteTexture PreviousAccumulationTexture;
 
-	RHI::Resource FinalTextureResource;
-	RHI::TextureView FinalTextureRenderTargetView;
-	RHI::TextureView FinalTextureShaderResourceView;
+	RenderTargetTexture FinalTexture;
 
 	ReadBuffer SceneVertexBuffer;
 	ReadBuffer ScenePrimitiveBuffer;
