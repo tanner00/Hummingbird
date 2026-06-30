@@ -3,6 +3,7 @@
 #include "DDS.hpp"
 #include "GLTF.hpp"
 #include "RenderContext.hpp"
+#include "RenderGraph.hpp"
 #include "ResourceUploader.hpp"
 #include "UI.hpp"
 
@@ -216,11 +217,18 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
 									swapChainTextureResource);
 
-	GlobalGraphics().SetViewport({ swapChainDimensions.Width, swapChainDimensions.Height });
-	GlobalGraphics().ClearRenderTarget(swapChainTextureView);
-	GlobalGraphics().SetRenderTarget(swapChainTextureView);
+	RenderGraph::AddGraphicsPass({ FinalTextureShaderResourceView },
+								 {},
+								 [timeDelta, swapChainTextureView, swapChainDimensions]
+	{
+		GlobalGraphics().SetViewport({ swapChainDimensions.Width, swapChainDimensions.Height });
+		GlobalGraphics().ClearRenderTarget(swapChainTextureView);
+		GlobalGraphics().SetRenderTarget(swapChainTextureView);
 
-	UI::Submit(swapChainDimensions.Width, swapChainDimensions.Height, timeDelta);
+		UI::Submit(swapChainDimensions.Width, swapChainDimensions.Height, timeDelta);
+	});
+
+	RenderGraph::Execute();
 
 	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::None },
 									{ BarrierAccess::RenderTarget, BarrierAccess::NoAccess },
@@ -243,8 +251,6 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 
 void Renderer::UpdateViewport(const CameraController& cameraController)
 {
-	GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
-
 	float32x2 currentJitterNDC = { 0.0f, 0.0f };
 	if (ShouldAntiAlias())
 	{
@@ -317,75 +323,56 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		UpdateRasterization();
 	}
 
-	GlobalGraphics().BufferBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
-								   { BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
-								   SceneLuminanceBufferResource);
-
-	const HLSL::LuminanceHistogramRootConstants luminanceHistogramRootConstants =
+	RenderGraph::AddComputePass({ HDRTexture.ShaderResourceView },
+								{ SceneLuminanceBufferView },
+								[this]
 	{
-		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
-	};
+		const HLSL::LuminanceHistogramRootConstants rootConstants =
+		{
+			.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
+			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
+		};
 
-	GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
-	GlobalGraphics().SetRootConstants(&luminanceHistogramRootConstants);
-	GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+		GlobalGraphics().SetPipeline(LuminanceHistogramPipeline);
+		GlobalGraphics().SetRootConstants(&rootConstants);
+		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+	});
 
-	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-								   SceneLuminanceBufferResource);
-
-	const HLSL::LuminanceAverageRootConstants luminanceAverageRootConstants =
+	RenderGraph::AddComputePass({ SceneLuminanceBufferView },
+								{ SceneLuminanceBufferView },
+								[this]
 	{
-		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-		.PixelCount = FinalTextureResource.Dimensions.Width * FinalTextureResource.Dimensions.Height,
-	};
+		const HLSL::LuminanceAverageRootConstants rootConstants =
+		{
+			.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
+			.PixelCount = FinalTextureResource.Dimensions.Width * FinalTextureResource.Dimensions.Height,
+		};
 
-	GlobalGraphics().SetPipeline(LuminanceAveragePipeline);
-	GlobalGraphics().SetRootConstants(&luminanceAverageRootConstants);
-	GlobalGraphics().Dispatch({ HLSL::LuminanceHistogramBinsCount, 1, 1 });
+		GlobalGraphics().SetPipeline(LuminanceAveragePipeline);
+		GlobalGraphics().SetRootConstants(&rootConstants);
+		GlobalGraphics().Dispatch({ HLSL::LuminanceHistogramBinsCount, 1, 1 });
+	});
 
-	GlobalGraphics().BufferBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
-								   { BarrierAccess::UnorderedAccess, BarrierAccess::UnorderedAccess },
-								   SceneLuminanceBufferResource);
+	const TextureView toneMapTextureView = ShouldAntiAlias() ? AccumulationTexture.ShaderResourceView : HDRTexture.ShaderResourceView;
 
-	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::RenderTarget },
-									{ BarrierAccess::NoAccess, BarrierAccess::RenderTarget },
-									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
-									FinalTextureResource);
-	if (ShouldAntiAlias())
+	RenderGraph::AddGraphicsPass({ SceneLuminanceBufferView, toneMapTextureView },
+								 { FinalTextureRenderTargetView },
+								 [this, toneMapTextureView]
 	{
-		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::PixelShading },
-										{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
-										{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
-										AccumulationTexture.Resource);
-	}
+		GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
+		GlobalGraphics().SetRenderTarget(FinalTextureRenderTargetView);
 
-	GlobalGraphics().SetRenderTarget(FinalTextureRenderTargetView);
+		const HLSL::ToneMapRootConstants rootConstants =
+		{
+			.HDRTextureIndex = GlobalDevice().Get(toneMapTextureView),
+			.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
+			.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
+		};
 
-	const HLSL::ToneMapRootConstants toneMapRootConstants =
-	{
-		.HDRTextureIndex = ShouldAntiAlias() ? GlobalDevice().Get(AccumulationTexture.ShaderResourceView)
-											 : GlobalDevice().Get(HDRTexture.ShaderResourceView),
-		.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-		.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
-	};
-
-	GlobalGraphics().SetPipeline(ToneMapPipeline);
-	GlobalGraphics().SetRootConstants(&toneMapRootConstants);
-	GlobalGraphics().Draw(3);
-
-	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::PixelShading },
-									{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
-									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
-									FinalTextureResource);
-	if (ShouldAntiAlias())
-	{
-		GlobalGraphics().TextureBarrier({ BarrierStage::PixelShading, BarrierStage::None },
-										{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-										{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
-										AccumulationTexture.Resource);
-	}
+		GlobalGraphics().SetPipeline(ToneMapPipeline);
+		GlobalGraphics().SetRootConstants(&rootConstants);
+		GlobalGraphics().Draw(3);
+	});
 
 	if (ShouldAntiAlias())
 	{
@@ -397,151 +384,136 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 void Renderer::UpdateRasterization()
 {
-	GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
-	GlobalGraphics().ClearRenderTarget(VisibilityTextureRenderTargetView);
-	GlobalGraphics().ClearDepthStencil(DepthTextureView);
-
-	GlobalGraphics().SetRenderTarget(VisibilityTextureRenderTargetView, DepthTextureView);
-
-	usize drawCallIndex = 0;
-	for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetCount(); ++nodeIndex)
+	RenderGraph::AddGraphicsPass({},
+								 { VisibilityTextureRenderTargetView, DepthTextureView },
+								 [this]
 	{
-		const Node& node = SceneNodes[nodeIndex];
-		const Mesh& mesh = SceneMeshes[node.MeshIndex];
+		GlobalGraphics().SetViewport({ FinalTextureResource.Dimensions.Width, FinalTextureResource.Dimensions.Height });
+		GlobalGraphics().ClearRenderTarget(VisibilityTextureRenderTargetView);
+		GlobalGraphics().ClearDepthStencil(DepthTextureView);
+		GlobalGraphics().SetRenderTarget(VisibilityTextureRenderTargetView, DepthTextureView);
 
-		for (const Primitive& primitive : mesh.Primitives)
+		usize drawCallIndex = 0;
+		for (usize nodeIndex = 0; nodeIndex < SceneNodes.GetCount(); ++nodeIndex)
 		{
-			const HLSL::VisibilityRootConstants rootConstants =
-			{
-				.DrawCallIndex = static_cast<uint32>(drawCallIndex),
-				.PrimitiveIndex = static_cast<uint32>(primitive.GlobalIndex),
-				.NodeIndex = static_cast<uint32>(nodeIndex),
-				.ViewMode = ViewMode,
-			};
+			const Node& node = SceneNodes[nodeIndex];
+			const Mesh& mesh = SceneMeshes[node.MeshIndex];
 
-			++drawCallIndex;
-
-			const Material& material = SceneMaterials[primitive.MaterialIndex];
-
-			GlobalGraphics().SetPipeline(material.DoubleSided ? VisibilityDoubleSidedPipeline : VisibilityPipeline);
-			GlobalGraphics().SetRootConstants(&rootConstants);
-			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-
-			GlobalGraphics().SetVertexBuffer(0,
+			for (const Primitive& primitive : mesh.Primitives)
 			{
-				.Resource = SceneVertexBuffer.Resource,
-				.Size = primitive.PositionSize,
-				.Stride = primitive.PositionStride,
-				.Offset = primitive.PositionOffset,
-			});
-			GlobalGraphics().SetVertexBuffer(1,
-			{
-				.Resource = SceneVertexBuffer.Resource,
-				.Size = primitive.TextureCoordinateSize,
-				.Stride = primitive.TextureCoordinateStride,
-				.Offset = primitive.TextureCoordinateOffset,
-			});
-			GlobalGraphics().SetVertexBuffer(2,
-			{
-				.Resource = SceneVertexBuffer.Resource,
-				.Size = primitive.NormalSize,
-				.Stride = primitive.NormalStride,
-				.Offset = primitive.NormalOffset,
-			});
-			GlobalGraphics().SetIndexBuffer(
-			{
-				.Resource = SceneVertexBuffer.Resource,
-				.Size = primitive.IndexSize,
-				.Stride = primitive.IndexStride,
-				.Offset = primitive.IndexOffset,
-			});
+				const HLSL::VisibilityRootConstants rootConstants =
+				{
+					.DrawCallIndex = static_cast<uint32>(drawCallIndex),
+					.PrimitiveIndex = static_cast<uint32>(primitive.GlobalIndex),
+					.NodeIndex = static_cast<uint32>(nodeIndex),
+					.ViewMode = ViewMode,
+				};
 
-			GlobalGraphics().DrawIndexed(primitive.IndexSize / primitive.IndexStride);
+				++drawCallIndex;
+
+				const Material& material = SceneMaterials[primitive.MaterialIndex];
+
+				GlobalGraphics().SetPipeline(material.DoubleSided ? VisibilityDoubleSidedPipeline : VisibilityPipeline);
+				GlobalGraphics().SetRootConstants(&rootConstants);
+				GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
+
+				GlobalGraphics().SetVertexBuffer(0,
+				{
+					.Resource = SceneVertexBuffer.Resource,
+					.Size = primitive.PositionSize,
+					.Stride = primitive.PositionStride,
+					.Offset = primitive.PositionOffset,
+				});
+				GlobalGraphics().SetVertexBuffer(1,
+				{
+					.Resource = SceneVertexBuffer.Resource,
+					.Size = primitive.TextureCoordinateSize,
+					.Stride = primitive.TextureCoordinateStride,
+					.Offset = primitive.TextureCoordinateOffset,
+				});
+				GlobalGraphics().SetVertexBuffer(2,
+				{
+					.Resource = SceneVertexBuffer.Resource,
+					.Size = primitive.NormalSize,
+					.Stride = primitive.NormalStride,
+					.Offset = primitive.NormalOffset,
+				});
+				GlobalGraphics().SetIndexBuffer(
+				{
+					.Resource = SceneVertexBuffer.Resource,
+					.Size = primitive.IndexSize,
+					.Stride = primitive.IndexStride,
+					.Offset = primitive.IndexOffset,
+				});
+
+				GlobalGraphics().DrawIndexed(primitive.IndexSize / primitive.IndexStride);
+			}
 		}
-	}
+	});
 
-	GlobalGraphics().TextureBarrier({ BarrierStage::RenderTarget, BarrierStage::ComputeShading },
-									{ BarrierAccess::RenderTarget, BarrierAccess::ShaderResource },
-									{ BarrierLayout::RenderTarget, BarrierLayout::GraphicsQueueShaderResource },
-									VisibilityTextureResource);
-
-	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
-									{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
-									{ BarrierLayout::Undefined, BarrierLayout::GraphicsQueueUnorderedAccess },
-									HDRTexture.Resource);
-
-	const HLSL::DeferredRootConstants deferredRootConstants =
+	RenderGraph::AddComputePass({ VisibilityTextureShaderResourceView },
+								{ HDRTexture.UnorderedAccessView },
+								[this]
 	{
-		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
-		.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
-		.ViewMode = ViewMode,
-	};
+		const HLSL::DeferredRootConstants rootConstants =
+		{
+			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
+			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
+			.ViewMode = ViewMode,
+		};
 
-	GlobalGraphics().SetPipeline(DeferredPipeline);
-	GlobalGraphics().SetRootConstants(&deferredRootConstants);
-	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-	GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
-
-	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-									{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
-									{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
-									HDRTexture.Resource);
+		GlobalGraphics().SetPipeline(DeferredPipeline);
+		GlobalGraphics().SetRootConstants(&rootConstants);
+		GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
+		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+	});
 
 	if (ShouldAntiAlias())
 	{
-		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-										{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
-										{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
-										PreviousAccumulationTexture.Resource);
-
-		const HLSL::ResolveRootConstants resolveRootConstants =
+		RenderGraph::AddComputePass({ HDRTexture.ShaderResourceView, PreviousAccumulationTexture.ShaderResourceView, VisibilityTextureShaderResourceView },
+									{ AccumulationTexture.UnorderedAccessView },
+									[
+										this,
+										accumulationTexture = AccumulationTexture,
+										previousAccumulationTexture = PreviousAccumulationTexture,
+										discardPreviousFrame = TemporalAntiAliasing.DiscardPreviousFrame,
+										previousWorldToClip = TemporalAntiAliasing.PreviousWorldToClip
+									]
 		{
-			.AccumulationTextureIndex = GlobalDevice().Get(AccumulationTexture.UnorderedAccessView),
-			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
-			.PreviousAccumulationTextureIndex = GlobalDevice().Get(PreviousAccumulationTexture.ShaderResourceView),
-			.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
-			.DiscardPreviousFrame = TemporalAntiAliasing.DiscardPreviousFrame,
-			.PreviousWorldToClip = TemporalAntiAliasing.PreviousWorldToClip,
-		};
+			const HLSL::ResolveRootConstants rootConstants =
+			{
+				.AccumulationTextureIndex = GlobalDevice().Get(accumulationTexture.UnorderedAccessView),
+				.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
+				.PreviousAccumulationTextureIndex = GlobalDevice().Get(previousAccumulationTexture.ShaderResourceView),
+				.VisibilityTextureIndex = GlobalDevice().Get(VisibilityTextureShaderResourceView),
+				.DiscardPreviousFrame = discardPreviousFrame,
+				.PreviousWorldToClip = previousWorldToClip,
+			};
 
-		GlobalGraphics().SetPipeline(ResolvePipeline);
-		GlobalGraphics().SetRootConstants(&resolveRootConstants);
-		GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
-
-		GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-										{ BarrierAccess::ShaderResource, BarrierAccess::UnorderedAccess },
-										{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::GraphicsQueueUnorderedAccess },
-										PreviousAccumulationTexture.Resource);
+			GlobalGraphics().SetPipeline(ResolvePipeline);
+			GlobalGraphics().SetRootConstants(&rootConstants);
+			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
+			GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+		});
 	}
-
-	GlobalGraphics().TextureBarrier({ BarrierStage::PixelShading, BarrierStage::None },
-									{ BarrierAccess::ShaderResource, BarrierAccess::NoAccess },
-									{ BarrierLayout::GraphicsQueueShaderResource, BarrierLayout::RenderTarget },
-									VisibilityTextureResource);
 }
 
 void Renderer::UpdatePathTracing()
 {
-	GlobalGraphics().TextureBarrier({ BarrierStage::None, BarrierStage::ComputeShading },
-									{ BarrierAccess::NoAccess, BarrierAccess::UnorderedAccess },
-									{ BarrierLayout::Undefined, BarrierLayout::GraphicsQueueUnorderedAccess },
-									HDRTexture.Resource);
-
-	const HLSL::PathTraceRootConstants pathTraceRootConstants =
+	RenderGraph::AddComputePass({},
+								{ HDRTexture.UnorderedAccessView },
+								[this]
 	{
-		.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
-	};
+		const HLSL::PathTraceRootConstants rootConstants =
+		{
+			.HDRTextureIndex = GlobalDevice().Get(HDRTexture.UnorderedAccessView),
+		};
 
-	GlobalGraphics().SetPipeline(PathTracePipeline);
-	GlobalGraphics().SetRootConstants(&pathTraceRootConstants);
-	GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-	GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
-
-	GlobalGraphics().TextureBarrier({ BarrierStage::ComputeShading, BarrierStage::ComputeShading },
-									{ BarrierAccess::UnorderedAccess, BarrierAccess::ShaderResource },
-									{ BarrierLayout::GraphicsQueueUnorderedAccess, BarrierLayout::GraphicsQueueShaderResource },
-									HDRTexture.Resource);
+		GlobalGraphics().SetPipeline(PathTracePipeline);
+		GlobalGraphics().SetRootConstants(&rootConstants);
+		GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
+		GlobalGraphics().Dispatch({ (FinalTextureResource.Dimensions.Width + 15) / 16, (FinalTextureResource.Dimensions.Height + 15) / 16, 1 });
+	});
 }
 
 #if !RELEASE
