@@ -10,7 +10,7 @@
 ConstantBuffer<DeferredRootConstants> RootConstants : register(b0);
 ConstantBuffer<Scene> Scene : register(b1);
 
-[numthreads(16, 16, 1)]
+[numthreads(8, 8, 1)]
 void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 {
 	RWTexture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];

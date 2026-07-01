@@ -465,7 +465,7 @@ void Renderer::UpdateRasterization()
 		GlobalGraphics().SetPipeline(DeferredPipeline);
 		GlobalGraphics().SetRootConstants(&rootConstants);
 		GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-		GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 15) / 16, (FinalTexture.Resource.Dimensions.Height + 15) / 16, 1 });
+		GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 7) / 8, (FinalTexture.Resource.Dimensions.Height + 7) / 8, 1 });
 	});
 
 	if (ShouldAntiAlias())
@@ -493,7 +493,7 @@ void Renderer::UpdateRasterization()
 			GlobalGraphics().SetPipeline(ResolvePipeline);
 			GlobalGraphics().SetRootConstants(&rootConstants);
 			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
-			GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 15) / 16, (FinalTexture.Resource.Dimensions.Height + 15) / 16, 1 });
+			GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 7) / 8, (FinalTexture.Resource.Dimensions.Height + 7) / 8, 1 });
 		});
 	}
 }
