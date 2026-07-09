@@ -27,7 +27,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 	const Texture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
 	const RWByteAddressBuffer luminanceBuffer = ResourceDescriptorHeap[RootConstants.LuminanceBufferIndex];
 
-	if (RootConstants.DebugViewMode)
+	if (RootConstants.ViewMode)
 	{
 		const float32x3 ldrRGB = hdrTexture.Sample(GetLinearClampSampler(), input.UV);
 		return float32x4(ldrRGB, 1.0f);

@@ -14,8 +14,8 @@ CameraController::CameraController()
 	, PitchRadians(0.0f)
 	, FieldOfViewYRadians(0.0f)
 	, AspectRatio(0.0f)
-	, NearZ(0.0f)
-	, FarZ(0.0f)
+	, Near(0.0f)
+	, Far(0.0f)
 {
 }
 
@@ -88,6 +88,6 @@ void CameraController::SetCamera(const GLTF::Camera& camera)
 
 	FieldOfViewYRadians = camera.FieldOfViewYRadians;
 	AspectRatio = camera.AspectRatio;
-	NearZ = camera.NearZ;
-	FarZ = camera.FarZ;
+	Near = camera.Near;
+	Far = camera.Far;
 }

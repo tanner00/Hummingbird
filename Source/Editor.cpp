@@ -291,8 +291,8 @@ void Editor::SetScene(usize sceneIndex)
 		.LocalToWorld = Matrix::Identity,
 		.FieldOfViewYRadians = Pi / 3.0f,
 		.AspectRatio = 16.0f / 9.0f,
-		.NearZ = 0.1f,
-		.FarZ = 1000.0f,
+		.Near = 0.1f,
+		.Far = 1000.0f,
 	};
 	const GLTF::Camera camera = scene.Cameras.IsEmpty() ? defaultCamera : scene.Cameras[0];
 

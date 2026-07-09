@@ -5,7 +5,7 @@ float32 Median(float32x3 v)
 	return max(min(v.x, v.y), min(max(v.x, v.y), v.z));
 }
 
-float32 CalculateDistanceFieldRangeSS(float32x2 uv, float32x2 unitRange)
+float32 CalculateDistanceFieldRange(float32x2 uv, float32x2 unitRange)
 {
 	const float32x2 textureScreenSize = 1.0f / fwidth(uv);
 	return max(0.5f * dot(unitRange, textureScreenSize), 1.0f);

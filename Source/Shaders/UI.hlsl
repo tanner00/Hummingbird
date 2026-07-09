@@ -60,6 +60,7 @@ PixelInput VertexStart(uint32 vertexID : SV_VertexID)
 float32x4 PixelStart(PixelInput input) : SV_TARGET
 {
 	const StructuredBuffer<UIDraw> drawBuffer = ResourceDescriptorHeap[RootConstants.UIDrawBufferIndex];
+
 	const UIDraw draw = drawBuffer[input.DrawIndex];
 
 	const bool32 inside = input.PositionCS.x >= draw.ScissorMinSS.x && input.PositionCS.y >= draw.ScissorMinSS.y &&
@@ -97,7 +98,7 @@ float32x4 PixelStart(PixelInput input) : SV_TARGET
 
 		const float32x3 multiChannelSignedDistance = fontTexture.Sample(GetLinearClampSampler(), input.UV);
 		const float32 signedDistance = Median(multiChannelSignedDistance);
-		const float32 distanceSS = CalculateDistanceFieldRangeSS(input.UV, RootConstants.UnitRange) * (signedDistance - 0.5f);
+		const float32 distanceSS = CalculateDistanceFieldRange(input.UV, RootConstants.UnitRange) * (signedDistance - 0.5f);
 
 		const float32 insideMask = saturate(distanceSS + 0.5f);
 

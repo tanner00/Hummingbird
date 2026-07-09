@@ -286,8 +286,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 	const Matrix worldToView = cameraController.GetViewToWorld().GetInverse();
 	const Matrix viewToClip = Matrix::ReverseDepth() * Matrix::Perspective(cameraController.GetFieldOfViewYRadians(),
 																		   cameraController.GetAspectRatio(),
-																		   cameraController.GetNearZ(),
-																		   cameraController.GetFarZ());
+																		   cameraController.GetNear(),
+																		   cameraController.GetFar());
 	const Matrix worldToClip = viewToClip * worldToView;
 
 	const HLSL::Scene sceneData =
@@ -366,7 +366,7 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		{
 			.HDRTextureIndex = GlobalDevice().Get(toneMapTextureView),
 			.LuminanceBufferIndex = GlobalDevice().Get(SceneLuminanceBufferView),
-			.DebugViewMode = ViewMode != HLSL::ViewMode::Lit,
+			.ViewMode = ViewMode != HLSL::ViewMode::Lit,
 		};
 
 		GlobalGraphics().SetPipeline(ToneMapPipeline);

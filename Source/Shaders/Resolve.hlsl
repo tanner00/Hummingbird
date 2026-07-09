@@ -17,6 +17,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 	const Texture2D<float32x3> hdrTexture = ResourceDescriptorHeap[RootConstants.HDRTextureIndex];
 	const Texture2D<float32x3> previousAccumulationTexture = ResourceDescriptorHeap[RootConstants.PreviousAccumulationTextureIndex];
 	const Texture2D<uint32x2> visibilityTexture = ResourceDescriptorHeap[RootConstants.VisibilityTextureIndex];
+
 	const ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[Scene.VertexBufferIndex];
 	const StructuredBuffer<Primitive> primitiveBuffer = ResourceDescriptorHeap[Scene.PrimitiveBufferIndex];
 	const StructuredBuffer<Node> nodeBuffer = ResourceDescriptorHeap[Scene.NodeBufferIndex];
@@ -37,6 +38,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 		accumulationTexture[dispatchThreadID.xy] = 0.0f;
 		return;
 	}
+
 	const uint32 drawCallIndex = visibility.x - 1;
 	const uint32 triangleIndex = visibility.y - 1;
 

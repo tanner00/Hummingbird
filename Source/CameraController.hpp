@@ -22,8 +22,8 @@ public:
 
 	float32 GetFieldOfViewYRadians() const { return FieldOfViewYRadians; }
 	float32 GetAspectRatio() const { return AspectRatio; }
-	float32 GetNearZ() const { return NearZ; }
-	float32 GetFarZ() const { return FarZ; }
+	float32 GetNear() const { return Near; }
+	float32 GetFar() const { return Far; }
 
 private:
 	Vector PositionWS;
@@ -33,6 +33,6 @@ private:
 
 	float32 FieldOfViewYRadians;
 	float32 AspectRatio;
-	float32 NearZ;
-	float32 FarZ;
+	float32 Near;
+	float32 Far;
 };

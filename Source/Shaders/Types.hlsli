@@ -68,7 +68,7 @@ struct ToneMapRootConstants
 	uint32 HDRTextureIndex;
 	uint32 LuminanceBufferIndex;
 
-	bool32 DebugViewMode;
+	bool32 ViewMode;
 };
 
 struct PathTraceRootConstants

@@ -40,6 +40,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 		hdrTexture[dispatchThreadID.xy] = 0.0f;
 		return;
 	}
+
 	const uint32 drawCallIndex = visibility.x - 1;
 	const uint32 triangleIndex = visibility.y - 1;
 
@@ -129,8 +130,8 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 
 		const float32x3 pointLightDirectionWS = normalize(pointLight.PositionWS - positionWS);
 
-		const float32 objectToLightDistance = distance(pointLight.PositionWS, positionWS);
-		const float32 attenuation = 1.0f / (objectToLightDistance * objectToLightDistance);
+		const float32 objectToLightDistanceWS = distance(pointLight.PositionWS, positionWS);
+		const float32 attenuation = 1.0f / (objectToLightDistanceWS * objectToLightDistanceWS);
 
 		pointLightLuminanceRGB += EvaluateDirectLighting(surface,
 														 viewDirectionWS,
@@ -138,7 +139,7 @@ void ComputeStart(uint32x3 dispatchThreadID : SV_DispatchThreadID)
 														 attenuation * pointLight.IntensityCandela * pointLight.RGB) *
 								  CastShadowRay(positionWS,
 								  				pointLightDirectionWS,
-												objectToLightDistance,
+												objectToLightDistanceWS,
 												accelerationStructure,
 												vertexBuffer,
 												primitiveBuffer,

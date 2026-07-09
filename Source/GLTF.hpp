@@ -205,8 +205,8 @@ struct Camera
 	float32 FieldOfViewYRadians;
 	float32 AspectRatio;
 
-	float32 NearZ;
-	float32 FarZ;
+	float32 Near;
+	float32 Far;
 };
 
 enum class LightType : uint8

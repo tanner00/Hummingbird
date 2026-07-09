@@ -92,17 +92,17 @@ Scene LoadScene(StringView filePath)
 			const float32 aspectRatio = perspectiveObject.HasKey("aspectRatio"_view) ? static_cast<float32>(perspectiveObject["aspectRatio"_view].GetDecimal())
 																					 : 16.0f / 9.0f;
 
-			const float32 nearZ = static_cast<float32>(perspectiveObject["znear"_view].GetDecimal());
+			const float32 near = static_cast<float32>(perspectiveObject["znear"_view].GetDecimal());
 
-			const float32 farZ = perspectiveObject.HasKey("zfar"_view) ? static_cast<float32>(perspectiveObject["zfar"_view].GetDecimal())
-																	   : 1000.0f;
+			const float32 far = perspectiveObject.HasKey("zfar"_view) ? static_cast<float32>(perspectiveObject["zfar"_view].GetDecimal())
+																	  : 1000.0f;
 
 			cameraTemplates.Add(Camera
 			{
 				.FieldOfViewYRadians = fieldOfViewYRadians,
 				.AspectRatio = aspectRatio,
-				.NearZ = nearZ,
-				.FarZ = farZ,
+				.Near = near,
+				.Far = far,
 			});
 		}
 	}
