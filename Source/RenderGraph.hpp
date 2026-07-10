@@ -4,6 +4,7 @@
 
 #include "Luft/Array.hpp"
 #include "Luft/Function.hpp"
+#include "Luft/String.hpp"
 
 namespace RenderGraph
 {
@@ -37,9 +38,13 @@ public:
 	ViewResourceType Type;
 };
 
-void AddGraphicsPass(ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function);
-void AddComputePass(ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function);
+void AddGraphicsPass(StringView name, ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function);
+void AddComputePass(StringView name, ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function);
 
 void Execute();
+
+float64 GetTimerMostRecentTimeGPU(usize slot);
+usize GetTimerCount();
+StringView GetTimerName(usize slot);
 
 }

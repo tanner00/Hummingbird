@@ -22,6 +22,8 @@ struct Pass
 	Array<View> Writes;
 
 	Function<void()> Function;
+
+	usize TimerSlot;
 };
 
 struct ResourceState
@@ -35,6 +37,9 @@ struct ResourceState
 
 static Array<Pass> Passes(Allocator);
 static Array<ResourceState> ResourceStates(Allocator);
+
+static Array<String> TimerSlotNames(Allocator);
+static Array<String> PreviousTimerSlotNames(Allocator);
 
 static ResourceState& GetResourceState(const Resource& resource)
 {
@@ -165,25 +170,29 @@ static void InsertTextureBarrier(const TextureView& textureView, bool writeAfter
 	state.Write = writeAfter;
 }
 
-static void AddPass(PassType type, ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function)
+static void AddPass(PassType type, StringView name, ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function)
 {
+	const usize timerSlot = TimerSlotNames.GetCount();
+	TimerSlotNames.Add(String(name, Allocator));
+
 	Passes.Add(Pass
 	{
 		.Type = type,
 		.Reads = Array(reads, Allocator),
 		.Writes = Array(writes, Allocator),
 		.Function = function,
+		.TimerSlot = timerSlot,
 	});
 }
 
-void AddGraphicsPass(ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function)
+void AddGraphicsPass(StringView name, ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function)
 {
-	AddPass(PassType::Graphics, reads, writes, function);
+	AddPass(PassType::Graphics, name, reads, writes, function);
 }
 
-void AddComputePass(ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function)
+void AddComputePass(StringView name, ArrayView<View> reads, ArrayView<View> writes, const Function<void()>& function)
 {
-	AddPass(PassType::Compute, reads, writes, function);
+	AddPass(PassType::Compute, name, reads, writes, function);
 }
 
 void Execute()
@@ -216,7 +225,11 @@ void Execute()
 			}
 		}
 
+		GlobalGraphics().BeginTimer(pass.TimerSlot);
+
 		pass.Function();
+
+		GlobalGraphics().EndTimer(pass.TimerSlot);
 	}
 
 	for (ResourceState& state : ResourceStates)
@@ -234,8 +247,26 @@ void Execute()
 										state.Resource);
 	}
 
+	PreviousTimerSlotNames = TimerSlotNames;
+
 	Passes.Clear();
 	ResourceStates.Clear();
+	TimerSlotNames.Clear();
+}
+
+float64 GetTimerMostRecentTimeGPU(usize slot)
+{
+	return GlobalGraphics().GetMostRecentTimeGPU(slot);
+}
+
+usize GetTimerCount()
+{
+	return PreviousTimerSlotNames.GetCount();
+}
+
+StringView GetTimerName(usize slot)
+{
+	return PreviousTimerSlotNames[slot];
 }
 
 }

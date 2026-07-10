@@ -61,7 +61,10 @@ inline void CreateRenderContext(Platform::Window* window, bool validation)
 		.Validation = validation,
 	});
 
-	RenderContext.Graphics = GlobalDevice().Create(RHI::GraphicsContextDescription {});
+	RenderContext.Graphics = GlobalDevice().Create(
+	{
+		.TimerCount = 64,
+	});
 
 	RenderContext.ResourceViewHeap = GlobalDevice().Create(
 	{

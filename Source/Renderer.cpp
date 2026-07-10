@@ -217,7 +217,8 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 									{ BarrierLayout::Undefined, BarrierLayout::RenderTarget },
 									swapChainTextureResource);
 
-	RenderGraph::AddGraphicsPass({ FinalTexture.ShaderResourceView },
+	RenderGraph::AddGraphicsPass("UI"_view,
+								 { FinalTexture.ShaderResourceView },
 								 {},
 								 [timeDelta, swapChainTextureView, swapChainDimensions]
 	{
@@ -323,7 +324,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		UpdateRasterization();
 	}
 
-	RenderGraph::AddComputePass({ HDRTexture.ShaderResourceView },
+	RenderGraph::AddComputePass("Luminance Histogram"_view,
+								{ HDRTexture.ShaderResourceView },
 								{ SceneLuminanceBufferView },
 								[this]
 	{
@@ -338,7 +340,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 		GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 15) / 16, (FinalTexture.Resource.Dimensions.Height + 15) / 16, 1 });
 	});
 
-	RenderGraph::AddComputePass({ SceneLuminanceBufferView },
+	RenderGraph::AddComputePass("Luminance Average"_view,
+								{ SceneLuminanceBufferView },
 								{ SceneLuminanceBufferView },
 								[this]
 	{
@@ -355,7 +358,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 	const TextureView toneMapTextureView = ShouldAntiAlias() ? AccumulationTexture.ShaderResourceView : HDRTexture.ShaderResourceView;
 
-	RenderGraph::AddGraphicsPass({ SceneLuminanceBufferView, toneMapTextureView },
+	RenderGraph::AddGraphicsPass("Tone Map"_view,
+								 { SceneLuminanceBufferView, toneMapTextureView },
 								 { FinalTexture.RenderTargetView },
 								 [this, toneMapTextureView]
 	{
@@ -384,7 +388,8 @@ void Renderer::UpdateViewport(const CameraController& cameraController)
 
 void Renderer::UpdateRasterization()
 {
-	RenderGraph::AddGraphicsPass({},
+	RenderGraph::AddGraphicsPass("Visibility"_view,
+								 {},
 								 { VisibilityTexture.RenderTargetView, DepthTextureView },
 								 [this]
 	{
@@ -451,7 +456,8 @@ void Renderer::UpdateRasterization()
 		}
 	});
 
-	RenderGraph::AddComputePass({ VisibilityTexture.ShaderResourceView },
+	RenderGraph::AddComputePass("Deferred"_view,
+								{ VisibilityTexture.ShaderResourceView },
 								{ HDRTexture.UnorderedAccessView },
 								[this]
 	{
@@ -470,7 +476,8 @@ void Renderer::UpdateRasterization()
 
 	if (ShouldAntiAlias())
 	{
-		RenderGraph::AddComputePass({ HDRTexture.ShaderResourceView, PreviousAccumulationTexture.ShaderResourceView, VisibilityTexture.ShaderResourceView },
+		RenderGraph::AddComputePass("Resolve"_view,
+									{ HDRTexture.ShaderResourceView, PreviousAccumulationTexture.ShaderResourceView, VisibilityTexture.ShaderResourceView },
 									{ AccumulationTexture.UnorderedAccessView },
 									[
 										this,
@@ -500,7 +507,8 @@ void Renderer::UpdateRasterization()
 
 void Renderer::UpdatePathTracing()
 {
-	RenderGraph::AddComputePass({},
+	RenderGraph::AddComputePass("Path Trace"_view,
+								{},
 								{ HDRTexture.UnorderedAccessView },
 								[this]
 	{

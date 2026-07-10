@@ -2,6 +2,8 @@
 #include "CameraController.hpp"
 #include "DDS.hpp"
 #include "GLTF.hpp"
+#include "RenderContext.hpp"
+#include "RenderGraph.hpp"
 #include "Renderer.hpp"
 #include "UI.hpp"
 
@@ -190,6 +192,8 @@ void Editor::Update()
 			previewMode = !previewMode;
 		}
 
+		static bool showGPUTimers = false;
+
 		if (!previewMode)
 		{
 			Container(
@@ -232,6 +236,8 @@ void Editor::Update()
 				}
 
 #if !RELEASE
+				CheckButton("GPU Timers"_view, &showGPUTimers);
+
 				Rectangle({ .Layout = { .SizeX = Grow() } });
 
 				Container({}, [this]
@@ -247,6 +253,55 @@ void Editor::Update()
 #endif
 			});
 		}
+
+#if !RELEASE
+		if (showGPUTimers)
+		{
+			const ID timersPanelID = NameToID("GPU Timers Panel"_view);
+
+			Container(
+			{
+				.Layout =
+				{
+					.SizeX = Grow(),
+					.AlignmentX = Alignment::Right,
+				},
+			},
+			[timersPanelID]
+			{
+				Container(
+				{
+					.ID = timersPanelID,
+					.Layout =
+					{
+						.PaddingSS = { 2.0f, 2.0f },
+						.SpacingSS = 2.0f,
+						.Floating = true,
+					},
+				},
+				[]
+				{
+					for (usize slot = 0; slot < RenderGraph::GetTimerCount(); ++slot)
+					{
+						const StringView timerName = RenderGraph::GetTimerName(slot);
+
+						char timerText[64] = {};
+						Platform::StringPrint("%.*s: %.2fms",
+											  timerText,
+											  sizeof(timerText),
+											  static_cast<int32>(timerName.GetLength()),
+											  timerName.GetData(),
+											  RenderGraph::GetTimerMostRecentTimeGPU(slot) * 1000.0);
+						Text(StringView { timerText, Platform::StringLength(timerText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+					}
+
+					char totalTimerText[64] = {};
+					Platform::StringPrint("Total: %.2fms", totalTimerText, sizeof(totalTimerText), GlobalGraphics().GetMostRecentTimeGPU() * 1000.0);
+					Text(StringView { totalTimerText, Platform::StringLength(totalTimerText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+				});
+			});
+		}
+#endif
 
 		Container({ .Layout = { .SizeX = Grow(), .SizeY = Grow(), .Direction = Direction::Horizontal } }, [this]
 		{
