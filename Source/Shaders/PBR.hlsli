@@ -3,8 +3,6 @@
 #include "Math.hlsli"
 #include "Surface.hlsli"
 
-static const float32x3 DielectricSpecularF0 = 0.04f;
-
 float32x3 FresnelSchlick(float32x3 specularF0, float32x3 halfwayDirection, float32x3 viewDirection)
 {
 	return specularF0 + (1.0f - specularF0) * pow(saturate(1.0f - abs(dot(viewDirection, halfwayDirection))), 5.0f);
@@ -59,23 +57,11 @@ float32x3 BRDFCookTorrance(float32x3 diffuseReflectanceRGB,
 	return (diffuseBRDF + specularBRDF) * lightIlluminanceRGB * nDotL;
 }
 
-float32x3 DiffuseReflectance(Surface surface)
-{
-	return surface.IsSpecularGlossiness ? lerp(surface.DiffuseRGB, 0.0f, max(surface.SpecularF0.r, max(surface.SpecularF0.g, surface.SpecularF0.b)))
-										: lerp(surface.BaseColorRGB, 0.0f, surface.Metallic);
-}
-
-float32x3 SpecularF0(Surface surface)
-{
-	return surface.IsSpecularGlossiness ? surface.SpecularF0
-										: lerp(DielectricSpecularF0, surface.BaseColorRGB, surface.Metallic);
-}
-
 float32x3 EvaluateDirectLighting(Surface surface, float32x3 viewDirection, float32x3 lightDirection, float32x3 lightIlluminanceRGB)
 {
-	return BRDFCookTorrance(DiffuseReflectance(surface),
-							SpecularF0(surface),
-							surface.IsSpecularGlossiness ? 1.0f - surface.Glossiness : surface.Roughness,
+	return BRDFCookTorrance(surface.DiffuseReflectanceRGB,
+							surface.SpecularF0,
+							surface.Roughness,
 							surface.ShadeNormalWS,
 							viewDirection,
 							lightDirection,

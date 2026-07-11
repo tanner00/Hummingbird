@@ -6,15 +6,9 @@
 
 struct Surface
 {
-	float32x3 BaseColorRGB;
-	float32 Metallic;
-	float32 Roughness;
-
-	float32x3 DiffuseRGB;
+	float32x3 DiffuseReflectanceRGB;
 	float32x3 SpecularF0;
-	float32 Glossiness;
-
-	bool32 IsSpecularGlossiness;
+	float32 Roughness;
 
 	float32x3 EmissiveRGB;
 
@@ -53,6 +47,8 @@ Surface EvaluateSurface(Material material,
 						float32x2 ddyUV,
 						float32x3 normalWS)
 {
+	static const float32x3 dielectricSpecularF0 = 0.04f;
+
 	const Texture2D<float32x4> baseColorOrDiffuseTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.BaseColorOrDiffuseTextureIndex)];
 	const Texture2D<float32x4> metallicRoughnessOrSpecularGlossinessTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.MetallicRoughnessOrSpecularGlossinessTextureIndex)];
 	const Texture2D<float32x3> emissiveTexture = ResourceDescriptorHeap[NonUniformResourceIndex(material.EmissiveTextureIndex)];
@@ -72,16 +68,20 @@ Surface EvaluateSurface(Material material,
 	ComputeTangents(normalWS, ddxPositionWS, ddyPositionWS, ddxUV, ddyUV, tangentWS, bitangentWS);
 	const float32x3x3 tbn = transpose(float32x3x3(tangentWS, bitangentWS, normalWS));
 
+	const float32x3 baseColorRGB = material.BaseColorOrDiffuseFactor.rgb * baseColorOrDiffuse.rgb;
+	const float32 metallic = material.MetallicOrSpecularFactor.x * metallicRoughnessOrSpecularGlossiness.b;
+	const float32 roughness = material.RoughnessOrGlossinessFactor * metallicRoughnessOrSpecularGlossiness.g;
+
+	const float32x3 diffuseRGB = material.BaseColorOrDiffuseFactor.rgb * baseColorOrDiffuse.rgb;
+	const float32x3 specular = material.MetallicOrSpecularFactor * metallicRoughnessOrSpecularGlossiness.rgb;
+	const float32 glossiness = material.RoughnessOrGlossinessFactor * SRGBToLinear(metallicRoughnessOrSpecularGlossiness.a);
+
 	Surface surface;
-	surface.BaseColorRGB = material.BaseColorOrDiffuseFactor.rgb * baseColorOrDiffuse.rgb;
-	surface.Metallic = material.MetallicOrSpecularFactor.x * metallicRoughnessOrSpecularGlossiness.b;
-	surface.Roughness = material.RoughnessOrGlossinessFactor * metallicRoughnessOrSpecularGlossiness.g;
 
-	surface.DiffuseRGB = material.BaseColorOrDiffuseFactor.rgb * baseColorOrDiffuse.rgb;
-	surface.SpecularF0 = material.MetallicOrSpecularFactor * metallicRoughnessOrSpecularGlossiness.rgb;
-	surface.Glossiness = material.RoughnessOrGlossinessFactor * SRGBToLinear(metallicRoughnessOrSpecularGlossiness.a);
-
-	surface.IsSpecularGlossiness = material.IsSpecularGlossiness;
+	surface.DiffuseReflectanceRGB = material.IsSpecularGlossiness ? lerp(diffuseRGB, 0.0f, max(specular.r, max(specular.g, specular.b)))
+																  : lerp(baseColorRGB, 0.0f, metallic);
+	surface.SpecularF0 = material.IsSpecularGlossiness ? specular : lerp(dielectricSpecularF0, baseColorRGB, metallic);
+	surface.Roughness = material.IsSpecularGlossiness ? 1.0f - glossiness : roughness;
 
 	surface.EmissiveRGB = material.EmissiveStrength * material.EmissiveFactor * emissive;
 

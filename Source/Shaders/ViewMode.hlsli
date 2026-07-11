@@ -13,7 +13,7 @@ bool32 CheckViewMode(ViewMode viewMode, Surface surface, uint32 triangleIndex, o
 	switch (viewMode)
 	{
 	case ViewMode::Unlit:
-		rgb = surface.IsSpecularGlossiness ? surface.DiffuseRGB : surface.BaseColorRGB;
+		rgb = surface.DiffuseReflectanceRGB;
 		break;
 	case ViewMode::Geometry:
 		rgb = UInt32ToRGB(Hash(triangleIndex));
