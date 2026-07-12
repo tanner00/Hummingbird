@@ -476,7 +476,7 @@ void Renderer::UpdateRasterization()
 
 	if (ShouldAntiAlias())
 	{
-		RenderGraph::AddComputePass("Resolve"_view,
+		RenderGraph::AddComputePass("Temporal Anti-Alias"_view,
 									{ HDRTexture.ShaderResourceView, PreviousAccumulationTexture.ShaderResourceView, VisibilityTexture.ShaderResourceView },
 									{ AccumulationTexture.UnorderedAccessView },
 									[
@@ -487,7 +487,7 @@ void Renderer::UpdateRasterization()
 										previousWorldToClip = TemporalAntiAliasing.PreviousWorldToClip
 									]
 		{
-			const HLSL::ResolveRootConstants rootConstants =
+			const HLSL::TemporalAntiAliasRootConstants rootConstants =
 			{
 				.AccumulationTextureIndex = GlobalDevice().Get(accumulationTexture.UnorderedAccessView),
 				.HDRTextureIndex = GlobalDevice().Get(HDRTexture.ShaderResourceView),
@@ -497,7 +497,7 @@ void Renderer::UpdateRasterization()
 				.PreviousWorldToClip = previousWorldToClip,
 			};
 
-			GlobalGraphics().SetPipeline(ResolvePipeline);
+			GlobalGraphics().SetPipeline(TemporalAntiAliasPipeline);
 			GlobalGraphics().SetRootConstants(&rootConstants);
 			GlobalGraphics().SetConstantBuffer("Scene"_view, SceneBufferResources[GlobalDevice().GetFrameIndex()]);
 			GlobalGraphics().Dispatch({ (FinalTexture.Resource.Dimensions.Width + 7) / 8, (FinalTexture.Resource.Dimensions.Height + 7) / 8, 1 });
@@ -1121,8 +1121,8 @@ void Renderer::CreatePipelines()
 	DeferredPipeline = createComputePipeline("Deferred Pipeline"_view,
 											 "Shaders/Deferred.hlsl"_view);
 
-	ResolvePipeline = createComputePipeline("Resolve Pipeline"_view,
-											"Shaders/Resolve.hlsl"_view);
+	TemporalAntiAliasPipeline = createComputePipeline("Temporal Anti-Alias Pipeline"_view,
+													  "Shaders/TemporalAntiAlias.hlsl"_view);
 
 	LuminanceHistogramPipeline = createComputePipeline("Luminance Histogram Pipeline"_view,
 													   "Shaders/LuminanceHistogram.hlsl"_view);
@@ -1147,7 +1147,7 @@ void Renderer::DestroyPipelines()
 	GlobalDevice().Destroy(&VisibilityPipeline);
 	GlobalDevice().Destroy(&VisibilityDoubleSidedPipeline);
 	GlobalDevice().Destroy(&DeferredPipeline);
-	GlobalDevice().Destroy(&ResolvePipeline);
+	GlobalDevice().Destroy(&TemporalAntiAliasPipeline);
 	GlobalDevice().Destroy(&LuminanceHistogramPipeline);
 	GlobalDevice().Destroy(&LuminanceAveragePipeline);
 	GlobalDevice().Destroy(&ToneMapPipeline);

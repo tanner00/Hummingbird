@@ -113,7 +113,7 @@ private:
 	RHI::GraphicsPipeline VisibilityDoubleSidedPipeline;
 	RHI::ComputePipeline DeferredPipeline;
 
-	RHI::ComputePipeline ResolvePipeline;
+	RHI::ComputePipeline TemporalAntiAliasPipeline;
 
 	RHI::ComputePipeline LuminanceHistogramPipeline;
 	RHI::ComputePipeline LuminanceAveragePipeline;

@@ -1,4 +1,4 @@
-#include "Resolve.hlsli"
+#include "TemporalAntiAlias.hlsli"
 #include "Barycentrics.hlsli"
 #include "Color.hlsli"
 #include "Geometry.hlsli"
@@ -6,7 +6,7 @@
 #include "Transform.hlsli"
 #include "Types.hlsli"
 
-ConstantBuffer<ResolveRootConstants> RootConstants : register(b0);
+ConstantBuffer<TemporalAntiAliasRootConstants> RootConstants : register(b0);
 ConstantBuffer<Scene> Scene : register(b1);
 
 [numthreads(8, 8, 1)]

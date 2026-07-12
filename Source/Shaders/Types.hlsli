@@ -34,7 +34,7 @@ struct DeferredRootConstants
 	ViewMode ViewMode;
 };
 
-struct ResolveRootConstants
+struct TemporalAntiAliasRootConstants
 {
 	uint32 AccumulationTextureIndex;
 
