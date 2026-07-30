@@ -94,8 +94,8 @@ static RHI::ResourceFormat From(DXGI_FORMAT format)
 
 Image LoadImage(StringView filePath)
 {
-	static constexpr const char* InvalidMessage = "Invalid DDS file!";
-	static constexpr const char* UnexpectedMessage = "Unexpected DDS file!";
+	[[maybe_unused]] static constexpr const char* InvalidMessage = "Invalid DDS file!";
+	[[maybe_unused]] static constexpr const char* UnexpectedMessage = "Unexpected DDS file!";
 
 	usize fileSize;
 	uint8* fileData = Platform::ReadEntireFile(filePath, &fileSize, Allocator);

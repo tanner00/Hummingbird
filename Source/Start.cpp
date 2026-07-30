@@ -12,7 +12,7 @@ void Start()
 		needsResize = true;
 	});
 
-#if DEBUG
+#ifndef NDEBUG
 	const Array<String> arguments = Platform::GetCommandLineArguments();
 	const bool validation = arguments.GetCount() >= 1 ? arguments.First() == "rhi-validation"_view : false;
 #else

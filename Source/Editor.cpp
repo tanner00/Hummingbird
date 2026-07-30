@@ -115,7 +115,7 @@ static bool DropDown(ArrayView<StringView> items, usize* selectedIndex)
 			}
 		}
 
-		if (!open || Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left) && !anyPressed)
+		if (!open || (Platform::IsMouseButtonPressedOnce(Platform::MouseButton::Left) && !anyPressed))
 		{
 			return;
 		}
@@ -139,7 +139,7 @@ static bool DropDown(ArrayView<StringView> items, usize* selectedIndex)
 				.BetweenSizeSS = 2.0f,
 			},
 		},
-		[items, &selectedIndex, &anyPressed]
+		[items]
 		{
 			for (const StringView item : items)
 			{
@@ -235,7 +235,6 @@ void Editor::Update()
 					Renderer->TemporalAntiAliasing.DiscardPreviousFrame = true;
 				}
 
-#if !RELEASE
 				CheckButton("GPU Timers"_view, &showGPUTimers);
 
 				Rectangle({ .Layout = { .SizeX = Grow() } });
@@ -244,17 +243,15 @@ void Editor::Update()
 				{
 					char cpuTimeText[16] = {};
 					Platform::StringPrint("CPU: %.2fms", cpuTimeText, sizeof(cpuTimeText), Renderer->AverageTimeCPU * 1000.0);
-					Text(StringView { cpuTimeText, Platform::StringLength(cpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+					Text(StringView(cpuTimeText, Platform::StringLength(cpuTimeText)), 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 
 					char gpuTimeText[16] = {};
 					Platform::StringPrint("GPU: %.2fms", gpuTimeText, sizeof(gpuTimeText), Renderer->AverageTimeGPU * 1000.0);
-					Text(StringView { gpuTimeText, Platform::StringLength(gpuTimeText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+					Text(StringView(gpuTimeText, Platform::StringLength(gpuTimeText)), 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 				});
-#endif
 			});
 		}
 
-#if !RELEASE
 		if (showGPUTimers)
 		{
 			const ID timersPanelID = NameToID("GPU Timers Panel"_view);
@@ -292,16 +289,15 @@ void Editor::Update()
 											  static_cast<int32>(timerName.GetLength()),
 											  timerName.GetData(),
 											  RenderGraph::GetTimerMostRecentTimeGPU(slot) * 1000.0);
-						Text(StringView { timerText, Platform::StringLength(timerText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+						Text(StringView(timerText, Platform::StringLength(timerText)), 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 					}
 
 					char totalTimerText[64] = {};
 					Platform::StringPrint("Total: %.2fms", totalTimerText, sizeof(totalTimerText), GlobalGraphics().GetMostRecentTimeGPU() * 1000.0);
-					Text(StringView { totalTimerText, Platform::StringLength(totalTimerText) }, 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
+					Text(StringView(totalTimerText, Platform::StringLength(totalTimerText)), 24.0f, { .Style = { .SRGBA = Theme::TextSRGBA } });
 				});
 			});
 		}
-#endif
 
 		Container({ .Layout = { .SizeX = Grow(), .SizeY = Grow(), .Direction = Direction::Horizontal } }, [this]
 		{
@@ -320,7 +316,7 @@ void Editor::Update()
 				Renderer->ResizeViewport(viewportPixelDimensions);
 			}
 
-			Image(Renderer->FinalTexture.ShaderResourceView, { .ID = viewportID, .Layout = { .SizeX = Grow(), .SizeY = Grow() }, .Style = White });
+			Image(Renderer->FinalTexture.ShaderResourceView, { .ID = viewportID, .Layout = { .SizeX = Grow(), .SizeY = Grow() }, .Style = { .SRGBA = White } });
 
 			if (IsPressedOnce(viewportID))
 			{

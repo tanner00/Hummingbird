@@ -50,14 +50,20 @@ enum class AttributeType : uint8
 	TexCoord0,
 };
 
+}
+
 template<>
-struct Hash<AttributeType>
+class Hash<GLTF::AttributeType>
 {
-	uint64 operator()(const AttributeType key) const
+public:
+	uint64 operator()(const GLTF::AttributeType key) const
 	{
 		return StringHash(&key, sizeof(key));
 	}
 };
+
+namespace GLTF
+{
 
 enum class Filter : uint8
 {

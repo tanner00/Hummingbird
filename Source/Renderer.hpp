@@ -31,9 +31,7 @@ private:
 	void UpdateRasterization();
 	void UpdatePathTracing();
 
-#if !RELEASE
 	void UpdateFrameTimes(float64 frameStartTimeCPU);
-#endif
 
 	void LoadScene(const GLTF::Scene& scene);
 	void UnloadScene();
@@ -64,10 +62,8 @@ private:
 
 	bool PathTrace;
 
-#if !RELEASE
 	float64 AverageTimeCPU;
 	float64 AverageTimeGPU;
-#endif
 
 	Array<Mesh> SceneMeshes;
 	Array<Node> SceneNodes;

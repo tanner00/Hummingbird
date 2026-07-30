@@ -91,10 +91,8 @@ Renderer::Renderer(Platform::Window* window, bool validation)
 	, ViewMode(HLSL::ViewMode::Lit)
 	, TemporalAntiAliasing({ .Enabled = true, .DiscardPreviousFrame = true, .PreviousWorldToClip = Matrix::Identity })
 	, PathTrace(false)
-#if !RELEASE
 	, AverageTimeCPU(0.0)
 	, AverageTimeGPU(0.0)
-#endif
 	, SceneMeshes(RendererAllocator)
 	, SceneNodes(RendererAllocator)
 	, SceneMaterials(RendererAllocator)
@@ -240,9 +238,7 @@ void Renderer::Update(const CameraController& cameraController, float32 timeDelt
 
 	ResourceUploader::Flush();
 
-#if !RELEASE
 	UpdateFrameTimes(frameStartTimeCPU);
-#endif
 
 	GlobalDevice().Submit(GlobalGraphics());
 	GlobalDevice().Present();
@@ -524,7 +520,6 @@ void Renderer::UpdatePathTracing()
 	});
 }
 
-#if !RELEASE
 void Renderer::UpdateFrameTimes(float64 frameStartTimeCPU)
 {
 	const float64 timeCPU = Platform::GetTime() - frameStartTimeCPU;
@@ -533,7 +528,6 @@ void Renderer::UpdateFrameTimes(float64 frameStartTimeCPU)
 	AverageTimeCPU = AverageTimeCPU * 0.95 + timeCPU * 0.05;
 	AverageTimeGPU = AverageTimeGPU * 0.95 + timeGPU * 0.05;
 }
-#endif
 
 void Renderer::ResizeSwapChain(uint32x2 dimensions)
 {

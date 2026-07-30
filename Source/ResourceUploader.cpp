@@ -26,7 +26,7 @@ void Init()
 {
 	SceneHeaps.Add(LinearHeap
 	{
-		.Heap = GlobalDevice().Create(
+		.Heap = GlobalDevice().Create(HeapDescription
 		{
 			.Type = HeapType::Default,
 			.Size = SingleHeapSize,
@@ -35,7 +35,7 @@ void Init()
 	});
 	PersistentHeaps.Add(LinearHeap
 	{
-		.Heap = GlobalDevice().Create(
+		.Heap = GlobalDevice().Create(HeapDescription
 		{
 			.Type = HeapType::Default,
 			.Size = SingleHeapSize,
@@ -44,7 +44,7 @@ void Init()
 	});
 	UploadHeap = LinearHeap
 	{
-		.Heap = GlobalDevice().Create(
+		.Heap = GlobalDevice().Create(HeapDescription
 		{
 			.Type = HeapType::Upload,
 			.Size = SingleHeapSize,
@@ -91,7 +91,7 @@ Resource Upload(Lifetime lifetime, const void* data, const ResourceDescription& 
 	{
 		heaps->Add(LinearHeap
 		{
-			.Heap = GlobalDevice().Create(
+			.Heap = GlobalDevice().Create(HeapDescription
 			{
 				.Type = HeapType::Default,
 				.Size = SingleHeapSize,

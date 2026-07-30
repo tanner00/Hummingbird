@@ -1,0 +1,17 @@
+{
+	"version": 6,
+	"configurePresets": [
+		{
+			"name": "win64",
+			"generator": "Visual Studio 17 2022",
+			"architecture": "x64",
+			"toolset": "ClangCL",
+			"binaryDir": "${sourceDir}/Build",
+			"vendor": {
+				"jetbrains.com/clion": {
+					"toolchain": "Visual Studio"
+				}
+			}
+		}
+	]
+}
